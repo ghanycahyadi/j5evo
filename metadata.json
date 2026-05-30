@@ -1,0 +1,6 @@
+{
+  "name": "J5 EVO (Electric Vehicle Owner)",
+  "description": "Official licensed J5 community from ATPM Jaecoo Indonesia Partners",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,7 @@
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,100..900;1,100..909&family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-card-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-card-display: "Montserrat", sans-serif;
+}

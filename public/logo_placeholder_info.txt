@@ -1,0 +1,9 @@
+This 'public' directory is served as-is at the root of the website during runtime.
+To use your official community PNG logo, please rename your logo file to 'logo.png' and upload it into this directory.
+
+File details:
+- File name: logo.png
+- File format: Portable Network Graphics (.png)
+- Recommended resolution: 512x512 pixels (with a transparent or white background)
+
+Once uploaded, the app will automatically replace the SVG simulation with your exact high-resolution logo image across all screens!
