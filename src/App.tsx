@@ -90,13 +90,69 @@ const J5_NEWS: NewsArticle[] = [
 ];
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<string>("home");
-  const [isAdmin, setIsAdmin] = useState<boolean>(false);
+  const [activeTab, setActiveTabState] = useState<string>(() => {
+    try {
+      return sessionStorage.getItem("activeTab") || "home";
+    } catch (e) {
+      return "home";
+    }
+  });
+
+  const setActiveTab = (tab: string) => {
+    setActiveTabState(tab);
+    try {
+      sessionStorage.setItem("activeTab", tab);
+    } catch (e) {}
+  };
+
+  const [isAdmin, setIsAdminState] = useState<boolean>(() => {
+    try {
+      return sessionStorage.getItem("isAdmin") === "true";
+    } catch (e) {
+      return false;
+    }
+  });
+
+  const setIsAdmin = (val: boolean | ((prev: boolean) => boolean)) => {
+    if (typeof val === "function") {
+      setIsAdminState((prev) => {
+        const next = val(prev);
+        try {
+          sessionStorage.setItem("isAdmin", next ? "true" : "false");
+        } catch (e) {}
+        return next;
+      });
+    } else {
+      setIsAdminState(val);
+      try {
+        sessionStorage.setItem("isAdmin", val ? "true" : "false");
+      } catch (e) {}
+    }
+  };
 
   // States for administrative authentication gate
   const [adminUsername, setAdminUsername] = useState<string>("");
   const [adminPassword, setAdminPassword] = useState<string>("");
-  const [adminAuthenticated, setAdminAuthenticated] = useState<boolean>(false);
+
+  const [adminAuthenticated, setAdminAuthenticatedState] = useState<boolean>(() => {
+    try {
+      return sessionStorage.getItem("adminAuthenticated") === "true";
+    } catch (e) {
+      return false;
+    }
+  });
+
+  const setAdminAuthenticated = (val: boolean) => {
+    setAdminAuthenticatedState(val);
+    try {
+      if (val) {
+        sessionStorage.setItem("adminAuthenticated", "true");
+      } else {
+        sessionStorage.removeItem("adminAuthenticated");
+      }
+    } catch (e) {}
+  };
+
   const [loginError, setLoginError] = useState<string>("");
 
   const handleAdminLogin = (e: React.FormEvent) => {
@@ -3349,9 +3405,10 @@ export default function App() {
                         >
                           <div className="flex gap-3 items-center">
                             <img
-                              src={m.carPhoto}
-                              alt="car"
-                              className="w-12 h-8 object-cover rounded border border-zinc-300 shrink-0"
+                              src={m.ownerPhoto || m.carPhoto || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80"}
+                              alt={m.name}
+                              className="w-10 h-12 object-cover rounded border border-zinc-200 shrink-0 shadow-xs"
+                              referrerPolicy="no-referrer"
                             />
                             <div>
                               <p className="font-bold text-zinc-900 text-sm">{m.name}</p>
