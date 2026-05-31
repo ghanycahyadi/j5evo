@@ -1813,7 +1813,7 @@ export default function App() {
                     Plat Nomor <span className="text-red-500 font-bold">*</span>
                   </label>
                   <p className="text-xs text-zinc-500 -mt-1 leading-relaxed">
-                    Digunakan untuk pencocokan Kehadiran Barcode di gerbang baksos & touring (Contoh: D 1244 AML).
+                    Digunakan untuk pencocokan Kehadiran Barcode di gerbang baksos & touring (Contoh: B 1111 XXX).
                   </p>
                   <input
                     type="text"
@@ -1899,6 +1899,10 @@ export default function App() {
                       e.currentTarget.classList.remove("border-teal-500", "bg-teal-50/10");
                       const file = e.dataTransfer.files?.[0];
                       if (file) {
+                        if (file.size > 50 * 1024 * 1024) {
+                          showFeedback("Ukuran file foto melebihi batas maksimal 50MB.", true);
+                          return;
+                        }
                         const reader = new FileReader();
                         reader.onloadend = () => {
                           setRegForm({ ...regForm, ownerPhoto: reader.result as string });
@@ -1924,6 +1928,10 @@ export default function App() {
                       onChange={(e) => {
                         const file = e.target.files?.[0];
                         if (file) {
+                          if (file.size > 50 * 1024 * 1024) {
+                            showFeedback("Ukuran file foto melebihi batas maksimal 50MB.", true);
+                            return;
+                          }
                           const reader = new FileReader();
                           reader.onloadend = () => {
                             setRegForm({ ...regForm, ownerPhoto: reader.result as string });
@@ -1955,7 +1963,7 @@ export default function App() {
                             Tarik & Lepaskan foto di sini, atau <span className="text-teal-600 hover:underline">Pilih File</span>
                           </p>
                           <p className="text-[10px] text-zinc-500 mt-1">
-                            Format gambar PNG, JPG atau WEBP (max 5MB)
+                            Format gambar PNG, JPG atau WEBP (max 50MB)
                           </p>
                         </div>
                       </div>
@@ -2192,7 +2200,7 @@ export default function App() {
                     <Search className="w-5 h-5 absolute left-3 top-3.5 text-zinc-400" />
                     <input
                       type="text"
-                      placeholder="Cari Plat (Misal: D 1244 AML)"
+                      placeholder="Cari Plat (Misal: B 1111 XXX)"
                       value={lookupQuery}
                       onChange={(e) => setLookupQuery(e.target.value)}
                       className="w-full bg-zinc-50 text-zinc-900 border border-zinc-250 rounded-xl py-3 pl-11 pr-4 focus:outline-none focus:border-teal-500 font-sans text-sm uppercase"
@@ -2366,28 +2374,6 @@ export default function App() {
                               {(lookupResult.member.city || "-").toUpperCase()}
                             </span>
                           </div>
-
-                          {/* 4.5. TANGGAL LAHIR */}
-                          {lookupResult.member.birthDate && (
-                            <div className="flex items-center text-zinc-950 py-0.5">
-                              <div className="w-8 flex justify-start text-[#005c56] shrink-0">
-                                <Cake className="w-[18px] h-[18px] stroke-[2.25] text-rose-600" />
-                              </div>
-                              <span className="w-24 text-zinc-400 font-card-display text-[11px] font-extrabold tracking-wider uppercase">TGL LAHIR</span>
-                              <span className="text-zinc-450 font-semibold mx-2 shrink-0">:</span>
-                              <span className="flex-1 text-zinc-900 font-card-sans text-[13px] font-black uppercase truncate select-all">
-                                {(() => {
-                                  try {
-                                    const date = new Date(lookupResult.member.birthDate);
-                                    if (isNaN(date.getTime())) return lookupResult.member.birthDate;
-                                    return date.toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" });
-                                  } catch (e) {
-                                    return lookupResult.member.birthDate;
-                                  }
-                                })()}
-                              </span>
-                            </div>
-                          )}
 
                           {/* 5 & 6. COMBINED TIGHTLY: TANGGAL BERGABUNG AND MEMBERSHIP TIER ON ONE SINGLE ROW (SIDE-BY-SIDE & PERFECTLY CENTERED) */}
                           <div className="grid grid-cols-2 gap-2 py-2 border-t border-zinc-100 mt-2 text-center divide-x divide-zinc-100">
@@ -3261,7 +3247,7 @@ export default function App() {
                     <h4 className="font-sans font-bold text-base text-zinc-900">Pencatatan Kehadiran Member (Scan Barcode / No Polisi)</h4>
                   </div>
                   <p className="text-zinc-650 text-xs leading-relaxed font-sans">
-                    Pindai Barcode Member ID (format: J5EVO-...) atau input langsung Nomor Plat Kendaraan (contoh: D 1244 AML) untuk mendaftarkan dan memverifikasi Kehadiran Member pada kegiatan tertentu.
+                    Pindai Barcode Member ID (format: J5EVO-...) atau input langsung Nomor Plat Kendaraan (contoh: B 1111 XXX) untuk mendaftarkan dan memverifikasi Kehadiran Member pada kegiatan tertentu.
                   </p>
                   
                   <form onSubmit={handleRecordAttendance} className="space-y-4 text-xs">
@@ -3290,7 +3276,7 @@ export default function App() {
                           type="text"
                           required
                           id="input-kehadiran-query"
-                          placeholder="Contoh: D 1244 AML atau J5EVO-202605-0002"
+                          placeholder="Contoh: B 1111 XXX atau J5EVO-202605-0002"
                           value={adminAttendanceQuery}
                           onChange={(e) => setAdminAttendanceQuery(e.target.value)}
                           className="w-full bg-zinc-50 text-zinc-900 border border-zinc-250 rounded-lg p-2.5 focus:outline-none focus:border-[#005c56] text-xs font-mono font-bold uppercase placeholder:normal-case"
@@ -4103,7 +4089,7 @@ export default function App() {
                         <input
                           type="text"
                           required
-                          placeholder="Contoh: D 1244 AML"
+                          placeholder="Contoh: B 1111 XXX"
                           value={joinForm.plateNumber}
                           onChange={(e) => setJoinForm({ ...joinForm, plateNumber: e.target.value })}
                           className="w-full bg-white text-zinc-900 border border-zinc-250 rounded-xl py-2 px-3 focus:outline-none focus:border-teal-500 font-mono text-xs uppercase"

@@ -38,7 +38,7 @@ export const INITIAL_MEMBERS: Member[] = [
     name: "Ghany Cahyadi",
     phone: "089876543210",
     address: "Kebayoran Baru, Jakarta Selatan",
-    plateNumber: "D 1244 AML",
+    plateNumber: "B 1111 XXX",
     chassisNumber: "JAE5EV00555888222",
     carPhoto: CAR_PHOTOS.snowWhite,
     ownerPhoto: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=500&q=80",
