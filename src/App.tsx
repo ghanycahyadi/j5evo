@@ -46,7 +46,7 @@ import Hero from "./components/Hero";
 import J5EvoLogo from "./components/J5EvoLogo";
 import { toPng } from "html-to-image";
 import { Member, CommunityEvent, EventRegistration, DashboardStats, FAQ } from "./types";
-import { formatDate, CAR_PHOTOS, getGoogleMapsUrl } from "./utils";
+import { formatDate, CAR_PHOTOS, getGoogleMapsUrl, compressImage } from "./utils";
 
 // Mock J5 EV News Articles
 interface NewsArticle {
@@ -714,8 +714,13 @@ export default function App() {
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
-      reader.onloadend = () => {
-        setNewEvent((prev) => ({ ...prev, image: reader.result as string }));
+      reader.onloadend = async () => {
+        try {
+          const compressed = await compressImage(reader.result as string);
+          setNewEvent((prev) => ({ ...prev, image: compressed }));
+        } catch (err) {
+          setNewEvent((prev) => ({ ...prev, image: reader.result as string }));
+        }
       };
       reader.readAsDataURL(file);
     }
@@ -802,10 +807,13 @@ export default function App() {
     });
 
     Promise.all(loadPromises)
-      .then((base64Images) => {
+      .then(async (base64Images) => {
+        const compressedImages = await Promise.all(
+          base64Images.map((b) => compressImage(b).catch(() => b))
+        );
         setEditEventForm((prev: any) => {
           if (!prev) return null;
-          const updatedImages = [...prev.galleryImages, ...base64Images];
+          const updatedImages = [...prev.galleryImages, ...compressedImages];
           return { ...prev, galleryImages: updatedImages };
         });
         showFeedback(`Sukses! ${files.length} foto dimasukkan ke galeri kegiatan ini.`);
@@ -1904,8 +1912,13 @@ export default function App() {
                           return;
                         }
                         const reader = new FileReader();
-                        reader.onloadend = () => {
-                          setRegForm({ ...regForm, ownerPhoto: reader.result as string });
+                        reader.onloadend = async () => {
+                          try {
+                            const compressed = await compressImage(reader.result as string);
+                            setRegForm((prev) => ({ ...prev, ownerPhoto: compressed }));
+                          } catch (err) {
+                            setRegForm((prev) => ({ ...prev, ownerPhoto: reader.result as string }));
+                          }
                         };
                         reader.readAsDataURL(file);
                       }
@@ -1933,8 +1946,13 @@ export default function App() {
                             return;
                           }
                           const reader = new FileReader();
-                          reader.onloadend = () => {
-                            setRegForm({ ...regForm, ownerPhoto: reader.result as string });
+                          reader.onloadend = async () => {
+                            try {
+                              const compressed = await compressImage(reader.result as string);
+                              setRegForm((prev) => ({ ...prev, ownerPhoto: compressed }));
+                            } catch (err) {
+                              setRegForm((prev) => ({ ...prev, ownerPhoto: reader.result as string }));
+                            }
                           };
                           reader.readAsDataURL(file);
                         }
@@ -2805,8 +2823,13 @@ export default function App() {
                               const file = e.target.files?.[0];
                               if (file) {
                                 const reader = new FileReader();
-                                reader.onloadend = () => {
-                                  setEditEventForm((prev: any) => ({ ...prev, image: reader.result as string }));
+                                reader.onloadend = async () => {
+                                  try {
+                                    const compressed = await compressImage(reader.result as string);
+                                    setEditEventForm((prev: any) => ({ ...prev, image: compressed }));
+                                  } catch (err) {
+                                    setEditEventForm((prev: any) => ({ ...prev, image: reader.result as string }));
+                                  }
                                 };
                                 reader.readAsDataURL(file);
                               }
