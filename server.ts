@@ -23,23 +23,86 @@ const DEFAULT_SOCIALS = {
   threads: { name: "Threads", url: "https://threads.net/@j5evo.id", handle: "@j5evo.id", show: true }
 };
 
+const DEFAULT_REGIONALS = [
+  "J5 EVO - INDONESIA",
+  "J5 EVO - DKI JAKARTA",
+  "J5 EVO - JAWA BARAT",
+  "J5 EVO - JAWA TENGAH & DIY",
+  "J5 EVO - JAWA TIMUR",
+  "J5 EVO - TANGERANG RAYA",
+  "J5 EVO - SULAWESI SELATAN"
+];
+
+const DEFAULT_HOME_CONTENT = {
+  heroTitle: "Keluarga Besar J5 EVO Indonesia",
+  heroSubtitle: "Satu wadah pemersatu silaturahmi, ekspedisi petualangan, edukasi teknis, serta inovasi berkendara ramah lingkungan bagi seluruh pemilik dan peminat unit mobil listrik premium JAECOO J5 EV di Indonesia.",
+  aboutTitle: "Official Community of J5 EVO Indonesia",
+  aboutDescription: "J5 EVO (Electric Vehicle Owner) — Official licensed J5 community from ATPM Jaecoo Indonesia Partners.",
+  emblemTitle: "Komunitas J5 EVO Indonesia",
+  emblemDesc: "Logo resmi Tameng J5 Evo melambangkan ketahanan baterai (Tameng Hijau), keamanan ADAS 2+, dan kekuatan sinergi seluruh member JAECOO Indonesia.",
+  emblemWatermark: "OFFICIAL J5 EVO MEMBER",
+  emblemLogo: ""
+};
+
+const DEFAULT_SPONSORS = [
+  {
+    id: "sp_1",
+    name: "Jaecoo Official Partners",
+    contact: "081122223333",
+    description: "Sponsor Resmi Penyedia Suku Cadang Orisinil & Aksesoris Gaya Hidup Premium Jaecoo J5 EV.",
+    logo: "https://images.unsplash.com/photo-1622560480605-d83c853bc5c3?auto=format&fit=crop&w=200&q=80",
+    products: [
+      {
+        id: "prod_1",
+        name: "Premium Floor Mat Jaecoo J5",
+        photos: ["https://images.unsplash.com/photo-1605559424843-9e4c228bf1c2?auto=format&fit=crop&w=300&q=80"],
+        price: 1500000,
+        showPrice: true
+      },
+      {
+        id: "prod_2",
+        name: "EV Fast Charger 22kW Home Installation",
+        photos: ["https://images.unsplash.com/photo-1563720223185-11003d516935?auto=format&fit=crop&w=300&q=80"],
+        price: 8500000,
+        showPrice: false
+      }
+    ]
+  }
+];
+
 interface DatabaseSchema {
   members: Member[];
   events: CommunityEvent[];
   registrations: EventRegistration[];
   faqs: FAQ[];
   socialMediaConfig?: any;
+  regionals?: string[];
+  sponsors?: any[];
+  homeContent?: any;
 }
 
 // Helper to load/save mock database
 function loadDatabase(): DatabaseSchema {
   if (!fs.existsSync(DB_FILE)) {
     const initialData: DatabaseSchema = {
-      members: INITIAL_MEMBERS.map(m => ({ ...m, membershipTier: m.membershipTier || "SILVER" })),
+      members: INITIAL_MEMBERS.map(m => {
+        let memberReg = "J5 EVO - DKI JAKARTA";
+        if (m.city && m.city.toLowerCase().includes("tangerang")) {
+          memberReg = "J5 EVO - TANGERANG RAYA";
+        }
+        return {
+          ...m,
+          membershipTier: m.membershipTier || "SILVER",
+          regional: memberReg
+        };
+      }),
       events: INITIAL_EVENTS,
       registrations: INITIAL_REGISTRATIONS,
       faqs: INITIAL_FAQS,
-      socialMediaConfig: DEFAULT_SOCIALS
+      socialMediaConfig: DEFAULT_SOCIALS,
+      regionals: DEFAULT_REGIONALS,
+      sponsors: DEFAULT_SPONSORS,
+      homeContent: DEFAULT_HOME_CONTENT
     };
     fs.writeFileSync(DB_FILE, JSON.stringify(initialData, null, 2), "utf8");
     return initialData;
@@ -53,21 +116,49 @@ function loadDatabase(): DatabaseSchema {
     if (!parsed.socialMediaConfig) {
       parsed.socialMediaConfig = DEFAULT_SOCIALS;
     }
+    if (!parsed.regionals) {
+      parsed.regionals = DEFAULT_REGIONALS;
+    }
+    if (!parsed.sponsors) {
+      parsed.sponsors = DEFAULT_SPONSORS;
+    }
+    if (!parsed.homeContent) {
+      parsed.homeContent = DEFAULT_HOME_CONTENT;
+    }
     if (parsed.members) {
-      parsed.members = parsed.members.map((m: any) => ({
-        ...m,
-        membershipTier: m.membershipTier || "SILVER",
-      }));
+      parsed.members = parsed.members.map((m: any) => {
+        let memberReg = m.regional;
+        if (!memberReg) {
+          memberReg = "J5 EVO - DKI JAKARTA";
+          if (m.city && m.city.toLowerCase().includes("tangerang")) {
+            memberReg = "J5 EVO - TANGERANG RAYA";
+          }
+        }
+        return {
+          ...m,
+          membershipTier: m.membershipTier || "SILVER",
+          regional: memberReg
+        };
+      });
     }
     return parsed;
   } catch (error) {
     console.error("Failed to parse db.json, resetting to seeds:", error);
     const initialData: DatabaseSchema = {
-      members: INITIAL_MEMBERS.map(m => ({ ...m, membershipTier: m.membershipTier || "SILVER" })),
+      members: INITIAL_MEMBERS.map(m => {
+        let memberReg = "J5 EVO - DKI JAKARTA";
+        if (m.city && m.city.toLowerCase().includes("tangerang")) {
+          memberReg = "J5 EVO - TANGERANG RAYA";
+        }
+        return { ...m, membershipTier: m.membershipTier || "SILVER", regional: memberReg };
+      }),
       events: INITIAL_EVENTS,
       registrations: INITIAL_REGISTRATIONS,
       faqs: INITIAL_FAQS,
-      socialMediaConfig: DEFAULT_SOCIALS
+      socialMediaConfig: DEFAULT_SOCIALS,
+      regionals: DEFAULT_REGIONALS,
+      sponsors: DEFAULT_SPONSORS,
+      homeContent: DEFAULT_HOME_CONTENT
     };
     fs.writeFileSync(DB_FILE, JSON.stringify(initialData, null, 2), "utf8");
     return initialData;
@@ -106,11 +197,11 @@ async function startServer() {
 
   // POST register a new member (form submission)
   app.post("/api/members", (req, res) => {
-    const { name, phone, address, province, city, plateNumber, chassisNumber, carPhoto, ownerPhoto, email, birthDate } = req.body;
+    const { name, phone, address, regional, plateNumber, chassisNumber, carPhoto, ownerPhoto, email, birthDate } = req.body;
     
     // Simple validation
-    if (!name || !phone || !address || !plateNumber || !chassisNumber || !province || !city) {
-      return res.status(400).json({ error: "Kolom Nama, No Hp, Alamat, Provinsi, Kota, Plast Nomor, dan No Rangka wajib diisi!" });
+    if (!name || !phone || !address || !plateNumber || !chassisNumber || !regional) {
+      return res.status(400).json({ error: "Kolom Nama, No Hp, Alamat, Regional, Plat Nomor, dan No Rangka wajib diisi!" });
     }
 
     const data = loadDatabase();
@@ -149,8 +240,7 @@ async function startServer() {
       name,
       phone,
       address,
-      province,
-      city,
+      regional,
       plateNumber: plateNumber.toUpperCase(),
       chassisNumber: chassisNumber.toUpperCase(),
       carPhoto: carPhoto || CAR_PHOTOS.defaultTeal,
@@ -227,7 +317,7 @@ async function startServer() {
   // PUT update a member (Admin feature - can alter fields including membershipTier)
   app.put("/api/members/:id", (req, res) => {
     const memberId = req.params.id;
-    const { name, phone, address, province, city, plateNumber, chassisNumber, membershipTier, email, birthDate } = req.body;
+    const { name, phone, address, regional, plateNumber, chassisNumber, membershipTier, email, birthDate, ownerPhoto } = req.body;
     
     const data = loadDatabase();
     const member = data.members.find((m) => m.id === memberId);
@@ -239,12 +329,12 @@ async function startServer() {
     if (name !== undefined) member.name = name;
     if (phone !== undefined) member.phone = phone;
     if (address !== undefined) member.address = address;
-    if (province !== undefined) member.province = province;
-    if (city !== undefined) member.city = city;
+    if (regional !== undefined) member.regional = regional;
     if (plateNumber !== undefined) member.plateNumber = plateNumber.toUpperCase();
     if (chassisNumber !== undefined) member.chassisNumber = chassisNumber.toUpperCase();
     if (email !== undefined) member.email = email;
     if (birthDate !== undefined) member.birthDate = birthDate;
+    if (ownerPhoto !== undefined) member.ownerPhoto = ownerPhoto;
     if (membershipTier !== undefined) {
       member.membershipTier = membershipTier; // 'GOLD' | 'SILVER'
     }
@@ -339,6 +429,26 @@ async function startServer() {
 
     saveDatabase(data);
     res.json({ success: true, message: "Kegiatan & daftar kehadiran berhasil diperbarui.", event });
+  });
+
+  // DELETE event by ID
+  app.delete("/api/events/:id", (req, res) => {
+    const eventId = req.params.id;
+    const data = loadDatabase();
+    
+    const eventIndex = data.events.findIndex((e) => e.id === eventId);
+    if (eventIndex === -1) {
+      return res.status(404).json({ error: "Kegiatan tidak ditemukan." });
+    }
+    
+    // Remove the event
+    data.events.splice(eventIndex, 1);
+    
+    // Also remove registrations related to this event
+    data.registrations = data.registrations.filter((r) => r.eventId !== eventId);
+    
+    saveDatabase(data);
+    res.json({ success: true, message: "Kegiatan berhasil dihapus." });
   });
 
   // GET list of registrations + detailed attendee info (Admin dashboard view)
@@ -647,6 +757,149 @@ async function startServer() {
     saveDatabase(data);
     res.json({ success: true, message: "Konfigurasi media sosial berhasil diperbarui.", config: data.socialMediaConfig });
   });
+
+  // GET all regionals
+  app.get("/api/regionals", (req, res) => {
+    const data = loadDatabase();
+    res.json(data.regionals || DEFAULT_REGIONALS);
+  });
+
+  // POST add new regional
+  app.post("/api/regionals", (req, res) => {
+    const { name } = req.body;
+    if (!name) return res.status(400).json({ error: "Nama regional tidak boleh kosong" });
+    const data = loadDatabase();
+    if (!data.regionals) data.regionals = [...DEFAULT_REGIONALS];
+    if (data.regionals.includes(name)) {
+      return res.status(400).json({ error: "Regional sudah terdaftar!" });
+    }
+    data.regionals.push(name);
+    saveDatabase(data);
+    res.status(201).json({ success: true, regionals: data.regionals });
+  });
+
+  // PUT update regional
+  app.put("/api/regionals/:index", (req, res) => {
+    const index = parseInt(req.params.index, 10);
+    const { name } = req.body;
+    if (!name) return res.status(400).json({ error: "Nama regional tidak boleh kosong" });
+    const data = loadDatabase();
+    if (!data.regionals || !data.regionals[index]) {
+      return res.status(404).json({ error: "Regional tidak ditemukan" });
+    }
+    const oldName = data.regionals[index];
+    data.regionals[index] = name;
+    
+    // Update members having this regional
+    if (data.members) {
+      data.members.forEach((m) => {
+        if (m.regional === oldName) {
+          m.regional = name;
+        }
+      });
+    }
+    saveDatabase(data);
+    res.json({ success: true, regionals: data.regionals });
+  });
+
+  // DELETE a regional
+  app.delete("/api/regionals/:index", (req, res) => {
+    const index = parseInt(req.params.index, 10);
+    const data = loadDatabase();
+    if (!data.regionals || !data.regionals[index]) {
+      return res.status(404).json({ error: "Regional tidak ditemukan" });
+    }
+    data.regionals.splice(index, 1);
+    saveDatabase(data);
+    res.json({ success: true, regionals: data.regionals });
+  });
+
+  // GET all sponsors
+  app.get("/api/sponsors", (req, res) => {
+    const data = loadDatabase();
+    res.json(data.sponsors || DEFAULT_SPONSORS);
+  });
+
+  // POST create a sponsor
+  app.post("/api/sponsors", (req, res) => {
+    const { name, contact, logo, description, products } = req.body;
+    if (!name) return res.status(400).json({ error: "Nama sponsor wajib diisi" });
+    const data = loadDatabase();
+    if (!data.sponsors) data.sponsors = [];
+    const newSponsor = {
+      id: `sp_${Date.now()}`,
+      name,
+      contact: contact || "",
+      logo: logo || "https://images.unsplash.com/photo-1622560480605-d83c853bc5c3?auto=format&fit=crop&w=200&q=80",
+      description: description || "",
+      products: products || []
+    };
+    data.sponsors.push(newSponsor);
+    saveDatabase(data);
+    res.status(201).json(newSponsor);
+  });
+
+  // PUT update a sponsor
+  app.put("/api/sponsors/:id", (req, res) => {
+    const { name, contact, logo, description, products } = req.body;
+    const data = loadDatabase();
+    if (!data.sponsors) data.sponsors = [];
+    const sponsorIndex = data.sponsors.findIndex(s => s.id === req.params.id);
+    if (sponsorIndex === -1) {
+      return res.status(404).json({ error: "Sponsor tidak ditemukan" });
+    }
+    const sponsor = data.sponsors[sponsorIndex];
+    if (name !== undefined) sponsor.name = name;
+    if (contact !== undefined) sponsor.contact = contact;
+    if (logo !== undefined) sponsor.logo = logo;
+    if (description !== undefined) sponsor.description = description;
+    if (products !== undefined) sponsor.products = products;
+    
+    saveDatabase(data);
+    res.json({ success: true, sponsor });
+  });
+
+  // DELETE a sponsor
+  app.delete("/api/sponsors/:id", (req, res) => {
+    const data = loadDatabase();
+    if (!data.sponsors) data.sponsors = [];
+    const sponsorIndex = data.sponsors.findIndex(s => s.id === req.params.id);
+    if (sponsorIndex === -1) {
+      return res.status(404).json({ error: "Sponsor tidak ditemukan" });
+    }
+    data.sponsors.splice(sponsorIndex, 1);
+    saveDatabase(data);
+    res.json({ success: true, message: "Sponsor berhasil dihapus" });
+  });
+
+  // GET home page content
+  app.get("/api/home-content", (req, res) => {
+    const data = loadDatabase();
+    res.json(data.homeContent || DEFAULT_HOME_CONTENT);
+  });
+
+  // POST & PUT update home page content
+  const handleUpdateHomeContent = (req, res) => {
+    const { heroTitle, heroSubtitle, aboutTitle, aboutDescription, heroBadge, emblemTitle, emblemDesc, emblemWatermark, emblemLogo } = req.body;
+    const data = loadDatabase();
+    if (!data.homeContent) data.homeContent = { ...DEFAULT_HOME_CONTENT };
+    
+    if (heroTitle !== undefined) data.homeContent.heroTitle = heroTitle;
+    if (heroSubtitle !== undefined) data.homeContent.heroSubtitle = heroSubtitle;
+    if (aboutTitle !== undefined) data.homeContent.aboutTitle = aboutTitle;
+    if (aboutDescription !== undefined) data.homeContent.aboutDescription = aboutDescription;
+    if (heroBadge !== undefined) data.homeContent.heroBadge = heroBadge;
+    if (emblemTitle !== undefined) data.homeContent.emblemTitle = emblemTitle;
+    if (emblemDesc !== undefined) data.homeContent.emblemDesc = emblemDesc;
+    if (emblemWatermark !== undefined) data.homeContent.emblemWatermark = emblemWatermark;
+    if (emblemLogo !== undefined) data.homeContent.emblemLogo = emblemLogo;
+    
+    saveDatabase(data);
+    res.json({ success: true, homeContent: data.homeContent });
+  };
+
+  app.post("/api/home-content", handleUpdateHomeContent);
+  app.put("/api/home-content", handleUpdateHomeContent);
 
   // =====================================
   // VITE & STATIC FILES SERVING INTERACTION

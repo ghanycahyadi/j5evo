@@ -39,11 +39,20 @@ import {
   Gift,
   Share2,
   Cake,
-  ChevronLeft
+  Globe,
+  ChevronLeft,
+  Settings
 } from "lucide-react";
 import Header from "./components/Header";
 import Hero from "./components/Hero";
 import J5EvoLogo from "./components/J5EvoLogo";
+import AdminRegional from "./components/AdminRegional";
+import AdminSponsors from "./components/AdminSponsors";
+import AdminMembers from "./components/AdminMembers";
+import AdminEvents from "./components/AdminEvents";
+import AdminAttendance from "./components/AdminAttendance";
+import AdminSocials from "./components/AdminSocials";
+import AdminFaq from "./components/AdminFaq";
 import { toPng } from "html-to-image";
 import { Member, CommunityEvent, EventRegistration, DashboardStats, FAQ } from "./types";
 import { formatDate, CAR_PHOTOS, getGoogleMapsUrl, compressImage } from "./utils";
@@ -225,8 +234,7 @@ export default function App() {
     name: "",
     phone: "",
     address: "",
-    province: "",
-    city: "",
+    regional: "J5 EVO - DKI JAKARTA",
     plateNumber: "",
     chassisNumber: "",
     email: "",
@@ -234,6 +242,9 @@ export default function App() {
     ownerPhoto: "",
     birthDate: ""
   });
+  const [regPlate1, setRegPlate1] = useState("");
+  const [regPlate2, setRegPlate2] = useState("");
+  const [regPlate3, setRegPlate3] = useState("");
   const [formSubmitted, setFormSubmitted] = useState<boolean>(false);
   const [lastRegisteredMember, setLastRegisteredMember] = useState<Member | null>(null);
 
@@ -258,6 +269,25 @@ export default function App() {
     image: "",
     slots: 30,
     time: "09:00 - Selesai"
+  });
+
+  // States - Member Self-Edit Profile
+  const [showEditVerification, setShowEditVerification] = useState<boolean>(false);
+  const [verificationPhoneNum, setVerificationPhoneNum] = useState<string>("");
+  const [verificationError, setVerificationError] = useState<string | null>(null);
+  const [isSelfEditing, setIsSelfEditing] = useState<boolean>(false);
+  const [selfEditForm, setSelfEditForm] = useState({
+    id: "",
+    name: "",
+    email: "",
+    phone: "",
+    regional: "",
+    birthDate: "",
+    address: "",
+    p1: "",
+    p2: "",
+    p3: "",
+    ownerPhoto: ""
   });
 
   // FAQ implementation state variables
@@ -365,16 +395,14 @@ export default function App() {
       }
     });
 
-    if (items.length > 0) {
-      setGalleryItems(items);
-    } else {
-      setGalleryItems([...INITIAL_GALLERY_ITEMS]);
-    }
+    setGalleryItems(items);
   }, [events]);
 
   // Admin module state for Kehadiran Member
   const [adminAttendanceEventId, setAdminAttendanceEventId] = useState<string>("");
   const [adminAttendanceQuery, setAdminAttendanceQuery] = useState<string>("");
+  const [activeAdminSubTab, setActiveAdminSubTab] = useState<string>("member-list");
+  const [adminMemberSearchQuery, setAdminMemberSearchQuery] = useState<string>("");
 
   // States for event editing & gallery image management
   const [editingEventId, setEditingEventId] = useState<string | null>(null);
@@ -384,6 +412,40 @@ export default function App() {
   // States for member editing within the admin workspace
   const [editingMemberId, setEditingMemberId] = useState<string | null>(null);
   const [editMemberForm, setEditMemberForm] = useState<any | null>(null);
+
+  // CMS dynamic state variables
+  const [regionals, setRegionals] = useState<string[]>([]);
+  const [sponsors, setSponsors] = useState<any[]>([]);
+  const [homeContent, setHomeContent] = useState<any>(null);
+
+  // CMS Admin states for managing Regionals, Sponsors, and Home Content
+  const [newRegionalName, setNewRegionalName] = useState("");
+  const [editingRegionalIndex, setEditingRegionalIndex] = useState<number | null>(null);
+  const [editingRegionalValue, setEditingRegionalValue] = useState("");
+
+  const [editingSponsorId, setEditingSponsorId] = useState<string | null>(null);
+  const [sponsorForm, setSponsorForm] = useState({
+    name: "",
+    contact: "",
+    logo: "",
+    description: "",
+    products: [] as any[]
+  });
+  const [tempProduct, setTempProduct] = useState({
+    name: "",
+    photos: [] as string[],
+    price: 0,
+    showPrice: true
+  });
+
+  const [homeCmsForm, setHomeCmsForm] = useState({
+    heroTitle: "",
+    heroSubtitle: "",
+    emblemTitle: "",
+    emblemDesc: "",
+    emblemWatermark: "",
+    emblemLogo: ""
+  });
 
   // Fetch initial database items on mount and handle deep linking scan QR codes
   useEffect(() => {
@@ -421,13 +483,16 @@ export default function App() {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [mRes, eRes, rRes, sRes, fRes, socRes] = await Promise.all([
+      const [mRes, eRes, rRes, sRes, fRes, socRes, regRes, spRes, hcRes] = await Promise.all([
         fetch("/api/members").then((r) => r.json()),
         fetch("/api/events").then((r) => r.json()),
         fetch("/api/registrations").then((r) => r.json()),
         fetch("/api/stats").then((r) => r.json()),
         fetch("/api/faqs").then((r) => r.json()),
-        fetch("/api/socials").then((r) => r.json()).catch(() => null)
+        fetch("/api/socials").then((r) => r.json()).catch(() => null),
+        fetch("/api/regionals").then((r) => r.json()).catch(() => []),
+        fetch("/api/sponsors").then((r) => r.json()).catch(() => []),
+        fetch("/api/home-content").then((r) => r.json()).catch(() => null)
       ]);
 
       if (Array.isArray(mRes)) setMembers(mRes);
@@ -439,11 +504,375 @@ export default function App() {
         setSocials(socRes);
         setEditSocialsForm(socRes);
       }
+      if (Array.isArray(regRes)) setRegionals(regRes);
+      if (Array.isArray(spRes)) setSponsors(spRes);
+      if (hcRes && !hcRes.error) {
+        setHomeContent(hcRes);
+        setHomeCmsForm({
+          heroTitle: hcRes.heroTitle || "",
+          heroSubtitle: hcRes.heroSubtitle || "",
+          emblemTitle: hcRes.emblemTitle || "",
+          emblemDesc: hcRes.emblemDesc || "",
+          emblemWatermark: hcRes.emblemWatermark || "",
+          emblemLogo: hcRes.emblemLogo || ""
+        });
+      }
     } catch (err) {
       console.error("Error communicating with full-stack J5 API:", err);
     } finally {
       setLoading(false);
     }
+  };
+
+  // CMS Handlers for Home Content Hero Settings
+  const handleSaveHomeCms = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      setLoading(true);
+      const res = await fetch("/api/home-content", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(homeCmsForm)
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        showFeedback(data.error || "Gagal memperbarui konten beranda.", true);
+        return;
+      }
+      showFeedback("Konten halaman beranda berhasil dimutakhirkan!");
+      fetchData();
+    } catch (err) {
+      showFeedback("Terjadi kesalahan sistem saat menyimpan konten beranda.", true);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEmblemLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      try {
+        const reader = new FileReader();
+        reader.onloadend = async () => {
+          const compressed = await compressImage(reader.result as string);
+          setHomeCmsForm({ ...homeCmsForm, emblemLogo: compressed });
+        };
+        reader.readAsDataURL(file);
+      } catch (err) {
+        showFeedback("Gagal mengompres foto logo emblem", true);
+      }
+    }
+  };
+
+
+
+  const handleSelfEditPhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      try {
+        const reader = new FileReader();
+        reader.onloadend = async () => {
+          const compressed = await compressImage(reader.result as string, 900, 900, 0.7);
+          setSelfEditForm({ ...selfEditForm, ownerPhoto: compressed });
+        };
+        reader.readAsDataURL(file);
+      } catch (err) {
+        showFeedback("Gagal memproses foto profil", true);
+      }
+    }
+  };
+
+  const handleVerifyProfileEdit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!lookupResult) return;
+    
+    const p1 = verificationPhoneNum.replace(/[^0-9]/g, "");
+    const p2 = lookupResult.member.phone.replace(/[^0-9]/g, "");
+    
+    const core1 = p1.startsWith("62") ? p1.slice(2) : p1.startsWith("0") ? p1.slice(1) : p1;
+    const core2 = p2.startsWith("62") ? p2.slice(2) : p2.startsWith("0") ? p2.slice(1) : p2;
+    
+    if (core1 === core2 && core1.length > 0) {
+      // verified successfully
+      setVerificationError(null);
+      setShowEditVerification(false);
+      setIsSelfEditing(true);
+      
+      const pStr = lookupResult.member.plateNumber || "";
+      const pParts = pStr.trim().split(/\s+/);
+      const part1 = pParts[0] || "";
+      const part2 = pParts[1] || "";
+      const part3 = pParts[2] || "";
+      
+      setSelfEditForm({
+        id: lookupResult.member.id,
+        name: lookupResult.member.name,
+        email: lookupResult.member.email || "",
+        phone: lookupResult.member.phone,
+        regional: lookupResult.member.regional || "",
+        birthDate: lookupResult.member.birthDate || "",
+        address: lookupResult.member.address || "",
+        p1: part1,
+        p2: part2,
+        p3: part3,
+        ownerPhoto: lookupResult.member.ownerPhoto || ""
+      });
+    } else {
+      setVerificationError("Nomor handphone yang dimasukkan tidak cocok dengan data pendaftaran.");
+    }
+  };
+
+  const handleSaveSelfEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!lookupResult) return;
+
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (selfEditForm.email && !emailRegex.test(selfEditForm.email)) {
+      showFeedback("Format alamat email aktif tidak valid.", true);
+      return;
+    }
+
+    // Plate validation
+    const p1Clean = selfEditForm.p1.toUpperCase().replace(/[^A-Z]/g, "");
+    const p2Clean = selfEditForm.p2.replace(/[^0-9]/g, "");
+    const p3Clean = selfEditForm.p3.toUpperCase().replace(/[^A-Z]/g, "");
+
+    if (p1Clean.length === 0 || p2Clean.length === 0 || p3Clean.length === 0) {
+      showFeedback("Mohon lengkapi seluruh bagian Plat Nomor Anda.", true);
+      return;
+    }
+
+    const mergedPlate = `${p1Clean} ${p2Clean} ${p3Clean}`;
+
+    const payload = {
+      name: selfEditForm.name,
+      phone: selfEditForm.phone,
+      email: selfEditForm.email,
+      address: selfEditForm.address,
+      regional: selfEditForm.regional,
+      birthDate: selfEditForm.birthDate,
+      ownerPhoto: selfEditForm.ownerPhoto,
+      plateNumber: mergedPlate
+    };
+
+    try {
+      setLoading(true);
+      const res = await fetch(`/api/members/${selfEditForm.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        showFeedback(data.error || "Gagal memperbarui profil Anda.", true);
+        return;
+      }
+
+      showFeedback("Profil Anda berhasil diperbarui!");
+      setIsSelfEditing(false);
+      setVerificationPhoneNum("");
+      
+      // Update local profile result view
+      setLookupResult({
+        ...lookupResult,
+        member: data.member
+      });
+
+      fetchData();
+    } catch (err) {
+      showFeedback("Gagal menyimpan perubahan profil.", true);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // CMS Handlers for Regionals (CRUD support)
+  const handleCreateRegional = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newRegionalName.trim()) {
+      showFeedback("Nama regional tidak boleh kosong!", true);
+      return;
+    }
+    try {
+      setLoading(true);
+      const res = await fetch("/api/regionals", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newRegionalName.trim() })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        showFeedback(data.error || "Gagal menambah regional.", true);
+        return;
+      }
+      showFeedback(`Regional "${newRegionalName}" berhasil ditambahkan.`);
+      setNewRegionalName("");
+      fetchData();
+    } catch (err) {
+      showFeedback("Kesalahan internal saat menyimpan regional.", true);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUpdateRegional = async (index: number) => {
+    if (!editingRegionalValue.trim()) {
+      showFeedback("Nama regional tidak boleh kosong!", true);
+      return;
+    }
+    try {
+      setLoading(true);
+      const res = await fetch(`/api/regionals/${index}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: editingRegionalValue.trim() })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        showFeedback(data.error || "Gagal memperbarui regional.", true);
+        return;
+      }
+      showFeedback("Regional berhasil diperbarui.");
+      setEditingRegionalIndex(null);
+      setEditingRegionalValue("");
+      fetchData();
+    } catch (err) {
+      showFeedback("Kesalahan internal saat mengubah regional.", true);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteRegional = async (index: number) => {
+    triggerConfirm(
+      "Hapus Regional",
+      `Apakah Anda yakin ingin menghapus regional ini? Menghapus regional mungkin berdampak pada pemetaan data member.`,
+      async () => {
+        try {
+          setLoading(true);
+          const res = await fetch(`/api/regionals/${index}`, {
+            method: "DELETE"
+          });
+          const data = await res.json();
+          if (!res.ok) {
+            showFeedback(data.error || "Gagal menghapus regional.", true);
+            return;
+          }
+          showFeedback("Regional berhasil dihapus.");
+          fetchData();
+        } catch (err) {
+          showFeedback("Kesalahan memproses penghapusan regional.", true);
+        } finally {
+          setLoading(false);
+        }
+      },
+      { confirmText: "Ya, Hapus Regional", isDanger: true }
+    );
+  };
+
+  // CMS Handlers for Sponsors (CRUD & product association)
+  const handleSaveSponsor = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!sponsorForm.name) {
+      showFeedback("Nama sponsor wajib diisi!", true);
+      return;
+    }
+    try {
+      setLoading(true);
+      const url = editingSponsorId ? `/api/sponsors/${editingSponsorId}` : "/api/sponsors";
+      const method = editingSponsorId ? "PUT" : "POST";
+      const res = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(sponsorForm)
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        showFeedback(data.error || "Gagal menyimpan data sponsor.", true);
+        return;
+      }
+      showFeedback(`Sponsor "${sponsorForm.name}" berhasil disimpan.`);
+      setEditingSponsorId(null);
+      setSponsorForm({
+        name: "",
+        contact: "",
+        logo: "",
+        description: "",
+        products: []
+      });
+      fetchData();
+    } catch (err) {
+      showFeedback("Terjadi kesalahan memproses kiriman sponsor.", true);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteSponsor = async (id: string, name: string) => {
+    triggerConfirm(
+      "Hapus Sponsor",
+      `Apakah Anda yakin ingin menghapus sponsor "${name}" besertakan seluruh daftar produknya dari pangkalan data resmi?`,
+      async () => {
+        try {
+          setLoading(true);
+          const res = await fetch(`/api/sponsors/${id}`, {
+            method: "DELETE"
+          });
+          if (!res.ok) {
+            showFeedback("Gagal menghapus sponsor.", true);
+            return;
+          }
+          showFeedback(`Sponsor "${name}" berhasil dihapus.`);
+          fetchData();
+        } catch (err) {
+          showFeedback("Kesalahan internal menghapus sponsor.", true);
+        } finally {
+          setLoading(false);
+        }
+      },
+      { confirmText: "Ya, Hapus Sponsor", isDanger: true }
+    );
+  };
+
+  const handleProductPhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+    const list: string[] = [...tempProduct.photos];
+    for (let i = 0; i < files.length; i++) {
+      try {
+        const compressed = await compressImage(files[i], 1200, 1200, 0.7);
+        list.push(compressed);
+      } catch (err) {
+        console.error("Compression failed:", err);
+      }
+    }
+    setTempProduct(prev => ({ ...prev, photos: list }));
+  };
+
+  const addStagedProduct = () => {
+    if (!tempProduct.name) {
+      showFeedback("Nama produk wajib diisi!", true);
+      return;
+    }
+    setSponsorForm(prev => ({
+      ...prev,
+      products: [...(prev.products || []), { ...tempProduct }]
+    }));
+    setTempProduct({
+      name: "",
+      photos: [],
+      price: 0,
+      showPrice: true
+    });
+    showFeedback("Produk berhasil ditambahkan ke katalog sponsor ini.");
+  };
+
+  const removeStagedProduct = (idx: number) => {
+    setSponsorForm(prev => ({
+      ...prev,
+      products: prev.products.filter((_, i) => i !== idx)
+    }));
   };
 
   const handleCreateFaq = async (e: React.FormEvent) => {
@@ -544,30 +973,74 @@ export default function App() {
       name: "",
       phone: "",
       address: "",
-      province: "",
-      city: "",
+      regional: "J5 EVO - DKI JAKARTA",
       plateNumber: "",
       chassisNumber: "",
       email: "",
       carPhoto: CAR_PHOTOS.defaultTeal,
       ownerPhoto: ""
     });
+    setRegPlate1("");
+    setRegPlate2("");
+    setRegPlate3("");
   };
 
   // Submit Member Registration Form (Google Form style layout)
   const handleMemberSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!regForm.name || !regForm.phone || !regForm.address || !regForm.plateNumber || !regForm.chassisNumber || !regForm.province || !regForm.city) {
+
+    const p1 = regPlate1.trim().toUpperCase();
+    const p2 = regPlate2.trim();
+    const p3 = regPlate3.trim().toUpperCase();
+
+    if (!p1 || !p2 || !p3) {
+      showFeedback("Mohon lengkapi seluruh 3 bagian Plat Nomor Kendaraan Anda!", true);
+      return;
+    }
+
+    if (!/^[A-Z]{1,2}$/.test(p1)) {
+      showFeedback("Bagian pertama Plat Nomor hanya boleh berisi 1-2 huruf besar saja (Contoh: B, D, DK, F)!", true);
+      return;
+    }
+
+    if (!/^[0-9]{1,4}$/.test(p2)) {
+      showFeedback("Bagian kedua Plat Nomor hanya boleh berisi maksimal 4 digit angka saja (Contoh: 1234, 99)!", true);
+      return;
+    }
+
+    if (!/^[A-Z]{1,3}$/.test(p3)) {
+      showFeedback("Bagian ketiga Plat Nomor hanya boleh berisi maksimal 3 huruf besar saja (Contoh: ABC, Z, XX)!", true);
+      return;
+    }
+
+    // Phone validation (Only digits and '+' are allowed)
+    if (!/^[0-9+]+$/.test(regForm.phone)) {
+      showFeedback("Nomor WhatsApp/HP hanya boleh berisi angka dan simbol '+'!", true);
+      return;
+    }
+
+    // Email validation (Only valid email structure allowed if provided)
+    if (regForm.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(regForm.email)) {
+      showFeedback("Format alamat email aktif yang Anda masukkan tidak valid!", true);
+      return;
+    }
+
+    if (!regForm.name || !regForm.address || !regForm.chassisNumber || !regForm.regional) {
       showFeedback("Mohon isi semua kolom bertanda bintang (*) merah wajib diisi!", true);
       return;
     }
+
+    const fullPlate = `${p1} ${p2} ${p3}`;
 
     try {
       setLoading(true);
       const res = await fetch("/api/members", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(regForm)
+        body: JSON.stringify({
+          ...regForm,
+          plateNumber: fullPlate
+        })
       });
       const data = await res.json();
 
@@ -864,6 +1337,38 @@ export default function App() {
     }
   };
 
+  const handleEditEventSubmit = async (e: React.FormEvent) => {
+    await handleSaveEditedEvent(e);
+  };
+
+  const handleDeleteEvent = async (id: string, title: string) => {
+    triggerConfirm(
+      "Hapus Kegiatan",
+      `Apakah Anda yakin ingin menghapus kegiatan "${title}"? Tindakan ini akan menghapus semua partisipan yang terdaftar di dalamnya secara permanen.`,
+      async () => {
+        try {
+          setLoading(true);
+          const res = await fetch(`/api/events/${id}`, {
+            method: "DELETE"
+          });
+          if (!res.ok) {
+            showFeedback("Gagal menghapus kegiatan.", true);
+            return;
+          }
+          showFeedback(`Sukses! Kegiatan "${title}" berhasil dihapus.`);
+          setEditingEventId(null);
+          setEditEventForm(null);
+          fetchData();
+        } catch (err) {
+          showFeedback("Eror saat menghapus kegiatan.", true);
+        } finally {
+          setLoading(false);
+        }
+      },
+      { confirmText: "Ya, Hapus Kegiatan", isDanger: true }
+    );
+  };
+
   // Submit record attendance from admin panel
   const handleRecordAttendance = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1021,17 +1526,60 @@ export default function App() {
     e.preventDefault();
     if (!editMemberForm || !editingMemberId) return;
 
-    if (!editMemberForm.name || !editMemberForm.phone || !editMemberForm.address || !editMemberForm.plateNumber || !editMemberForm.chassisNumber || !editMemberForm.province || !editMemberForm.city) {
-      showFeedback("Mohon isi semua kolom wajib (nama, hp, alamat, provinsi, kota, no plat, no rangka)!", true);
+    if (!editMemberForm.name || !editMemberForm.phone || !editMemberForm.address || !editMemberForm.plateNumber || !editMemberForm.chassisNumber || !editMemberForm.regional) {
+      showFeedback("Mohon isi semua kolom wajib (nama, hp, alamat, regional, no plat, no rangka)!", true);
       return;
     }
+
+    // Phone validation
+    if (!/^[0-9+]+$/.test(editMemberForm.phone)) {
+      showFeedback("Nomor WhatsApp/HP hanya boleh berisi angka dan simbol '+'!", true);
+      return;
+    }
+
+    // Email validation
+    if (editMemberForm.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(editMemberForm.email)) {
+      showFeedback("Format alamat email aktif yang Anda masukkan tidak valid!", true);
+      return;
+    }
+
+    // Plate number validation
+    const parts = (editMemberForm.plateNumber || "").trim().split(/\s+/);
+    const ep1 = parts[0] || "";
+    const ep2 = parts[1] || "";
+    const ep3 = parts[2] || "";
+
+    if (!ep1 || !ep2 || !ep3) {
+      showFeedback("Mohon lengkapi seluruh 3 bagian Plat Nomor Kendaraan member (contoh: B 1234 ABC)!", true);
+      return;
+    }
+
+    if (!/^[A-Z]{1,2}$/.test(ep1.toUpperCase())) {
+      showFeedback("Bagian pertama Plat Nomor hanya boleh berisi 1-2 huruf besar saja (Contoh: B, D, DK, F)!", true);
+      return;
+    }
+
+    if (!/^[0-9]{1,4}$/.test(ep2)) {
+      showFeedback("Bagian kedua Plat Nomor hanya boleh berisi maksimal 4 digit angka saja (Contoh: 1234, 99)!", true);
+      return;
+    }
+
+    if (!/^[A-Z]{1,3}$/.test(ep3.toUpperCase())) {
+      showFeedback("Bagian ketiga Plat Nomor hanya boleh berisi maksimal 3 huruf besar saja (Contoh: ABC, Z, XX)!", true);
+      return;
+    }
+
+    const cleanedPlate = `${ep1.toUpperCase()} ${ep2} ${ep3.toUpperCase()}`;
 
     try {
       setLoading(true);
       const res = await fetch(`/api/members/${encodeURIComponent(editingMemberId)}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(editMemberForm)
+        body: JSON.stringify({
+          ...editMemberForm,
+          plateNumber: cleanedPlate
+        })
       });
       const data = await res.json();
 
@@ -1115,6 +1663,8 @@ export default function App() {
                 const el = document.getElementById("events-section-anchor");
                 if (el) el.scrollIntoView({ behavior: "smooth" });
               }}
+              heroTitle={homeContent?.heroTitle}
+              heroSubtitle={homeContent?.heroSubtitle}
             />
 
             {/* LIVE SYSTEM STATS STATISTIK MEMBER */}
@@ -1141,11 +1691,14 @@ export default function App() {
                 </div>
               </div>
 
-              <div className="bg-white p-6 rounded-2xl border border-zinc-200 shadow-sm flex items-center justify-between">
+              <div 
+                onClick={() => setActiveTab("sponsor")}
+                className="bg-white p-6 rounded-2xl border border-zinc-200 shadow-sm flex items-center justify-between cursor-pointer hover:border-[#005c56] hover:bg-teal-50/20 active:scale-95 transition-all duration-300"
+              >
                 <div>
                   <span className="text-[10px] uppercase font-mono tracking-widest text-teal-700 font-bold block">Jumlah Sponsor</span>
-                  <span className="text-3xl font-extrabold text-[#005c56] font-mono mt-0.5 block">12 Brand</span>
-                  <span className="text-xs text-zinc-500 mt-0.5 block">Mitra Kolaborasi Resmi</span>
+                  <span className="text-3xl font-extrabold text-[#005c56] font-mono mt-0.5 block">{sponsors.length} Brand</span>
+                  <span className="text-xs text-zinc-500 mt-0.5 block hover:underline">Klik lihat sponsor</span>
                 </div>
                 <div className="w-12 h-12 rounded-xl bg-teal-50 border border-teal-200 flex items-center justify-center text-[#005c56]">
                   <Award className="w-6 h-6 text-[#005c56]" />
@@ -1211,24 +1764,72 @@ export default function App() {
                 </div>
               </div>
 
-              {/* J5 EV Design Sketch Concept Box */}
-              <div className="lg:col-span-5 bg-gradient-to-br from-teal-50 to-white border border-teal-100 p-6 rounded-3xl flex flex-col justify-center shadow-sm">
-                <span className="text-xs font-mono text-teal-700 uppercase tracking-widest block mb-1 font-bold">
-                  OFFICIAL AVATAR EMBLEM
-                </span>
-                <h4 className="text-lg font-extrabold text-teal-950 mb-3">Komunitas J5 EVO Indonesia</h4>
-                
-                {/* Community Art representation */}
-                <div className="bg-white p-4 rounded-2xl border border-teal-100 flex justify-center mb-4 shadow-inner">
-                  {/* Community Logo replica */}
-                  <div className="w-40 h-40 flex items-center justify-center p-2 rounded-xl relative overflow-hidden bg-transparent">
-                    <J5EvoLogo className="w-full h-full" color="#005c56" />
+              {/* J5 EV Design Sketch Concept Box - Philosophy & Emblem */}
+              <div className="lg:col-span-5 bg-gradient-to-br from-teal-50 via-white to-amber-50/30 border border-teal-100 p-6 rounded-3xl flex flex-col justify-between shadow-sm text-left">
+                <div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-mono text-teal-700 uppercase tracking-widest block mb-1 font-bold">
+                      PHILOSOPHY &amp; EMBLEM RESMI
+                    </span>
+                    <span className="px-1.5 py-0.5 bg-teal-100 border border-teal-300 text-teal-800 text-[8px] font-bold rounded uppercase">
+                      Official Mascot
+                    </span>
+                  </div>
+                  
+                  <h4 className="text-lg font-extrabold text-teal-950 mb-3">
+                    {homeContent?.emblemTitle || "Komunitas J5 EVO Indonesia"}
+                  </h4>
+                  
+                  {/* Current Active Emblem Representation */}
+                  <div className="bg-white p-6 rounded-3xl border border-teal-100 flex flex-col items-center justify-center mb-5 shadow-sm relative overflow-hidden group min-h-[190px]">
+                    <div className="w-40 h-40 flex items-center justify-center p-3 rounded-2xl relative overflow-hidden bg-transparent">
+                      {homeContent?.emblemLogo ? (
+                        <img
+                          src={homeContent.emblemLogo}
+                          alt="Emblem Logo resmi"
+                          className="w-full h-full object-contain filter drop-shadow-md transform hover:scale-[1.05] transition-transform duration-300"
+                          referrerPolicy="no-referrer"
+                        />
+                      ) : (
+                        <J5EvoLogo className="w-full h-full transform hover:scale-[1.05] transition-transform duration-300" color="#005c56" />
+                      )}
+                    </div>
+                  </div>
+
+                  <p className="text-xs text-zinc-650 leading-relaxed text-center mb-4 font-medium">
+                    {homeContent?.emblemDesc || "Logo resmi Tameng J5 Evo melambangkan ketahanan baterai (Tameng Hijau), keamanan ADAS 2+, dan kekuatan sinergi seluruh member JAECOO Indonesia."}
+                  </p>
+
+                  {/* Gorgeous Structured 3 Pillars of Shield Meaning */}
+                  <div className="border border-teal-100 bg-white/75 rounded-2xl p-4 space-y-3 shadow-3xs text-left">
+                    <span className="text-[10px] font-bold text-teal-850 block uppercase tracking-wider border-b border-teal-50 pb-1.5 font-mono">
+                      🛡️ 3 Pilar Utama Tameng J5 EVO
+                    </span>
+                    <div className="grid grid-cols-1 gap-2.5 text-[11px]">
+                      <div className="flex items-start gap-2.5">
+                        <span className="p-1 rounded-lg bg-emerald-500/10 text-emerald-700 shrink-0 font-extrabold text-xs">🟢</span>
+                        <div>
+                          <strong className="text-zinc-900 block font-bold leading-tight">Ketahanan Baterai (Tameng Hijau)</strong>
+                          <span className="text-zinc-500 text-[10px] leading-relaxed block mt-0.5">Menyimbolkan efisiensi energi kelistrikan murni, ketangguhan baterai, dan komitmen tinggi pada lingkungan hijau.</span>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-2.5">
+                        <span className="p-1 rounded-lg bg-cyan-500/10 text-cyan-700 shrink-0 font-extrabold text-xs">🔵</span>
+                        <div>
+                          <strong className="text-zinc-900 block font-bold leading-tight">Keamanan ADAS 2+ Aktif</strong>
+                          <span className="text-zinc-500 text-[10px] leading-relaxed block mt-0.5">Asisten keselamatan aktif pintar mutakhir yang melindung setiap perjalanan keluarga besar JAECOO Indonesia.</span>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-2.5">
+                        <span className="p-1 rounded-lg bg-amber-500/10 text-amber-700 shrink-0 font-extrabold text-xs">🟡</span>
+                        <div>
+                          <strong className="text-zinc-900 block font-bold leading-tight">Kekuatan Sinergi &amp; Kolaborasi</strong>
+                          <span className="text-zinc-500 text-[10px] leading-relaxed block mt-0.5">Menggambarkan kebersamaan kokoh, dedikasi kolektif, dan sinergi harmonis di antara seluruh anggota komunitas.</span>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
-
-                <p className="text-xs text-slate-400 text-center leading-relaxed">
-                  Logo resmi Tameng J5 Evo melambangkan ketahanan baterai (Tameng Hijau), keamanan ADAS 2+, dan kekuatan sinergi seluruh member JAECOO Indonesia.
-                </p>
               </div>
 
             </div>
@@ -1672,12 +2273,30 @@ export default function App() {
                         <h4 className="font-extrabold text-zinc-900 text-base">{lastRegisteredMember.name}</h4>
                         <p className="text-xs text-zinc-650 font-mono">Plat: <span className="text-teal-700 font-bold">{lastRegisteredMember.plateNumber}</span></p>
                         <p className="text-[11px] text-zinc-650 mt-0.5">
-                          Kota: <span className="font-medium text-zinc-900">{lastRegisteredMember.city || "-"}, {lastRegisteredMember.province || "-"}</span>
+                          Regional: <span className="font-medium text-zinc-900">{lastRegisteredMember.regional || "-"}</span>
                         </p>
                       </div>
                     </div>
                   </div>
                 )}
+
+                {/* WhatsApp Community Invitation Block */}
+                <div className="bg-emerald-50/55 rounded-2xl border border-emerald-200 p-5 text-left space-y-2 max-w-md mx-auto">
+                  <h4 className="font-sans font-extrabold text-sm text-emerald-800 flex items-center gap-1.5">
+                    💬 Gabung Grup Resmi J5 EVO - INDONESIA
+                  </h4>
+                  <p className="text-zinc-[650] text-[11px] leading-relaxed">
+                    Sebagai member resmi J5 EVO - INDONESIA yang telah terdaftar di database, Anda dipersilakan bergabung langsung ke grup komunitas WhatsApp resmi kami untuk berdiskusi dengan sesama pemilik Jaecoo J5 di Indonesia.
+                  </p>
+                  <a
+                    href="https://chat.whatsapp.com/J7yHm2s3wTELy9blEd3jb1?mode=hqctcla"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex w-full items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs py-2.5 px-4 rounded-xl shadow-xs transition duration-200"
+                  >
+                    Masuk Grup Komunitas WhatsApp
+                  </a>
+                </div>
 
                 <div className="flex flex-col sm:flex-row gap-3 justify-center pt-2">
                   <button
@@ -1731,7 +2350,7 @@ export default function App() {
                     Nama Lengkap <span className="text-red-500 font-bold">*</span>
                   </label>
                   <p className="text-xs text-zinc-500 -mt-1 leading-relaxed">
-                    Tuliskan nama Anda sesuai dengan yang tertulis pada STNK/KTP kendaraan.
+                    Tuliskan nama Lengkap Anda.
                   </p>
                   <input
                     type="text"
@@ -1742,14 +2361,28 @@ export default function App() {
                     className="w-full bg-zinc-50/50 text-zinc-900 border-b-2 border-zinc-200 focus:border-teal-500 py-2 px-3 focus:outline-none transition font-sans text-sm rounded-md"
                   />
                 </div>
-
+  {/* Optional Field: Tanggal Lahir */}
+                <div id="field-birthdate" className="bg-white p-6 rounded-2xl border border-zinc-200 shadow-xs space-y-3">
+                  <label className="text-base font-bold text-zinc-900 block">
+                    Tanggal Lahir <span className="text-zinc-500 font-normal">(Opsional)</span>
+                  </label>
+                  <p className="text-xs text-zinc-500 -mt-1 leading-relaxed">
+                    Tuliskan atau pilih tanggal lahir Anda.
+                  </p>
+                  <input
+                    type="date"
+                    value={regForm.birthDate}
+                    onChange={(e) => setRegForm({ ...regForm, birthDate: e.target.value })}
+                    className="w-full bg-zinc-50/50 text-zinc-900 border-b-2 border-zinc-200 focus:border-teal-500 py-2 px-3 focus:outline-none transition font-sans text-sm rounded-md border"
+                  />
+                </div>
                 {/* Card Field 2: No HP */}
                 <div id="field-phone" className="bg-white p-6 rounded-2xl border border-zinc-200 shadow-xs space-y-3">
                   <label className="text-base font-bold text-zinc-900 block">
                     No Hp / Whatsapp <span className="text-red-500 font-bold">*</span>
                   </label>
                   <p className="text-xs text-zinc-500 -mt-1 leading-relaxed">
-                    Guna koordinasi tim admin grup wilayah regional dan broadcast undangan touring resmi.
+                    No Hp / Whatsapp yang dapat dihubungi.
                   </p>
                   <input
                     type="text"
@@ -1767,7 +2400,7 @@ export default function App() {
                     Alamat Lengkap<span className="text-red-500 font-bold">*</span>
                   </label>
                   <p className="text-xs text-zinc-500 -mt-1 leading-relaxed">
-                    Alamat pengiriman atribut merchandise kaos, stiker lambung nomor anggota dinamis.
+                    Alamat pengiriman atribut merchandise kaos, stiker dll.
                   </p>
                   <textarea
                     required
@@ -1779,40 +2412,33 @@ export default function App() {
                   />
                 </div>
 
-                {/* Card Field 3a: Provinsi */}
-                <div id="field-provinsi" className="bg-white p-6 rounded-2xl border border-zinc-200 shadow-xs space-y-3">
+                {/* Card Field 3: Regional */}
+                <div id="field-regional" className="bg-white p-6 rounded-2xl border border-zinc-200 shadow-xs space-y-3">
                   <label className="text-base font-bold text-zinc-900 block">
-                    Provinsi <span className="text-red-500 font-bold">*</span>
+                    Regional <span className="text-red-500 font-bold">*</span>
                   </label>
                   <p className="text-xs text-zinc-500 -mt-1 leading-relaxed">
-                    Tuliskan nama provinsi tempat tinggal domisili Anda (Contoh: DKI Jakarta, Jawa Barat).
+                    Pilih regional wilayah tempat tinggal domisili Anda dari pilihan di bawah ini.
                   </p>
-                  <input
-                    type="text"
+                  <select
                     required
-                    placeholder="Jawaban Anda"
-                    value={regForm.province}
-                    onChange={(e) => setRegForm({ ...regForm, province: e.target.value })}
+                    value={regForm.regional || "J5 EVO - DKI JAKARTA"}
+                    onChange={(e) => setRegForm({ ...regForm, regional: e.target.value })}
                     className="w-full bg-zinc-50/50 text-zinc-900 border-b-2 border-zinc-200 focus:border-teal-500 py-2 px-3 focus:outline-none transition font-sans text-sm rounded-md"
-                  />
-                </div>
-
-                {/* Card Field 3b: Kota */}
-                <div id="field-kota" className="bg-white p-6 rounded-2xl border border-zinc-200 shadow-xs space-y-3">
-                  <label className="text-base font-bold text-zinc-900 block">
-                    Kota / Kabupaten <span className="text-red-500 font-bold">*</span>
-                  </label>
-                  <p className="text-xs text-zinc-500 -mt-1 leading-relaxed">
-                    Tuliskan kota atau kabupaten wilayah Anda berada (Contoh: Jakarta Selatan, Bandung).
-                  </p>
-                  <input
-                    type="text"
-                    required
-                    placeholder="Jawaban Anda"
-                    value={regForm.city}
-                    onChange={(e) => setRegForm({ ...regForm, city: e.target.value })}
-                    className="w-full bg-zinc-50/50 text-zinc-900 border-b-2 border-zinc-200 focus:border-teal-500 py-2 px-3 focus:outline-none transition font-sans text-sm rounded-md"
-                  />
+                  >
+                    {(regionals.length > 0 ? regionals : [
+                      "J5 EVO - DKI JAKARTA",
+                      "J5 EVO - JAWA BARAT",
+                      "J5 EVO - JAWA TENGAH & DIY",
+                      "J5 EVO - JAWA TIMUR",
+                      "J5 EVO - SULAWESI SELATAN",
+                      "J5 EVO - TANGERANG RAYA"
+                    ]).map((reg) => (
+                      <option key={reg} value={reg}>
+                        {reg}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 {/* Card Field 4: No Plat */}
@@ -1821,16 +2447,38 @@ export default function App() {
                     Plat Nomor <span className="text-red-500 font-bold">*</span>
                   </label>
                   <p className="text-xs text-zinc-500 -mt-1 leading-relaxed">
-                    Digunakan untuk pencocokan Kehadiran Barcode di gerbang baksos & touring (Contoh: B 1111 XXX).
+                    Digunakan untuk pencocokan Kehadiran Barcode di gerbang baksos &amp; touring (Contoh: B 1234 ABC).
                   </p>
-                  <input
-                    type="text"
-                    required
-                    placeholder="Jawaban Anda"
-                    value={regForm.plateNumber}
-                    onChange={(e) => setRegForm({ ...regForm, plateNumber: e.target.value })}
-                    className="w-full bg-zinc-50/50 text-zinc-900 border-b-2 border-zinc-200 focus:border-teal-500 py-2 px-3 focus:outline-none transition uppercase font-mono text-sm rounded-md"
-                  />
+                  <div className="flex gap-2.5">
+                    <input
+                      type="text"
+                      required
+                      placeholder="B"
+                      value={regPlate1}
+                      onChange={(e) => setRegPlate1(e.target.value.toUpperCase().replace(/[^A-Z]/g, "").slice(0, 2))}
+                      className="w-1/4 bg-zinc-50/50 text-zinc-900 border-b-2 border-zinc-200 focus:border-teal-500 py-2 px-3 focus:outline-none transition font-mono text-sm rounded-md text-center font-bold"
+                      maxLength={2}
+                    />
+                    <input
+                      type="text"
+                      required
+                      placeholder="1234"
+                      value={regPlate2}
+                      onChange={(e) => setRegPlate2(e.target.value.replace(/[^0-9]/g, "").slice(0, 4))}
+                      className="w-2/4 bg-zinc-50/50 text-zinc-900 border-b-2 border-zinc-200 focus:border-teal-500 py-2 px-3 focus:outline-none transition font-mono text-sm rounded-md text-center font-bold"
+                      maxLength={4}
+                    />
+                    <input
+                      type="text"
+                      required
+                      placeholder="ABC"
+                      value={regPlate3}
+                      onChange={(e) => setRegPlate3(e.target.value.toUpperCase().replace(/[^A-Z]/g, "").slice(0, 3))}
+                      className="w-1/4 bg-zinc-50/50 text-zinc-900 border-b-2 border-zinc-200 focus:border-teal-500 py-2 px-3 focus:outline-none transition font-mono text-sm rounded-md text-center font-bold"
+                      maxLength={3}
+                    />
+                  </div>
+                  <p className="text-[10px] text-zinc-400 mt-1">Format: 1-2 Huruf (contoh: B) &bull; 1-4 Angka (contoh: 1234) &bull; 1-3 Huruf (contoh: ABC)</p>
                 </div>
 
                 {/* Card Field 5: No Rangka */}
@@ -1868,21 +2516,7 @@ export default function App() {
                   />
                 </div>
 
-                {/* Optional Field: Tanggal Lahir */}
-                <div id="field-birthdate" className="bg-white p-6 rounded-2xl border border-zinc-200 shadow-xs space-y-3">
-                  <label className="text-base font-bold text-zinc-900 block">
-                    Tanggal Lahir <span className="text-zinc-500 font-normal">(Opsional)</span>
-                  </label>
-                  <p className="text-xs text-zinc-500 -mt-1 leading-relaxed">
-                    Tuliskan atau pilih tanggal lahir Anda untuk memudahkan pendataan ucapan selamat hari ulang tahun anggota komunitas.
-                  </p>
-                  <input
-                    type="date"
-                    value={regForm.birthDate}
-                    onChange={(e) => setRegForm({ ...regForm, birthDate: e.target.value })}
-                    className="w-full bg-zinc-50/50 text-zinc-900 border-b-2 border-zinc-200 focus:border-teal-500 py-2 px-3 focus:outline-none transition font-sans text-sm rounded-md border"
-                  />
-                </div>
+              
 
                 {/* Card Field: Foto Profil Pemilik Kendaraan (Drag-and-Drop / Click) */}
                 <div id="field-owner-photo" className="bg-white p-6 rounded-2xl border border-zinc-200 shadow-xs space-y-3">
@@ -2389,7 +3023,7 @@ export default function App() {
                             <span className="w-24 text-zinc-400 font-card-display text-[11px] font-extrabold tracking-wider uppercase">REGIONAL</span>
                             <span className="text-zinc-450 font-semibold mx-2 shrink-0">:</span>
                             <span className="flex-1 text-zinc-900 font-card-sans text-[13px] font-black uppercase truncate select-all">
-                              {(lookupResult.member.city || "-").toUpperCase()}
+                              {(lookupResult.member.regional || lookupResult.member.city || "-").toUpperCase()}
                             </span>
                           </div>
 
@@ -2502,20 +3136,314 @@ export default function App() {
 
                       </div>
 
-                      {/* Download Button right under Card with delightful animations */}
+                      {/* Action Buttons right under Card */}
                       <div className="flex flex-col sm:flex-row gap-3 items-center justify-center max-w-[490px] mx-auto mt-2 mb-4 select-none">
                         <button
                           onClick={handleDownloadCard}
                           type="button"
-                          className="w-full bg-gradient-to-r from-[#005c56] to-teal-700 hover:from-teal-700 hover:to-teal-600 font-sans text-xs font-black tracking-widest uppercase text-white py-3.5 px-6 rounded-2xl shadow-[0_8px_20px_rgba(0,92,86,0.25)] hover:shadow-[0_12px_24px_rgba(0,92,86,0.35)] hover:scale-[1.01] transition-all cursor-pointer flex items-center justify-center gap-2 transform active:scale-[0.98] duration-200"
+                          className="flex-1 w-full bg-gradient-to-r from-[#005c56] to-teal-700 hover:from-teal-700 hover:to-teal-600 font-sans text-xs font-black tracking-widest uppercase text-white py-3.5 px-6 rounded-2xl shadow-[0_8px_20px_rgba(0,92,86,0.25)] hover:shadow-[0_12px_24px_rgba(0,92,86,0.35)] hover:scale-[1.01] transition-all cursor-pointer flex items-center justify-center gap-2 transform active:scale-[0.98] duration-200"
                         >
                           <Download className="w-4 h-4" />
-                          Unduh Kartu Member (PNG)
+                          Unduh Kartu (PNG)
+                        </button>
+                        <button
+                          onClick={() => {
+                            setShowEditVerification(true);
+                            setVerificationPhoneNum("");
+                            setVerificationError(null);
+                          }}
+                          type="button"
+                          className="flex-1 w-full bg-white hover:bg-zinc-50 border border-zinc-250 text-zinc-700 font-sans text-xs font-black tracking-widest uppercase py-3.5 px-6 rounded-2xl transition hover:scale-[1.01] cursor-pointer flex items-center justify-center gap-2 transform active:scale-[0.98] duration-200 shadow-3xs"
+                        >
+                          <Pencil className="w-4 h-4 text-zinc-500" />
+                          Edit Info Profil
                         </button>
                       </div>
+
+                      {/* VERIFICATION DIALOG MODAL (No HP check) */}
+                      {showEditVerification && (
+                        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-900/60 backdrop-blur-xs animate-fadeIn">
+                          <div className="bg-white rounded-3xl border border-zinc-200 shadow-2xl p-6 w-full max-w-sm text-left relative space-y-4">
+                            <button
+                              type="button"
+                              onClick={() => setShowEditVerification(false)}
+                              className="absolute top-4 right-4 text-zinc-400 hover:text-zinc-650 font-bold text-lg p-1 cursor-pointer"
+                            >
+                              ✕
+                            </button>
+                            <div className="space-y-1">
+                              <h4 className="font-sans font-extrabold text-base text-zinc-900 flex items-center gap-1.5">
+                                🔐 Validasi Pemilik Akun
+                              </h4>
+                              <p className="text-zinc-[650] text-2xs leading-relaxed">
+                                Untuk menjaga privasi dan keamanan Anda, silakan masukkan nomor handphone yang terdaftar untuk akun/plat member ini.
+                              </p>
+                            </div>
+
+                            <form onSubmit={handleVerifyProfileEdit} className="space-y-3">
+                              <div className="space-y-1">
+                                <label className="text-2xs font-bold text-zinc-600 block uppercase tracking-wider">No Hp Terdaftar *</label>
+                                <input
+                                  type="text"
+                                  placeholder="Contoh: 0812XXXXXXXX / +62812..."
+                                  required
+                                  value={verificationPhoneNum}
+                                  onChange={(e) => setVerificationPhoneNum(e.target.value.replace(/[^0-9+]/g, ""))}
+                                  className="w-full bg-zinc-50 text-zinc-900 border border-zinc-250 rounded-xl p-3 focus:outline-none focus:border-teal-500 text-xs font-semibold"
+                                />
+                              </div>
+
+                              {verificationError && (
+                                <p className="text-2xs text-red-600 font-bold leading-relaxed">
+                                  ⚠️ {verificationError}
+                                </p>
+                              )}
+
+                              <div className="pt-2 flex gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => setShowEditVerification(false)}
+                                  className="flex-1 py-2.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 font-bold rounded-xl text-2xs transition cursor-pointer"
+                                >
+                                  Batal
+                                </button>
+                                <button
+                                  type="submit"
+                                  className="flex-1 py-2.5 bg-teal-600 hover:bg-teal-700 text-white font-black rounded-xl text-2xs transition uppercase cursor-pointer"
+                                >
+                                  Verifikasi
+                                </button>
+                              </div>
+                            </form>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* EDIT INFORMATION WORKFLOW FORM MODAL */}
+                      {isSelfEditing && (
+                        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-900/60 backdrop-blur-xs overflow-y-auto">
+                          <div className="bg-white rounded-3xl border border-zinc-200 shadow-2xl p-6 w-full max-w-lg text-left relative my-8 space-y-4 max-h-[90vh] overflow-y-auto">
+                            <button
+                              type="button"
+                              onClick={() => setIsSelfEditing(false)}
+                              className="absolute top-4 right-4 text-zinc-400 hover:text-zinc-650 font-bold text-lg p-1 cursor-pointer"
+                            >
+                              ✕
+                            </button>
+                            
+                            <div className="space-y-1">
+                              <span className="text-[9px] font-mono tracking-widest text-[#005c56] bg-teal-50 px-2 py-0.5 rounded-full font-bold uppercase border border-teal-100">
+                                Edit Profil Anggota
+                              </span>
+                              <h4 className="font-sans font-black text-lg text-zinc-900">
+                                Perbarui Informasi Kepesertaan
+                              </h4>
+                              <p className="text-zinc-500 text-2xs leading-relaxed">
+                                Anda dapat mengunggah foto baru, merubah nomor HP, email, alamat, maupun pembagian plat nopol kendaraan Anda.
+                              </p>
+                            </div>
+
+                            <form onSubmit={handleSaveSelfEdit} className="space-y-4 text-2xs">
+                              {/* Photo Upload with Live Real Preview */}
+                              <div className="p-4 border border-teal-100 rounded-2xl bg-teal-50/25 space-y-2">
+                                <label className="text-zinc-700 font-bold block uppercase tracking-wider">Foto Profil Baru (Opsional)</label>
+                                <div className="flex items-center gap-4">
+                                  <div className="w-16 h-16 rounded-full border-2 border-[#005c56] bg-zinc-100 overflow-hidden shrink-0">
+                                    <img
+                                      src={selfEditForm.ownerPhoto || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80"}
+                                      alt="Preview"
+                                      className="w-full h-full object-cover"
+                                      referrerPolicy="no-referrer"
+                                    />
+                                  </div>
+                                  <div className="flex-1 space-y-1">
+                                    <input
+                                      type="file"
+                                      accept="image/*"
+                                      onChange={handleSelfEditPhotoUpload}
+                                      className="file:mr-2 file:py-1.5 file:px-3 file:rounded-xl file:border file:border-teal-200 file:text-2xs file:bg-white file:text-teal-700 hover:file:bg-teal-50 text-2xs text-zinc-500 font-sans cursor-pointer focus:outline-none w-full"
+                                    />
+                                    <p className="text-[9px] text-zinc-400">File harus bertipe gambar. Tekan tombol untuk mengunggah wajah pemilik baru.</p>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Nama Lengkap */}
+                              <div className="space-y-1">
+                                <label className="text-zinc-700 font-bold block uppercase tracking-wider">Nama Lengkap *</label>
+                                <input
+                                  type="text"
+                                  required
+                                  value={selfEditForm.name}
+                                  onChange={(e) => setSelfEditForm({ ...selfEditForm, name: e.target.value })}
+                                  className="w-full bg-zinc-50 text-zinc-900 border border-zinc-250 rounded-xl p-3 focus:outline-none focus:border-teal-500 font-semibold"
+                                  placeholder="Nama pemilik kendaraan"
+                                />
+                              </div>
+
+                              {/* No HP & Alamat Email Row */}
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div className="space-y-1">
+                                  <label className="text-zinc-700 font-bold block uppercase tracking-wider">No Hp Aktif (Hanya Angka &amp; +) *</label>
+                                  <input
+                                    type="text"
+                                    required
+                                    value={selfEditForm.phone}
+                                    onChange={(e) => setSelfEditForm({ ...selfEditForm, phone: e.target.value.replace(/[^0-9+]/g, "") })}
+                                    className="w-full bg-zinc-50 text-zinc-900 border border-zinc-250 rounded-xl p-3 focus:outline-none focus:border-teal-500 font-semibold text-xs"
+                                    placeholder="Contoh: +62812XXXXX"
+                                  />
+                                </div>
+                                <div className="space-y-1">
+                                  <label className="text-zinc-700 font-bold block uppercase tracking-wider">Alamat Email Aktif *</label>
+                                  <input
+                                    type="email"
+                                    required
+                                    value={selfEditForm.email}
+                                    onChange={(e) => setSelfEditForm({ ...selfEditForm, email: e.target.value })}
+                                    className="w-full bg-zinc-50 text-zinc-900 border border-zinc-250 rounded-xl p-3 focus:outline-none focus:border-teal-500 font-semibold text-xs"
+                                    placeholder="contoh@domain.com"
+                                  />
+                                </div>
+                              </div>
+
+                              {/* Plat Nomor 3 Input Form */}
+                              <div className="space-y-1.5 p-3 border border-zinc-200 rounded-2xl bg-zinc-50">
+                                <label className="text-zinc-700 font-bold block uppercase tracking-wider">Nomor Plat Kendaraan (Wajib Terdiri dari 3 Bagian) *</label>
+                                <div className="grid grid-cols-3 gap-2">
+                                  <div>
+                                    <span className="text-[9px] text-zinc-400 block mb-0.5">Kode Seri (Harus Huruf Besar, Maks 2)</span>
+                                    <input
+                                      type="text"
+                                      required
+                                      maxLength={2}
+                                      value={selfEditForm.p1}
+                                      placeholder="B"
+                                      onChange={(e) => setSelfEditForm({ ...selfEditForm, p1: e.target.value.toUpperCase().replace(/[^A-Z]/g, "") })}
+                                      className="w-full bg-white text-zinc-900 border border-zinc-250 rounded-xl p-3 focus:outline-none focus:border-teal-500 font-extrabold text-center uppercase"
+                                    />
+                                  </div>
+                                  <div>
+                                    <span className="text-[9px] text-zinc-400 block mb-0.5">Nomor (Hanya Angka, Maks 4 Digit)</span>
+                                    <input
+                                      type="text"
+                                      required
+                                      maxLength={4}
+                                      value={selfEditForm.p2}
+                                      placeholder="1234"
+                                      onChange={(e) => setSelfEditForm({ ...selfEditForm, p2: e.target.value.replace(/[^0-9]/g, "") })}
+                                      className="w-full bg-white text-zinc-900 border border-zinc-250 rounded-xl p-3 focus:outline-none focus:border-teal-500 font-extrabold text-center"
+                                    />
+                                  </div>
+                                  <div>
+                                    <span className="text-[9px] text-zinc-400 block mb-0.5">Seri Belakang (Karakter, Maks 3 Huruf Besar)</span>
+                                    <input
+                                      type="text"
+                                      required
+                                      maxLength={3}
+                                      value={selfEditForm.p3}
+                                      placeholder="EVO"
+                                      onChange={(e) => setSelfEditForm({ ...selfEditForm, p3: e.target.value.toUpperCase().replace(/[^A-Z]/g, "") })}
+                                      className="w-full bg-white text-zinc-900 border border-zinc-250 rounded-xl p-3 focus:outline-none focus:border-teal-500 font-extrabold text-center uppercase"
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Tanggal Lahir (Birthdate) */}
+                              <div className="space-y-1">
+                                <label className="text-zinc-700 font-bold block uppercase tracking-wider">Tanggal Lahir (Opsional)</label>
+                                <input
+                                  type="date"
+                                  value={selfEditForm.birthDate}
+                                  onChange={(e) => setSelfEditForm({ ...selfEditForm, birthDate: e.target.value })}
+                                  className="w-full bg-zinc-50 text-zinc-900 border border-zinc-250 rounded-xl p-3 focus:outline-none focus:border-teal-500 font-semibold"
+                                />
+                              </div>
+
+                              {/* Regional Dropdown Selection */}
+                              <div className="space-y-1">
+                                <label className="text-zinc-700 font-bold block uppercase tracking-wider">Regional Komunitas *</label>
+                                <select
+                                  required
+                                  value={selfEditForm.regional}
+                                  onChange={(e) => setSelfEditForm({ ...selfEditForm, regional: e.target.value })}
+                                  className="w-full bg-zinc-50 text-zinc-900 border border-zinc-250 rounded-xl p-3 focus:outline-none focus:border-teal-500 font-semibold text-xs grayscale-[30%]"
+                                >
+                                  {(regionals.length > 0 ? regionals : [
+                                    "J5 EVO - INDONESIA",
+                                    "J5 EVO - DKI JAKARTA",
+                                    "J5 EVO - JAWA BARAT",
+                                    "J5 EVO - JAWA TENGAH & DIY",
+                                    "J5 EVO - JAWA TIMUR",
+                                    "J5 EVO - TANGERANG RAYA",
+                                    "J5 EVO - SULAWESI SELATAN"
+                                  ]).map((r) => (
+                                    <option key={r} value={r}>{r}</option>
+                                  ))}
+                                </select>
+                              </div>
+
+                              {/* Alamat Lengkap */}
+                              <div className="space-y-1">
+                                <label className="text-zinc-700 font-bold block uppercase tracking-wider">Alamat Lengkap Rumah *</label>
+                                <textarea
+                                  required
+                                  rows={2}
+                                  value={selfEditForm.address}
+                                  onChange={(e) => setSelfEditForm({ ...selfEditForm, address: e.target.value })}
+                                  className="w-full bg-zinc-50 text-zinc-900 border border-zinc-250 rounded-xl p-3 focus:outline-none focus:border-teal-500 font-semibold leading-relaxed text-xs"
+                                  placeholder="Kantor atau alamat domisili lengkap pengiriman official kit."
+                                />
+                              </div>
+
+                              <div className="pt-2 flex gap-3">
+                                <button
+                                  type="button"
+                                  onClick={() => setIsSelfEditing(false)}
+                                  className="flex-1 py-3 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 font-bold rounded-xl transition cursor-pointer text-center"
+                                >
+                                  Batal
+                                </button>
+                                <button
+                                  type="submit"
+                                  disabled={loading}
+                                  className="flex-1 py-3 bg-teal-600 hover:bg-teal-700 text-white font-black rounded-xl transition shadow-md uppercase cursor-pointer text-center"
+                                >
+                                  {loading ? "Menyimpan..." : "Simpan Perubahan"}
+                                </button>
+                              </div>
+                            </form>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   );
                 })()}
+
+                {/* WhatsApp Community Invitation Block for Lookup results */}
+                <div className="bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-250/70 rounded-[28px] p-6 shadow-sm text-left space-y-3">
+                  <div className="flex items-center gap-2">
+                    <span className="p-2 rounded-xl bg-emerald-500/10 text-emerald-700 font-extrabold text-sm shrink-0">💬</span>
+                    <div>
+                      <h4 className="font-sans font-black text-sm text-zinc-900 leading-none">
+                        Grup Resmi J5 EVO - INDONESIA
+                      </h4>
+                      <p className="text-[10px] text-zinc-500 font-medium mt-1">Grup Diskusi Eksklusif Member Pemilik Jaecoo J5 EV</p>
+                    </div>
+                  </div>
+                  <p className="text-zinc-[650] text-3xs leading-relaxed">
+                    Sebagai anggota resmi yang terdaftar di database utama J5 EVO - INDONESIA, Anda dipersilakan bergabung langsung ke dalam wadah grup koordinasi WhatsApp kami untuk mendapatkan info kegiatan ter-update, kopdar regional, silaturahmi, and exclusive merchandise drop!
+                  </p>
+                  <a
+                    href="https://chat.whatsapp.com/J7yHm2s3wTELy9blEd3jb1?mode=hqctcla"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex w-full items-center justify-center gap-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-extrabold text-xs py-3 px-6 rounded-2xl shadow-sm transition duration-200 transform active:scale-[0.99]"
+                  >
+                    Gabung Grup WhatsApp Sekarang
+                  </a>
+                </div>
 
                 {/* 2. Participation History Trail */}
                 <div className="space-y-4">
@@ -2572,6 +3500,142 @@ export default function App() {
                 <p className="text-xs text-zinc-600 font-medium">
                   Belum ada pencarian. Silakan isi form pencarian di atas untuk mematangkan data kehadiran Anda.
                 </p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* TAB 4.5: PUBLIC SPONSORS VIEW MODULE */}
+        {activeTab === "sponsor" && (
+          <div id="tab-sponsor" className="space-y-10 animate-fadeIn text-left">
+            {/* Elegant Header section */}
+            <div className="bg-gradient-to-br from-teal-900 to-zinc-900 text-white rounded-3xl p-8 md:p-12 relative overflow-hidden shadow-xl">
+              <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff08_1px,transparent_1px),linear-gradient(to_bottom,#ffffff08_1px,transparent_1px)] bg-[size:20px_20px]"></div>
+              <div className="absolute right-0 top-0 w-64 h-64 bg-teal-500/20 rounded-full blur-3xl pointer-events-none"></div>
+              
+              <div className="relative z-10 max-w-3xl space-y-4">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-500/20 border border-amber-500/30 rounded-full text-xs text-amber-300 font-mono font-bold">
+                  <Award className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Official Partners & Sponsors J5 EVO</span>
+                </span>
+                <h2 className="text-3xl md:text-5xl font-mono font-black tracking-tight leading-tight">
+                  Sponsor Pendukung Komunitas
+                </h2>
+                <p className="text-sm text-zinc-300 leading-relaxed max-w-2xl">
+                  Daftar mitra kolaborasi resmi J5 EVO Indonesia yang menyediakan berbagai produk otomotif premium, layanan servis berkualitas, serta keuntungan eksklusif bagi seluruh member terdaftar.
+                </p>
+              </div>
+            </div>
+
+            {/* List of Sponsors */}
+            {sponsors.length === 0 ? (
+              <div className="p-12 text-center rounded-3xl bg-white border border-zinc-200 shadow-sm space-y-3">
+                <Award className="w-12 h-12 text-zinc-350 mx-auto opacity-60 animate-bounce" />
+                <h4 className="font-bold text-zinc-700 text-lg">Belum Ada Sponsor Terdaftar</h4>
+                <p className="text-xs text-zinc-500 max-w-md mx-auto leading-relaxed">
+                  Mitra kerja sama sponsor resmi sedang dalam tahap finalisasi kurasi administrasi oleh tim J5 EVO.
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                {sponsors.map((spr) => (
+                  <div key={spr.id} id={`sponsor-card-${spr.id}`} className="bg-white border border-zinc-200 rounded-3xl p-6 md:p-8 hover:shadow-lg transition-all duration-300 flex flex-col justify-between space-y-6">
+                    <div className="space-y-4">
+                      {/* Sponsor Logo and Info */}
+                      <div className="flex items-center gap-4">
+                        {spr.logo ? (
+                          <img
+                            src={spr.logo}
+                            alt={spr.name}
+                            className="w-16 h-16 object-contain rounded-2xl bg-zinc-50 p-2 border border-zinc-200/60 shadow-inner shrink-0"
+                          />
+                        ) : (
+                          <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-teal-700 to-emerald-600 flex items-center justify-center text-white font-extrabold text-xl font-mono shrink-0">
+                            {spr.name.slice(0, 2).toUpperCase()}
+                          </div>
+                        )}
+                        <div className="min-w-0">
+                          <h3 className="text-xl font-bold font-sans text-zinc-900 truncate">
+                            {spr.name}
+                          </h3>
+                          <p className="text-xs text-teal-700 font-mono font-bold mt-0.5">
+                            Kontak: {spr.contact || "-"}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Description */}
+                      <p className="text-xs text-zinc-650 leading-relaxed bg-zinc-50/50 p-4 rounded-2xl border border-zinc-100 font-sans">
+                        {spr.description || "Tidak ada deskripsi tambahan mengenai sponsor ini."}
+                      </p>
+                    </div>
+
+                    {/* Products listed */}
+                    <div className="space-y-3">
+                      <h4 className="text-xs font-mono font-black tracking-widest text-zinc-400 uppercase">
+                        PRODUK YANG DITAWARKAN ({spr.products?.length || 0})
+                      </h4>
+                      
+                      {!spr.products || spr.products.length === 0 ? (
+                        <p className="text-xs text-zinc-400 italic font-sans">Belum ada katalog dirilis untuk brand ini.</p>
+                      ) : (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          {spr.products.map((pdt: any, idx: number) => (
+                            <div key={idx} className="bg-zinc-50/20 hover:bg-zinc-50/80 border border-zinc-150 p-3.5 rounded-2xl flex flex-col justify-between space-y-2.5 transition">
+                              
+                              {/* Product Photo Carousel/Grid */}
+                              <div className="space-y-1.5">
+                                {pdt.photos && pdt.photos.length > 0 ? (
+                                  <div className="grid grid-cols-2 gap-1 rounded-xl overflow-hidden bg-zinc-100 border border-zinc-200/60">
+                                    {pdt.photos.slice(0, 2).map((photo: string, phIdx: number) => (
+                                      <img
+                                        key={phIdx}
+                                        src={photo}
+                                        alt={pdt.name}
+                                        className="w-full h-16 object-cover"
+                                      />
+                                    ))}
+                                    {pdt.photos.length > 2 && (
+                                      <div className="col-span-2 text-[9px] font-mono font-bold text-center py-0.5 bg-zinc-100 text-zinc-500 border-t border-zinc-200">
+                                        +{pdt.photos.length - 2} Foto Lainnya
+                                      </div>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <div className="w-full h-16 rounded-xl bg-zinc-100 border border-zinc-200 flex items-center justify-center text-zinc-350">
+                                    <Car className="w-5 h-5 opacity-40" />
+                                  </div>
+                                )}
+
+                                <p className="font-bold text-zinc-800 text-xs line-clamp-2 leading-snug">
+                                  {pdt.name}
+                                </p>
+                              </div>
+
+                              <div className="flex items-center justify-between gap-1.5 border-t border-zinc-100 pt-2 mt-auto">
+                                <span className="font-bold text-teal-700 text-[11px] font-mono">
+                                  {pdt.showPrice ? (
+                                    pdt.price === 0 || pdt.price === undefined || pdt.price === null ? (
+                                      "Gratis / Free"
+                                    ) : (
+                                      new Intl.NumberFormat("id-ID", {
+                                        style: "currency",
+                                        currency: "IDR",
+                                        maximumFractionDigits: 0
+                                      }).format(pdt.price)
+                                    )
+                                  ) : (
+                                    "Hubungi Sponsor"
+                                  )}
+                                </span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </div>
@@ -2638,17 +3702,18 @@ export default function App() {
               <div className="absolute right-0 top-0 -mr-12 -mt-12 w-44 h-44 bg-teal-500/5 rounded-full blur-2xl"></div>
               
               <div className="space-y-2 flex-1">
-                <span className="px-3 py-1 text-[9px] font-mono tracking-widest text-teal-800 bg-teal-50 rounded-full border border-teal-200 font-bold uppercase">
+                <span className="px-3 py-1 text-[9px] font-mono tracking-widest text-[#005c56] bg-teal-50 rounded-full border border-teal-200 font-bold uppercase">
                   ADMINISTRATOR SECURE AREA
                 </span>
-                <h2 className="text-2xl md:text-3xl font-extrabold text-zinc-900">Panel Monitoring & Ekspor Laporan</h2>
-                <p className="text-zinc-650 text-sm leading-relaxed max-w-2xl font-medium">
+                <h2 className="text-2xl md:text-3xl font-extrabold text-zinc-900">Panel Monitoring &amp; Ekspor Laporan</h2>
+                <p className="text-zinc-[650] text-sm leading-relaxed max-w-2xl font-medium">
                   Sistem kendali terpusat untuk memantau data member, mendaftarkan kegiatan touring resmi baru, melakukan pencatatan visual kehadiran, serta mengunduh database format Excel untuk laporan tahunan.
                 </p>
               </div>
 
               <div className="mt-6 sm:mt-0 flex-shrink-0 flex items-center gap-2">
                 <button
+                  type="button"
                   onClick={handleExportExcel}
                   className="px-5 py-3 bg-emerald-600 border border-emerald-700 hover:bg-emerald-700 text-white font-extrabold text-sm rounded-xl transition duration-300 shadow-md flex items-center justify-center gap-2 focus:outline-none cursor-pointer min-w-[210px]"
                 >
@@ -2656,6 +3721,7 @@ export default function App() {
                   Ekspor Database ke Excel
                 </button>
                 <button
+                  type="button"
                   onClick={handleAdminLogout}
                   className="px-5 py-3 bg-red-600 border border-red-700 hover:bg-red-700 text-white font-extrabold text-sm rounded-xl transition duration-300 shadow-md flex items-center justify-center gap-2 focus:outline-none cursor-pointer"
                 >
@@ -2664,56 +3730,331 @@ export default function App() {
               </div>
             </div>
 
-            {/* 1. Kelola & Daftar Kegiatan Komunitas Card */}
-            <div className="bg-white p-6 rounded-3xl border border-zinc-200 shadow-sm space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Calendar className="w-5 h-5 text-teal-700" />
-                  <h4 className="font-sans font-bold text-base text-zinc-900">Daftar & Kelola Kegiatan Komunitas</h4>
-                </div>
-                <span className="px-2.5 py-0.5 bg-teal-50 border border-teal-200 text-[#005c56] text-[10px] rounded font-mono font-bold">
-                  {events.length} Kegiatan Terdaftar
-                </span>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                {events.map((evt) => (
-                  <div key={evt.id} className="p-4 rounded-2xl bg-zinc-50 border border-zinc-200 hover:border-teal-400 transition flex gap-3 items-center">
-                    <img
-                      src={evt.image || "/event_banner.jpeg"}
-                      alt={evt.title}
-                      className="w-16 h-16 rounded-xl object-cover border border-zinc-200 flex-shrink-0"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1">
-                        <span className={`px-1.5 py-0.2 text-[8px] font-mono font-bold uppercase rounded ${
-                          evt.status === "upcoming" ? "bg-blue-100 text-blue-800" :
-                          evt.status === "ongoing" ? "bg-amber-100 text-amber-800" :
-                          "bg-zinc-200 text-zinc-700"
-                        }`}>
-                          {evt.status === "upcoming" ? "Mendatang" : evt.status === "ongoing" ? "Berjalan" : "Selesai"}
-                        </span>
-                        <span className="text-[10px] font-mono text-zinc-400">
-                          📷 {evt.galleryImages?.length || 0} Foto
-                        </span>
-                      </div>
-                      <h5 className="text-xs font-black text-zinc-900 truncate mt-1">{evt.title}</h5>
-                      <p className="text-[10px] text-zinc-500 font-medium truncate">📍 {evt.location}</p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => startEditingEvent(evt)}
-                      className="px-2.5 py-1.5 bg-teal-50 hover:bg-[#005c56] text-[#005c56] hover:text-white border border-teal-200 rounded-lg text-[10px] font-bold transition flex-shrink-0 cursor-pointer shadow-3xs"
-                    >
-                      Kelola & Edit
-                    </button>
-                  </div>
-                ))}
-              </div>
+            {/* 8 Groups Sub-Navigation Hub */}
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-2.5 bg-zinc-100 p-2 rounded-2xl border border-zinc-200 shadow-inner">
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveAdminSubTab("member-list");
+                  setEditingMemberId(null);
+                }}
+                className={`py-2 px-3 rounded-xl text-center flex flex-col items-center justify-center gap-1 transition-all duration-205 cursor-pointer ${
+                  activeAdminSubTab === "member-list"
+                    ? "bg-[#005c56] text-white font-bold shadow-md"
+                    : "bg-white hover:bg-zinc-50 text-zinc-700 border border-zinc-205 hover:border-zinc-300"
+                }`}
+              >
+                <Users className="w-4 h-4 shrink-0" />
+                <span className="text-[10px] font-semibold leading-tight">1. Member</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveAdminSubTab("events-manager");
+                  setEditingEventId(null);
+                }}
+                className={`py-2 px-3 rounded-xl text-center flex flex-col items-center justify-center gap-1 transition-all duration-205 cursor-pointer ${
+                  activeAdminSubTab === "events-manager"
+                    ? "bg-[#005c56] text-white font-bold shadow-md"
+                    : "bg-white hover:bg-zinc-50 text-zinc-700 border border-zinc-205 hover:border-zinc-300"
+                }`}
+              >
+                <Calendar className="w-4 h-4 shrink-0" />
+                <span className="text-[10px] font-semibold leading-tight">2. Kegiatan</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveAdminSubTab("attendance-manager")}
+                className={`py-2 px-3 rounded-xl text-center flex flex-col items-center justify-center gap-1 transition-all duration-205 cursor-pointer ${
+                  activeAdminSubTab === "attendance-manager"
+                    ? "bg-[#005c56] text-white font-bold shadow-md"
+                    : "bg-white hover:bg-zinc-50 text-zinc-700 border border-zinc-205 hover:border-zinc-300"
+                }`}
+              >
+                <CheckCircle2 className="w-4 h-4 shrink-0" />
+                <span className="text-[10px] font-semibold leading-tight">3. Absensi</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveAdminSubTab("socials-cms")}
+                className={`py-2 px-3 rounded-xl text-center flex flex-col items-center justify-center gap-1 transition-all duration-205 cursor-pointer ${
+                  activeAdminSubTab === "socials-cms"
+                    ? "bg-[#005c56] text-white font-bold shadow-md"
+                    : "bg-white hover:bg-zinc-50 text-zinc-700 border border-zinc-205 hover:border-zinc-300"
+                }`}
+              >
+                <Share2 className="w-4 h-4 shrink-0" />
+                <span className="text-[10px] font-semibold leading-tight">4. Sosmed</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveAdminSubTab("faq-cms")}
+                className={`py-2 px-3 rounded-xl text-center flex flex-col items-center justify-center gap-1 transition-all duration-205 cursor-pointer ${
+                  activeAdminSubTab === "faq-cms"
+                    ? "bg-[#005c56] text-white font-bold shadow-md"
+                    : "bg-white hover:bg-zinc-50 text-zinc-700 border border-zinc-205 hover:border-zinc-300"
+                }`}
+              >
+                <HelpCircle className="w-4 h-4 shrink-0" />
+                <span className="text-[10px] font-semibold leading-tight">5. FAQ</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveAdminSubTab("regional-cms")}
+                className={`py-2 px-3 rounded-xl text-center flex flex-col items-center justify-center gap-1 transition-all duration-205 cursor-pointer ${
+                  activeAdminSubTab === "regional-cms"
+                    ? "bg-[#005c56] text-white font-bold shadow-md"
+                    : "bg-white hover:bg-zinc-50 text-zinc-700 border border-zinc-205 hover:border-zinc-300"
+                }`}
+              >
+                <Globe className="w-4 h-4 shrink-0" />
+                <span className="text-[10px] font-semibold leading-tight">6. Regional</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveAdminSubTab("sponsor-cms")}
+                className={`py-2 px-3 rounded-xl text-center flex flex-col items-center justify-center gap-1 transition-all duration-205 cursor-pointer ${
+                  activeAdminSubTab === "sponsor-cms"
+                    ? "bg-[#005c56] text-white font-bold shadow-md"
+                    : "bg-white hover:bg-zinc-50 text-zinc-700 border border-zinc-205 hover:border-zinc-300"
+                }`}
+              >
+                <Award className="w-4 h-4 shrink-0" />
+                <span className="text-[10px] font-semibold leading-tight">7. Sponsor</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveAdminSubTab("home-cms")}
+                className={`py-2 px-3 rounded-xl text-center flex flex-col items-center justify-center gap-1 transition-all duration-205 cursor-pointer ${
+                  activeAdminSubTab === "home-cms"
+                    ? "bg-[#005c56] text-white font-bold shadow-md"
+                    : "bg-white hover:bg-zinc-50 text-zinc-700 border border-zinc-205 hover:border-zinc-300"
+                }`}
+              >
+                <Settings className="w-4 h-4 shrink-0" />
+                <span className="text-[10px] font-semibold leading-tight">8. Beranda</span>
+              </button>
             </div>
 
-            {/* 2. Selected Event Editor Panel */}
-            {editingEventId && editEventForm && (
+            {/* Conditional Sub-tabs content Rendering */}
+            {activeAdminSubTab === "member-list" && (
+              <AdminMembers
+                members={members}
+                regionals={regionals}
+                editingMemberId={editingMemberId}
+                setEditingMemberId={setEditingMemberId}
+                editMemberForm={editMemberForm}
+                setEditMemberForm={setEditMemberForm}
+                handleUpdateMemberTier={handleUpdateMemberTier}
+                handleDeleteMember={handleDeleteMember}
+                handleEditMemberSubmit={handleEditMemberSubmit}
+              />
+            )}
+
+            {activeAdminSubTab === "events-manager" && (
+              <AdminEvents
+                events={events}
+                newEvent={newEvent}
+                setNewEvent={setNewEvent}
+                loading={loading}
+                editingEventId={editingEventId}
+                setEditingEventId={setEditingEventId}
+                editEventForm={editEventForm}
+                setEditEventForm={setEditEventForm}
+                handleCreateEvent={handleCreateEvent}
+                handleEditEventSubmit={handleEditEventSubmit}
+                handleDeleteEvent={handleDeleteEvent}
+                startEditingEvent={startEditingEvent}
+                compressImage={compressImage}
+              />
+            )}
+
+            {activeAdminSubTab === "attendance-manager" && (
+              <AdminAttendance
+                events={events}
+                adminAttendanceEventId={adminAttendanceEventId}
+                setAdminAttendanceEventId={setAdminAttendanceEventId}
+                adminAttendanceQuery={adminAttendanceQuery}
+                setAdminAttendanceQuery={setAdminAttendanceQuery}
+                registrations={registrations}
+                handleRecordAttendance={handleRecordAttendance}
+                handleAttendanceChange={handleAttendanceChange}
+              />
+            )}
+
+            {activeAdminSubTab === "socials-cms" && (
+              <AdminSocials
+                editSocialsForm={editSocialsForm}
+                setEditSocialsForm={setEditSocialsForm}
+                handleUpdateSocialsSubmit={handleUpdateSocialsSubmit}
+              />
+            )}
+
+            {activeAdminSubTab === "faq-cms" && (
+              <AdminFaq
+                faqs={faqs}
+                adminFaqForm={adminFaqForm}
+                setAdminFaqForm={setAdminFaqForm}
+                handleCreateFaq={handleCreateFaq}
+                handleDeleteFaq={handleDeleteFaq}
+                loading={loading}
+              />
+            )}
+
+            {activeAdminSubTab === "regional-cms" && (
+              <AdminRegional
+                regionals={regionals}
+                members={members}
+                newRegionalName={newRegionalName}
+                setNewRegionalName={setNewRegionalName}
+                editingRegionalIndex={editingRegionalIndex}
+                setEditingRegionalIndex={setEditingRegionalIndex}
+                editingRegionalValue={editingRegionalValue}
+                setEditingRegionalValue={setEditingRegionalValue}
+                handleCreateRegional={handleCreateRegional}
+                handleUpdateRegional={handleUpdateRegional}
+                handleDeleteRegional={handleDeleteRegional}
+              />
+            )}
+
+            {activeAdminSubTab === "sponsor-cms" && (
+              <AdminSponsors
+                sponsors={sponsors}
+                sponsorForm={sponsorForm}
+                setSponsorForm={setSponsorForm}
+                tempProduct={tempProduct}
+                setTempProduct={setTempProduct}
+                editingSponsorId={editingSponsorId}
+                setEditingSponsorId={setEditingSponsorId}
+                handleSaveSponsor={handleSaveSponsor}
+                handleDeleteSponsor={handleDeleteSponsor}
+                handleProductPhotoUpload={handleProductPhotoUpload}
+                addStagedProduct={addStagedProduct}
+                removeStagedProduct={removeStagedProduct}
+                compressImage={compressImage}
+              />
+            )}
+
+            {activeAdminSubTab === "home-cms" && (
+              <div className="bg-white p-6 rounded-3xl border border-zinc-200 shadow-sm space-y-4">
+                <div className="flex items-center gap-2">
+                  <Settings className="w-5 h-5 text-teal-700" />
+                  <h4 className="font-sans font-bold text-base text-zinc-900">Kelola Informasi &amp; Beranda Utama</h4>
+                </div>
+                <form onSubmit={handleSaveHomeCms} className="space-y-4 text-xs text-left">
+                  <p className="text-zinc-[650] text-xs leading-relaxed">
+                    Perbarui teks tajuk utama (Hero Title) dan sub-tajuk yang muncul di halaman depan situs web komunitas J5 EVO Indonesia.
+                  </p>
+                  
+                  {/* Hero Settings */}
+                  <div className="space-y-4 border-b border-zinc-100 pb-4">
+                    <div className="space-y-1">
+                      <label className="text-zinc-700 font-bold font-sans">Hero Title / Judul Utama *</label>
+                      <input
+                        type="text"
+                        required
+                        value={homeCmsForm.heroTitle}
+                        onChange={(e) => setHomeCmsForm({ ...homeCmsForm, heroTitle: e.target.value })}
+                        className="w-full bg-zinc-50 text-zinc-900 border border-zinc-250 rounded-lg p-2.5 focus:outline-none focus:border-teal-500 focus:bg-white text-xs font-semibold"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-zinc-700 font-bold font-sans">Hero Subtitle / Sub-Judul Utama *</label>
+                      <textarea
+                        required
+                        rows={3}
+                        value={homeCmsForm.heroSubtitle}
+                        onChange={(e) => setHomeCmsForm({ ...homeCmsForm, heroSubtitle: e.target.value })}
+                        className="w-full bg-zinc-50 text-zinc-900 border border-zinc-250 rounded-lg p-2.5 focus:outline-none focus:border-teal-500 focus:bg-white text-xs font-semibold leading-relaxed"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Emblem Settings */}
+                  <div className="space-y-4 pt-2">
+                    <h5 className="font-sans font-extrabold text-sm text-zinc-800 flex items-center gap-1.5">
+                      🛡️ CMS: Official Avatar Emblem
+                    </h5>
+                    <p className="text-zinc-500 text-[11px] leading-relaxed">
+                      Kelola informasi emblem komunal dan teks watermark yang digunakan para member untuk membuat foto profil/avatar berbingkai khusus komunitas.
+                    </p>
+
+                    <div className="space-y-1">
+                      <label className="text-zinc-700 font-bold font-sans">Judul Box Emblem *</label>
+                      <input
+                        type="text"
+                        required
+                        value={homeCmsForm.emblemTitle}
+                        onChange={(e) => setHomeCmsForm({ ...homeCmsForm, emblemTitle: e.target.value })}
+                        className="w-full bg-zinc-50 text-zinc-900 border border-zinc-250 rounded-lg p-2.5 focus:outline-none focus:border-teal-500 focus:bg-white text-xs font-semibold"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-zinc-700 font-bold font-sans">Deskripsi Box Emblem *</label>
+                      <textarea
+                        required
+                        rows={3}
+                        value={homeCmsForm.emblemDesc}
+                        onChange={(e) => setHomeCmsForm({ ...homeCmsForm, emblemDesc: e.target.value })}
+                        className="w-full bg-zinc-50 text-zinc-900 border border-zinc-250 rounded-lg p-2.5 focus:outline-none focus:border-teal-500 focus:bg-white text-xs font-semibold leading-relaxed"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-zinc-700 font-bold font-sans block">Desain/Logo Emblem Kustom (Opsional)</label>
+                      <p className="text-[10px] text-zinc-400">Kosongkan/hapus untuk menggunakan Logo perisai hijau J5 EVO standar.</p>
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleEmblemLogoUpload}
+                          className="file:mr-2 file:py-1 file:px-2 file:rounded-md file:border file:border-zinc-250 file:text-[10px] file:bg-zinc-100 file:text-zinc-700 hover:file:bg-zinc-200 text-[10px] text-zinc-500 focus:outline-none"
+                        />
+                        {homeCmsForm.emblemLogo && (
+                          <button
+                            type="button"
+                            onClick={() => setHomeCmsForm({ ...homeCmsForm, emblemLogo: "" })}
+                            className="px-2 py-1 bg-red-50 text-red-600 hover:bg-red-500 hover:text-white border border-red-200 rounded-md transition text-2xs font-extrabold cursor-pointer"
+                          >
+                            Hapus Logo Kustom
+                          </button>
+                        )}
+                      </div>
+                      {homeCmsForm.emblemLogo && (
+                        <div className="mt-2 p-1.5 border border-zinc-200 rounded-lg bg-zinc-50 inline-block">
+                          <img
+                            src={homeCmsForm.emblemLogo}
+                            alt="Emblem Kustom Preview"
+                            className="w-12 h-12 object-contain"
+                            referrerPolicy="no-referrer"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="w-full py-2.5 bg-[#005c56] hover:bg-[#004843] text-white font-extrabold text-xs rounded-xl shadow-md transition uppercase cursor-pointer"
+                  >
+                    Simpan Perubahan Beranda
+                  </button>
+                </form>
+              </div>
+            )}
+
+            {false && (
+              <>
+                {/* 2. Selected Event Editor Panel */}
+                {editingEventId && editEventForm && (
               <div id="editor-section-anchor" className="bg-white p-6 md:p-8 rounded-3xl border border-teal-200 shadow-md space-y-6 animate-fadeIn relative">
                 {/* Close Button */}
                 <button
@@ -3563,25 +4904,27 @@ export default function App() {
                         </div>
 
                         <div className="space-y-1">
-                          <label className="text-zinc-700 font-bold block">Provinsi STNK / KTP *</label>
-                          <input
-                            type="text"
+                          <label className="text-zinc-700 font-bold block">Regional *</label>
+                          <select
                             required
-                            value={editMemberForm.province || ""}
-                            onChange={(e) => setEditMemberForm({ ...editMemberForm, province: e.target.value })}
+                            value={editMemberForm.regional || ""}
+                            onChange={(e) => setEditMemberForm({ ...editMemberForm, regional: e.target.value })}
                             className="w-full bg-white text-zinc-900 border border-zinc-250 rounded-lg p-2.5 focus:outline-none focus:border-teal-555 text-xs font-semibold"
-                          />
-                        </div>
-
-                        <div className="space-y-1">
-                          <label className="text-zinc-700 font-bold block">Kota Tinggal *</label>
-                          <input
-                            type="text"
-                            required
-                            value={editMemberForm.city || ""}
-                            onChange={(e) => setEditMemberForm({ ...editMemberForm, city: e.target.value })}
-                            className="w-full bg-white text-zinc-900 border border-zinc-250 rounded-lg p-2.5 focus:outline-none focus:border-teal-555 text-xs font-semibold"
-                          />
+                          >
+                            <option value="">-- Pilih Regional --</option>
+                            {(regionals.length > 0 ? regionals : [
+                              "J5 EVO - DKI JAKARTA",
+                              "J5 EVO - JAWA BARAT",
+                              "J5 EVO - JAWA TENGAH & DIY",
+                              "J5 EVO - JAWA TIMUR",
+                              "J5 EVO - SULAWESI SELATAN",
+                              "J5 EVO - TANGERANG RAYA"
+                            ]).map((reg) => (
+                              <option key={reg} value={reg}>
+                                {reg}
+                              </option>
+                            ))}
+                          </select>
                         </div>
 
                         <div className="space-y-1">
@@ -3855,6 +5198,8 @@ export default function App() {
               </div>
 
             </div>
+            </>
+            )}
 
           </div>
           )

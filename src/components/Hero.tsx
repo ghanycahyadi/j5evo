@@ -16,9 +16,11 @@ interface HeroProps {
     tiktok?: { name: string; url: string; handle: string; show: boolean };
     threads?: { name: string; url: string; handle: string; show: boolean };
   };
+  heroTitle?: string;
+  heroSubtitle?: string;
 }
 
-export default function Hero({ onRegisterClick, onExploreEventsClick, socials }: HeroProps) {
+export default function Hero({ onRegisterClick, onExploreEventsClick, socials, heroTitle, heroSubtitle }: HeroProps) {
   // Fallbacks if not loaded or passed
   const activeSocials = socials || {
     instagram: { name: "Instagram", url: "https://www.instagram.com/j5evo.id", handle: "@j5evo.id", show: true },
@@ -35,7 +37,7 @@ export default function Hero({ onRegisterClick, onExploreEventsClick, socials }:
       
       {/* Decorative Grid */}
       <div className="absolute inset-0 bg-[linear-gradient(to_right,#0d948805_1px,transparent_1px),linear-gradient(to_bottom,#0d948805_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none"></div>
-
+ 
       <div className="relative max-w-5xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
         
         {/* Banner Text Columns (8) */}
@@ -44,16 +46,20 @@ export default function Hero({ onRegisterClick, onExploreEventsClick, socials }:
             <Sparkles className="w-3.5 h-3.5 text-teal-600 animate-pulse" />
             <span>Official Community of J5 EVO Indonesia</span>
           </div>
-
-          <h1 className="font-sans font-extrabold text-4xl md:text-5xl lg:text-6xl tracking-tight leading-tight text-zinc-900">
-            Keluarga Besar <br />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-teal-700 via-teal-600 to-cyan-600">
-              J5 EVO Indonesia
-            </span>
+ 
+          <h1 className="font-sans font-extrabold text-3xl md:text-5xl lg:text-5xl tracking-tight leading-tight text-zinc-900 whitespace-pre-wrap">
+            {heroTitle ? heroTitle : (
+              <>
+                Keluarga Besar <br />
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-teal-700 via-teal-600 to-cyan-600">
+                  J5 EVO Indonesia
+                </span>
+              </>
+            )}
           </h1>
-
+ 
           <p className="text-base text-zinc-700 leading-relaxed font-sans max-w-2xl font-semibold">
-            J5 EVO (Electric Vehicle Owner) — Official licensed J5 community from ATPM Jaecoo Indonesia Partners
+            {heroSubtitle ? heroSubtitle : "J5 EVO (Electric Vehicle Owner) — Official licensed J5 community from ATPM Jaecoo Indonesia Partners"}
           </p>
 
           <p className="text-sm text-zinc-600 leading-relaxed font-sans max-w-2xl font-medium">

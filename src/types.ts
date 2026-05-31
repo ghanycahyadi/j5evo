@@ -10,6 +10,7 @@ export interface Member {
   address: string;
   province?: string;
   city?: string;
+  regional?: string; // New field replacing province/city dropdown
   plateNumber: string;
   chassisNumber: string;
   carPhoto: string; // Base64 or Unsplash placeholder
@@ -57,4 +58,30 @@ export interface FAQ {
   frequency: "High" | "Med" | "Low";
   solution: string;
 }
+
+export interface SponsorProduct {
+  id: string;
+  name: string;
+  photos: string[]; // Base64 or Unsplash URLs
+  price?: string | number;
+  showPrice: boolean;
+}
+
+export interface Sponsor {
+  id: string;
+  name: string;
+  contact: string;
+  logo: string; // Logo image as Base64/url
+  description: string;
+  products: SponsorProduct[];
+}
+
+export interface HomeContent {
+  heroTitle: string;
+  heroSubtitle: string;
+  aboutTitle: string;
+  aboutDescription: string;
+  heroBadge?: string;
+}
+
 

@@ -1,0 +1,129 @@
+{
+  "members": [
+  ],
+  "events": [
+  ],
+  "registrations": [
+  ],
+  "faqs": [
+    {
+      "id": "faq_1",
+      "category": "Setir & Pengendalian",
+      "problem": "Bunyi Steering Rack: Bunyi klik atau \"tek-tek\" saat setir diputar mentok (terutama saat mundur atau nanjak di jalan tidak rata). Awalnya dikira karena ESC dan dengan matikan ESC bisa tidak bunyi, ternyata tidak.",
+      "frequency": "High",
+      "solution": "Dilaporkan ke Bengkel Resmi (BeRes). Sebagian diberi gemuk (grease), sebagian perbaikan permanen dengan mengganti Shockbraker setelah investigasi ATPM."
+    },
+    {
+      "id": "faq_2",
+      "category": "Setir & Pengendalian",
+      "problem": "Masalah Alignment: Posisi setir tidak lurus di tengah atau mobil menarik ke satu sisi.",
+      "frequency": "Med",
+      "solution": "Memerlukan spooring (wheel alignment) di BeRes."
+    },
+    {
+      "id": "faq_3",
+      "category": "Setir & Pengendalian",
+      "problem": "Saat fitur ADAS aktif, mobil tidak bisa berada tepat di tengah lajur (lane centering). Mobil cenderung mepet ke marka kiri, lalu mengoreksi ke kanan, dan berulang terus-menerus sehingga terasa seperti memantul di dalam lajur.",
+      "frequency": "Low",
+      "solution": "Membawa mobil ke BeRes agar sistem ADAS dapat dikalibrasi ulang."
+    },
+    {
+      "id": "faq_4",
+      "category": "Pengereman & Traksi",
+      "problem": "Kehilangan Traksi (Wheel Spin): Ban sering selip saat akselerasi mendadak dari posisi diam atau di tanjakan karena torsi tinggi.",
+      "frequency": "High",
+      "solution": "Saran untuk menginjak pedal gas lebih halus atau mempertimbangkan ban dengan cengkeraman (grip) yang lebih baik."
+    },
+    {
+      "id": "faq_5",
+      "category": "Pengereman & Traksi",
+      "problem": "Rem Regeneratif \"Nyelonong\": Sensasi mobil kehilangan efek engine brake dan meluncur mendadak saat kontrol traksi/ESC aktif di jalan licin/bergelombang.",
+      "frequency": "Low",
+      "solution": "Memerlukan kalibrasi lebih lanjut pada sensor kecepatan atau sistem ESC oleh ATPM."
+    },
+    {
+      "id": "faq_6",
+      "category": "Eksterior & Bodi",
+      "problem": "Embun Kaca Depan (Luar): Embun terbentuk di sisi luar kaca depan saat hujan atau dingin.",
+      "frequency": "High",
+      "solution": "Naikkan Suhu AC ke angka 23°C - 24°C. Jika terlalu dingin, kaca depan berembun di sisi luar. Pastikan arah semburan AC fokus ke badan/kaki, bukan kaca. Nyalakan wiper sesekali jika perlu."
+    },
+    {
+      "id": "faq_7",
+      "category": "Eksterior & Bodi",
+      "problem": "Sistem TPMS sering memberikan peringatan (indikator menyala) karena adanya perbedaan antara tekanan ban aktual dengan standar yang terbaca oleh sistem.",
+      "frequency": "Med",
+      "solution": "J5 menggunakan Indirect TPMS system, memanfaatkan sensor kecepatan ABS untuk memantau perbedaan putaran roda (ban kempes berputar lebih cepat). Cek TPMS saat ban dingin untuk keakuratan. Reset TPMS di display Settings > TPMS > Reset setelah ban diisi 38-42 psi."
+    },
+    {
+      "id": "faq_8",
+      "category": "Eksterior & Bodi",
+      "problem": "Saluran pembuangan air AC pada Jaecoo J5 tidak dilengkapi dengan selang panjang yang mengarah ke bawah mobil. Hal ini menyebabkan air tetesan AC jatuh langsung ke bagian komponen atau area kolong mobil.",
+      "frequency": "Med",
+      "solution": "Memasang selang tambahan (5/8 inch) dan klem secara mandiri (DIY) atau meminta bantuan BeRes saat servis rutin (estimasi biaya jasa 150rb)."
+    },
+    {
+      "id": "faq_9",
+      "category": "Interior, Elektronik & Perangkat Lunak",
+      "problem": "Sensitivitas ADAS: Forward Collision Warning (FCW) terlalu sensitif atau bunyi peringatan muncul meski jarak masih aman.",
+      "frequency": "High",
+      "solution": "Menyesuaikan pengaturan ADAS atau mematikan fitur intervensi aktif jika terasa tidak aman di lalu lintas lokal."
+    },
+    {
+      "id": "faq_10",
+      "category": "Interior, Elektronik & Perangkat Lunak",
+      "problem": "Fitur Walkaway Lock/Unlock pada remote key terkadang mau bekerja dan terkadang tidak (intermittent). Mobil tidak otomatis mengunci saat pengemudi menjauh.",
+      "frequency": "Med",
+      "solution": "Ganti baterai remote atau gunakan kunci cadangan. Hindari penggunaan cover remote berbahan logam karena dapat mengganggu pengiriman sinyal."
+    }
+  ],
+  "socialMediaConfig": {
+    "instagram": {
+      "name": "Instagram",
+      "url": "https://www.instagram.com/j5evo.id",
+      "handle": "@j5evo.id",
+      "show": true
+    },
+    "facebook": {
+      "name": "Facebook",
+      "url": "https://facebook.com/groups/j5evo.id",
+      "handle": "J5 EVO ID",
+      "show": true
+    },
+    "twitter": {
+      "name": "X (Twitter)",
+      "url": "https://x.com/j5evo.id",
+      "handle": "@j5evo_id",
+      "show": true
+    },
+    "tiktok": {
+      "name": "TikTok",
+      "url": "https://tiktok.com/@j5evo.id",
+      "handle": "@j5evo.id",
+      "show": true
+    },
+    "threads": {
+      "name": "Threads",
+      "url": "https://threads.net/@j5evo.id",
+      "handle": "@j5evo.id",
+      "show": true
+    }
+  },
+  "regionals": [
+    "J5 EVO - INDONESIA",
+    "J5 EVO - DKI JAKARTA",
+    "J5 EVO - JAWA BARAT",
+    "J5 EVO - JAWA TENGAH & DIY",
+    "J5 EVO - JAWA TIMUR",
+    "J5 EVO - TANGERANG RAYA",
+    "J5 EVO - SULAWESI SELATAN"
+  ],
+  "sponsors": [
+  ],
+  "homeContent": {
+    "heroTitle": "Keluarga Besar J5 EVO Indonesia",
+    "heroSubtitle": "Satu wadah pemersatu silaturahmi, ekspedisi petualangan, edukasi teknis, serta inovasi berkendara ramah lingkungan bagi seluruh pemilik dan peminat unit mobil listrik premium JAECOO J5 EV di Indonesia.",
+    "aboutTitle": "Official Community of J5 EVO Indonesia",
+    "aboutDescription": "J5 EVO (Electric Vehicle Owner) — Official licensed J5 community from ATPM Jaecoo Indonesia Partners."
+  }
+}
