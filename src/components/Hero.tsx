@@ -69,7 +69,7 @@ export default function Hero({ onRegisterClick, onExploreEventsClick, socials, h
           <div className="flex flex-wrap items-center gap-3">
             <button
                onClick={onRegisterClick}
-               className="px-6 py-3 bg-teal-600 hover:bg-teal-700 text-white font-bold text-sm md:text-base rounded-xl transition-all duration-300 shadow-[0_4px_12px_rgba(13,148,136,0.2)] hover:shadow-[0_4px_16px_rgba(13,148,136,0.35)] flex items-center gap-1 focus:outline-none"
+               className="px-6 py-3 bg-teal-600 hover:bg-teal-700 text-white font-bold text-sm md:text-base rounded-xl transition-all duration-300 shadow-[0_4px_12px_rgba(13,148,136,0.2)] hover:shadow-[0_4px_16px_rgba(13,148,136,0.35)] flex items-center gap-1 focus:outline-none cursor-pointer"
             >
               Daftar Member Sekarang
               <ChevronRight className="w-4 h-4" />
@@ -77,10 +77,33 @@ export default function Hero({ onRegisterClick, onExploreEventsClick, socials, h
             
             <button
                onClick={onExploreEventsClick}
-               className="px-6 py-3 bg-white hover:bg-zinc-50 text-teal-800 border border-teal-200 rounded-xl shadow-xs transition duration-350 text-sm md:text-base font-bold focus:outline-none"
+               className="px-6 py-3 bg-white hover:bg-zinc-50 text-teal-800 border border-teal-200 rounded-xl shadow-xs transition duration-350 text-sm md:text-base font-bold focus:outline-none cursor-pointer"
             >
               Lihat Kegiatan Komunitas
             </button>
+          </div>
+
+          {/* Interactive Elegant WhatsApp Group Call-to-Action */}
+          <div className="bg-emerald-500/10 border border-emerald-500/20 hover:border-emerald-500/40 rounded-2xl p-4 text-emerald-900 flex flex-col sm:flex-row items-center justify-between gap-4 mt-1.5 shadow-2xs transition duration-300">
+            <div className="text-left space-y-1">
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[9px] font-mono font-bold tracking-wider uppercase">
+                💬 GABUNG SEKARANG
+              </span>
+              <h4 className="font-sans font-extrabold text-xs md:text-sm text-zinc-900 leading-tight">
+                WhatsApp Group J5 EVO - INDONESIA
+              </h4>
+              <p className="text-zinc-650 text-[11px] leading-snug font-medium">
+                Saling berjejaring & koordinasi bersama seluruh pemilik unit Jaecoo J5 EV resmi di Indonesia.
+              </p>
+            </div>
+            <a
+              href="https://chat.whatsapp.com/J7yHm2s3wTELy9blEd3jb1?mode=hqctcla"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full sm:w-auto px-4.5 py-2 text-center bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-xl shadow-sm transition-all duration-300 shrink-0 hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
+            >
+              GABUNG GRUP WA
+            </a>
           </div>
 
           {/* Icon highlights (Social Media Channels) */}

@@ -310,15 +310,19 @@ function compressBase64(
     let width = img.width;
     let height = img.height;
 
+    // Enforce robust maximum dimensions (1800x1800) for all uploads to keep images crisp/sharp yet safe from database payload issues
+    const targetMaxWidth = Math.max(maxWidth, 1800);
+    const targetMaxHeight = Math.max(maxHeight, 1800);
+
     if (width > height) {
-      if (width > maxWidth) {
-        height = Math.round((height * maxWidth) / width);
-        width = maxWidth;
+      if (width > targetMaxWidth) {
+        height = Math.round((height * targetMaxWidth) / width);
+        width = targetMaxWidth;
       }
     } else {
-      if (height > maxHeight) {
-        width = Math.round((width * maxHeight) / height);
-        height = maxHeight;
+      if (height > targetMaxHeight) {
+        width = Math.round((width * targetMaxHeight) / height);
+        height = targetMaxHeight;
       }
     }
 
@@ -333,7 +337,9 @@ function compressBase64(
     }
 
     ctx.drawImage(img, 0, 0, width, height);
-    const compressed = canvas.toDataURL("image/jpeg", quality);
+    // Explicitly enforce quality compression (up to 0.85) so photos look highly detailed and premium
+    const targetQuality = Math.min(quality, 0.85);
+    const compressed = canvas.toDataURL("image/jpeg", targetQuality);
     resolve(compressed);
   };
   img.onerror = () => {

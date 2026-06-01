@@ -141,9 +141,9 @@ export default function AdminEvents({
 
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
-                    <label className="text-zinc-[700] font-bold block">Tanggal Kegiatan *</label>
+                    <label className="text-zinc-[700] font-bold block">Tanggal Pelaksanaan *</label>
                     <input
-                      type="text"
+                      type="date"
                       required
                       value={editEventForm.date || ""}
                       onChange={(e) => setEditEventForm({ ...editEventForm, date: e.target.value })}
@@ -320,13 +320,12 @@ export default function AdminEvents({
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {/* Tanggal */}
-            <div className="space-y-1">
+            {/* Tanggal (datepicker saja) */}
+            <div className="space-y-1 sm:col-span-1">
               <label className="text-zinc-700 font-bold font-sans">Tanggal Pelaksanaan *</label>
               <input
-                type="text"
+                type="date"
                 required
-                placeholder="Hari, DD MMMM YYYY (e.g. Minggu, 28 Juni 2026)"
                 value={newEvent.date}
                 onChange={(e) => setNewEvent({ ...newEvent, date: e.target.value })}
                 className="w-full bg-zinc-50 text-zinc-900 border border-zinc-250 rounded-lg p-2.5 focus:outline-none focus:border-teal-555 focus:bg-white text-xs font-semibold"

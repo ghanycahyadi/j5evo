@@ -248,6 +248,9 @@ export default function App() {
   const [formSubmitted, setFormSubmitted] = useState<boolean>(false);
   const [lastRegisteredMember, setLastRegisteredMember] = useState<Member | null>(null);
 
+  // States - TOC Checklist during Member Registration
+  const [tocAgreed, setTocAgreed] = useState(false);
+
   // States - Participation Signup Forms per Event
   const [eventJoiningId, setEventJoiningId] = useState<string | null>(null);
   const [joinForm, setJoinForm] = useState({
@@ -416,6 +419,12 @@ export default function App() {
   // CMS dynamic state variables
   const [regionals, setRegionals] = useState<string[]>([]);
   const [sponsors, setSponsors] = useState<any[]>([]);
+  const [selectedSponsorId, setSelectedSponsorId] = useState<string | null>(null);
+  const [selectedProductPhoto, setSelectedProductPhoto] = useState<string | null>(null);
+  const [lightboxPhotos, setLightboxPhotos] = useState<string[]>([]);
+  const [lightboxIndex, setLightboxIndex] = useState<number>(0);
+  const [sponsorSearchQuery, setSponsorSearchQuery] = useState("");
+  const [productSearchQuery, setProductSearchQuery] = useState("");
   const [homeContent, setHomeContent] = useState<any>(null);
 
   // CMS Admin states for managing Regionals, Sponsors, and Home Content
@@ -479,6 +488,28 @@ export default function App() {
       autoLookup();
     }
   }, []);
+
+  // Lightbox keyboard navigation key listener
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!selectedProductPhoto || lightboxPhotos.length === 0) return;
+      if (e.key === "ArrowLeft") {
+        const newIdx = (lightboxIndex - 1 + lightboxPhotos.length) % lightboxPhotos.length;
+        setLightboxIndex(newIdx);
+        setSelectedProductPhoto(lightboxPhotos[newIdx]);
+      } else if (e.key === "ArrowRight") {
+        const newIdx = (lightboxIndex + 1) % lightboxPhotos.length;
+        setLightboxIndex(newIdx);
+        setSelectedProductPhoto(lightboxPhotos[newIdx]);
+      } else if (e.key === "Escape") {
+        setSelectedProductPhoto(null);
+        setLightboxPhotos([]);
+        setLightboxIndex(0);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [selectedProductPhoto, lightboxPhotos, lightboxIndex]);
 
   const fetchData = async () => {
     try {
@@ -983,6 +1014,7 @@ export default function App() {
     setRegPlate1("");
     setRegPlate2("");
     setRegPlate3("");
+    setTocAgreed(false);
   };
 
   // Submit Member Registration Form (Google Form style layout)
@@ -1027,6 +1059,11 @@ export default function App() {
 
     if (!regForm.name || !regForm.address || !regForm.chassisNumber || !regForm.regional) {
       showFeedback("Mohon isi semua kolom bertanda bintang (*) merah wajib diisi!", true);
+      return;
+    }
+
+    if (!tocAgreed) {
+      showFeedback("Anda wajib menyetujui seluruh Syarat & Ketentuan (TOC) komunitas untuk memproses pendaftaran!", true);
       return;
     }
 
@@ -1833,8 +1870,6 @@ export default function App() {
               </div>
 
             </div>
-
-            {/* PHOTO KEGIATAN BY ALBUM */}
             <div className="space-y-6">
               <div className="flex items-center justify-between flex-wrap gap-2">
                 <div className="flex items-center gap-2">
@@ -2237,6 +2272,71 @@ export default function App() {
               })()}
             </div>
 
+            {/* SPONSOR LOGO RUNNING BANNER (IMAGE SLIDE REDESIGNED AS A PREMIUM GRID TO MATCH SCREENSHOT) */}
+            <div id="home-sponsor-carousel" className="space-y-8 pt-12 border-t border-zinc-200 mt-16 text-left">
+              <div className="bg-[#0B0F19] rounded-3xl p-8 md:p-12 relative overflow-hidden shadow-2xl border border-zinc-800/50">
+                <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff02_1px,transparent_1px),linear-gradient(to_bottom,#ffffff02_1px,transparent_1px)] bg-[size:30px_30px]" />
+                <div className="absolute -left-12 -top-12 w-64 h-64 bg-teal-500/10 rounded-full blur-3xl pointer-events-none" />
+                <div className="absolute -right-12 -bottom-12 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+
+                <div className="relative z-10 space-y-8">
+                  <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-zinc-800/80 pb-6">
+                    <div className="space-y-1">
+                      <h3 className="font-sans font-black tracking-[0.2em] text-3xl md:text-4xl text-white uppercase">
+                        PARTNER
+                      </h3>
+                      <p className="text-xs md:text-sm text-zinc-400 max-w-xl leading-relaxed">
+                        Mitra strategis & sponsor resmi J5 EVO Indonesia yang menyediakan berbagai benefit eksklusif bagi seluruh member terdaftar.
+                      </p>
+                    </div>
+                    <div className="shrink-0">
+                      <button
+                        onClick={() => setActiveTab("sponsor")}
+                        className="inline-flex items-center gap-1.5 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700/60 rounded-xl text-xs font-bold text-teal-400 transition-all duration-300 hover:scale-[1.02] cursor-pointer"
+                      >
+                        Lihat Program Sponsor <ArrowRight className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {sponsors.length === 0 ? (
+                    <div className="py-12 text-center text-zinc-500 text-xs font-medium border border-dashed border-zinc-800 rounded-2xl bg-zinc-900/40">
+                      Sponsor resmi sedang dalam tahap kurasi oleh pengurus nasional J5 EVO.
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6 sm:gap-8 items-center justify-items-center pt-2">
+                      {sponsors.map((spr) => (
+                        <div
+                          key={spr.id}
+                          className="w-full flex flex-col items-center justify-center p-4 transition-all duration-300 group"
+                        >
+                          <div className="h-16 w-full flex items-center justify-center transition-all duration-300 group-hover:scale-110">
+                            {spr.logo ? (
+                              <img
+                                src={spr.logo}
+                                alt={spr.name}
+                                className="max-h-12 max-w-full object-contain filter grayscale opacity-70 brightness-200 group-hover:grayscale-0 group-hover:opacity-100 group-hover:brightness-100 transition-all duration-300"
+                                referrerPolicy="no-referrer"
+                              />
+                            ) : (
+                              <span className="text-sm font-black text-white group-hover:text-teal-400 font-mono tracking-wider transition-colors duration-300 text-center uppercase">
+                                {spr.name}
+                              </span>
+                            )}
+                          </div>
+                          {spr.logo && (
+                            <span className="text-[10px] font-bold text-zinc-500 group-hover:text-zinc-300 transition-colors duration-300 mt-2 text-center select-none tracking-wide">
+                              {spr.name}
+                            </span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
           </div>
         )}
 
@@ -2623,6 +2723,53 @@ export default function App() {
                   </div>
                 </div>
 
+                {/* Card Field: TOC (Terms of Conduct Checklist) */}
+                <div id="field-toc" className="bg-white p-6 rounded-2xl border border-zinc-200 shadow-xs space-y-4">
+                  <label className="text-base font-bold text-zinc-900 block border-b border-zinc-100 pb-2">
+                    Syarat &amp; Ketentuan Keanggotaan (TOC) <span className="text-red-500 font-bold">*</span>
+                  </label>
+                  
+                  <div className="bg-zinc-50 border border-zinc-150 rounded-xl p-4 space-y-3 text-xs leading-relaxed text-zinc-650 max-h-60 overflow-y-auto">
+                    <p className="font-bold text-zinc-800">Tata Tertib Komunitas J5 EVO Indonesia:</p>
+                    <ol className="list-decimal list-inside space-y-2.5">
+                      <li>
+                        <span className="font-bold text-zinc-900">Larangan Jualan Tanpa Izin:</span>{" "}
+                        <span className="text-red-650 font-semibold underline decoration-dotted">Dilarang mem-posting atau menawarkan barang/jasa jualan tanpa mendapatkan izin resmi terlebih dahulu dari admin atau pengurus.</span>
+                      </li>
+                      <li>
+                        <span className="font-bold text-zinc-900">Menjaga Nama Baik:</span>{" "}
+                        Selalu menjunjung tinggi dan menjaga nama baik komunitas J5 EVO Indonesia baik di dalam grup media sosial maupun di luar forum/jalan raya.
+                      </li>
+                      <li>
+                        <span className="font-bold text-zinc-900">Sikap Hormat &amp; Anti SARA:</span>{" "}
+                        Saling menghormati sesama anggota komunitas, menghindari debat kusir, ujaran kebencian, suku, agama, ras (SARA), dan politik praktis.
+                      </li>
+                      <li>
+                        <span className="font-bold text-zinc-900">Tertib Berkendara (Safety Driving):</span>{" "}
+                        Berkomitmen untuk mengutamakan keselamatan berkendara di jalan raya, mematuhi rambu-rambu lalu lintas, serta tidak bersikap arogan.
+                      </li>
+                      <li>
+                        <span className="font-bold text-zinc-900">Pertanggungjawaban Data:</span>{" "}
+                        Menjamin bahwa semua data pendaftaran (termasuk nomor rangka &amp; plat nomor kendaraan) adalah akurat, valid, dan milik pribadi yang sah.
+                      </li>
+                    </ol>
+                  </div>
+
+                  <div className="pt-2">
+                    <label className="flex items-start gap-3 cursor-pointer group p-3.5 rounded-xl bg-teal-50/40 hover:bg-teal-50/70 border border-teal-100/50 hover:border-teal-100 transition duration-200">
+                      <input
+                        type="checkbox"
+                        checked={tocAgreed}
+                        onChange={(e) => setTocAgreed(e.target.checked)}
+                        className="mt-0.5 h-5 w-5 rounded border-teal-300 text-teal-600 focus:ring-teal-500 accent-teal-600 cursor-pointer"
+                      />
+                      <div className="text-sm text-teal-900 leading-relaxed font-semibold">
+                        Saya menyatakan telah membaca, memahami, dan menyetujui seluruh ketentuan tata tertib komunitas J5 EVO Indonesia di atas. <span className="text-red-500">*</span>
+                      </div>
+                    </label>
+                  </div>
+                </div>
+
                 {/* Optional Field: SELECT CAR VEHICLE PHOTO */}
                 
 
@@ -2978,99 +3125,66 @@ export default function App() {
                         </div>
 
                         {/* Attribute Rows - tightened spacing, NO more Status Member row, layout is more compact as requested */}
-                        <div className="space-y-0.5 px-1 relative z-10 mb-4 font-card-sans text-left">
+                        <div className="space-y-2.5 px-3 relative z-10 mb-4 font-card-sans text-left">
                           {/* 1. NAMA */}
                           <div className="flex items-center text-zinc-950 py-0.5">
                             <div className="w-8 flex justify-start text-[#005c56] shrink-0">
                               <User className="w-[18px] h-[18px] stroke-[2.25]" />
                             </div>
-                            <span className="w-24 text-zinc-400 font-card-display text-[11px] font-extrabold tracking-wider uppercase">NAMA</span>
+                            <span className="w-28 text-zinc-400 font-card-display text-[10.5px] font-extrabold tracking-wider uppercase">NAMA</span>
                             <span className="text-zinc-450 font-semibold mx-2 shrink-0">:</span>
                             <span className="flex-1 text-zinc-900 font-card-sans text-[13.5px] font-black uppercase truncate select-all">
                               {lookupResult.member.name}
                             </span>
                           </div>
 
-                          {/* 2. MEMBER ID */}
-                          <div className="flex items-center text-zinc-950 py-0.5">
-                            <div className="w-8 flex justify-start text-[#005c56] shrink-0">
-                              <IdCard className="w-[18px] h-[18px] stroke-[2.25]" />
-                            </div>
-                            <span className="w-24 text-zinc-400 font-card-display text-[11px] font-extrabold tracking-wider uppercase">MEMBER ID</span>
-                            <span className="text-zinc-450 font-semibold mx-2 shrink-0">:</span>
-                            <span className="flex-1 text-[#005c56] font-mono text-[13.5px] font-black tracking-wider uppercase select-all">
-                              {lookupResult.member.id}
-                            </span>
-                          </div>
-
-                          {/* 3. PLAT NOMOR */}
+                          {/* 2. PLAT NOMOR */}
                           <div className="flex items-center text-zinc-950 py-0.5">
                             <div className="w-8 flex justify-start text-[#005c56] shrink-0">
                               <Car className="w-[18px] h-[18px] stroke-[2.25]" />
                             </div>
-                            <span className="w-24 text-zinc-400 font-card-display text-[11px] font-extrabold tracking-wider uppercase">PLAT NOMOR</span>
+                            <span className="w-28 text-zinc-400 font-card-display text-[10.5px] font-extrabold tracking-wider uppercase">PLAT NOMOR</span>
                             <span className="text-zinc-450 font-semibold mx-2 shrink-0">:</span>
                             <span className="flex-1 text-zinc-900 font-card-sans text-[13.5px] font-black tracking-wide uppercase select-all">
                               {lookupResult.member.plateNumber}
                             </span>
                           </div>
 
-                          {/* 4. REGIONAL (KOTA SAJA) */}
+                          {/* 3. REGIONAL (KOTA SAJA) */}
                           <div className="flex items-center text-zinc-950 py-0.5">
                             <div className="w-8 flex justify-start text-[#005c56] shrink-0">
                               <MapPin className="w-[18px] h-[18px] stroke-[2.25]" />
                             </div>
-                            <span className="w-24 text-zinc-400 font-card-display text-[11px] font-extrabold tracking-wider uppercase">REGIONAL</span>
+                            <span className="w-28 text-zinc-400 font-card-display text-[10.5px] font-extrabold tracking-wider uppercase">REGIONAL</span>
                             <span className="text-zinc-450 font-semibold mx-2 shrink-0">:</span>
                             <span className="flex-1 text-zinc-900 font-card-sans text-[13px] font-black uppercase truncate select-all">
                               {(lookupResult.member.regional || lookupResult.member.city || "-").toUpperCase()}
                             </span>
                           </div>
 
-                          {/* 5 & 6. COMBINED TIGHTLY: TANGGAL BERGABUNG AND MEMBERSHIP TIER ON ONE SINGLE ROW (SIDE-BY-SIDE & PERFECTLY CENTERED) */}
-                          <div className="grid grid-cols-2 gap-2 py-2 border-t border-zinc-100 mt-2 text-center divide-x divide-zinc-100">
-                            {/* Left Column: Tanggal Bergabung */}
-                            <div className="flex flex-col items-center justify-center text-zinc-950 min-w-0 px-2">
-                              <div className="flex items-center gap-1.5 mb-1 text-[#005c56]">
-                                <Calendar className="w-4 h-4 stroke-[2.25]" />
-                                <span className="text-zinc-400 font-card-display text-[8.5px] font-extrabold tracking-wider uppercase">BERGABUNG</span>
-                              </div>
-                              <span className="text-zinc-900 font-card-sans text-[12px] font-black uppercase leading-none">
-                                {(() => {
-                                  const dateStr = lookupResult.member.registeredAt;
-                                  if (!dateStr) return "-";
-                                  try {
-                                    const months = [
-                                      "JAN", "FEB", "MAR", "APR", "MEI", "JUN",
-                                      "JUL", "AGU", "SEP", "OKT", "NOV", "DES"
-                                    ];
-                                    const date = new Date(dateStr);
-                                    return `${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`;
-                                  } catch (e) {
-                                    return "-";
-                                  }
-                                })()}
-                              </span>
+                          {/* 4. TANGGAL REGISTRASI (Moved below Regional and renamed from Bergabung) */}
+                          <div className="flex items-center text-zinc-950 py-0.5 border-t border-zinc-100 pt-2.5 mt-1">
+                            <div className="w-8 flex justify-start text-[#005c56] shrink-0">
+                              <Calendar className="w-[18px] h-[18px] stroke-[2.25]" />
                             </div>
-
-                            {/* Right Column: Jenis Membership with highly attractive golden/metallic gradient look */}
-                            <div className="flex flex-col items-center justify-center text-zinc-950 min-w-0 px-2">
-                              <div className="flex items-center gap-1.5 mb-1 text-[#005c56]">
-                                <Award className="w-4 h-4 stroke-[2.25]" />
-                                <span className="text-zinc-400 font-card-display text-[8.5px] font-extrabold tracking-wider uppercase">MEMBERSHIP</span>
-                              </div>
-                              <div className="flex items-center justify-center">
-                                {(lookupResult.member.membershipTier || "SILVER") === "GOLD" ? (
-                                  <span className="inline-flex items-center justify-center bg-gradient-to-r from-[#d4af37] via-[#fdf1cb] to-[#aa7c11] text-zinc-950 font-card-display text-[9px] font-black tracking-widest uppercase text-center px-2.5 py-0.5 rounded-md shadow-[0_2px_10px_rgba(212,175,55,0.4)] border border-[#fef08a]/70 min-w-[76px] h-[19px] leading-none">
-                                    ★ GOLD ★
-                                  </span>
-                                ) : (
-                                  <span className="inline-flex items-center justify-center bg-gradient-to-r from-[#94a3b8] via-[#f1f5f9] to-[#64748b] text-slate-900 font-card-display text-[9px] font-black tracking-widest uppercase text-center px-2.5 py-0.5 rounded-md shadow-[0_2px_10px_rgba(148,163,184,0.35)] border border-[#e2e8f0]/60 min-w-[76px] h-[19px] leading-none">
-                                    SILVER
-                                  </span>
-                                )}
-                              </div>
-                            </div>
+                            <span className="w-28 text-zinc-400 font-card-display text-[10.5px] font-extrabold tracking-wider uppercase">TANGGAL REGISTRASI</span>
+                            <span className="text-zinc-450 font-semibold mx-2 shrink-0">:</span>
+                            <span className="flex-1 text-zinc-900 font-card-sans text-[13px] font-black uppercase select-all">
+                              {(() => {
+                                const dateStr = lookupResult.member.registeredAt;
+                                if (!dateStr) return "-";
+                                try {
+                                  const date = new Date(dateStr);
+                                  return date.toLocaleDateString("id-ID", {
+                                    year: "numeric",
+                                    month: "long",
+                                    day: "numeric",
+                                  });
+                                } catch (e) {
+                                  return "-";
+                                }
+                              })()}
+                            </span>
                           </div>
                         </div>
 
@@ -3507,135 +3621,526 @@ export default function App() {
 
         {/* TAB 4.5: PUBLIC SPONSORS VIEW MODULE */}
         {activeTab === "sponsor" && (
-          <div id="tab-sponsor" className="space-y-10 animate-fadeIn text-left">
+          <div id="tab-sponsor" className="space-y-12 animate-fadeIn text-left">
             {/* Elegant Header section */}
-            <div className="bg-gradient-to-br from-teal-900 to-zinc-900 text-white rounded-3xl p-8 md:p-12 relative overflow-hidden shadow-xl">
-              <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff08_1px,transparent_1px),linear-gradient(to_bottom,#ffffff08_1px,transparent_1px)] bg-[size:20px_20px]"></div>
-              <div className="absolute right-0 top-0 w-64 h-64 bg-teal-500/20 rounded-full blur-3xl pointer-events-none"></div>
+            <div className="relative bg-gradient-to-br from-[#0a121e] via-[#0f2334] to-[#041a1a] text-white rounded-3xl p-8 md:p-14 overflow-hidden shadow-xl border border-zinc-800/80">
+              <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff03_1px,transparent_1px),linear-gradient(to_bottom,#ffffff03_1px,transparent_1px)] bg-[size:30px_30px]"></div>
+              <div className="absolute right-0 top-0 w-96 h-96 bg-teal-500/10 rounded-full blur-3xl pointer-events-none"></div>
+              <div className="absolute left-1/3 bottom-0 w-72 h-72 bg-emerald-500/5 rounded-full blur-3xl pointer-events-none"></div>
               
-              <div className="relative z-10 max-w-3xl space-y-4">
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-500/20 border border-amber-500/30 rounded-full text-xs text-amber-300 font-mono font-bold">
-                  <Award className="w-3.5 h-3.5 text-amber-400" />
-                  <span>Official Partners & Sponsors J5 EVO</span>
+              <div className="relative z-10 max-w-4xl space-y-5">
+                <span className="inline-flex items-center gap-2 px-3.5 py-1.5 bg-gradient-to-r from-amber-500/25 to-amber-600/10 border border-amber-500/30 rounded-full text-[10px] text-amber-300 font-mono font-bold tracking-wider uppercase">
+                  <Award className="w-4 h-4 text-amber-400 animate-pulse" />
+                  <span>Exclusive Partnership Hub — J5 EVO</span>
                 </span>
-                <h2 className="text-3xl md:text-5xl font-mono font-black tracking-tight leading-tight">
-                  Sponsor Pendukung Komunitas
+                <h2 className="text-3xl md:text-6xl font-mono font-black tracking-tight leading-none bg-gradient-to-r from-white via-zinc-100 to-teal-200 bg-clip-text text-transparent">
+                  Sponsor & Mitra Resmi
                 </h2>
-                <p className="text-sm text-zinc-300 leading-relaxed max-w-2xl">
-                  Daftar mitra kolaborasi resmi J5 EVO Indonesia yang menyediakan berbagai produk otomotif premium, layanan servis berkualitas, serta keuntungan eksklusif bagi seluruh member terdaftar.
+                <p className="text-sm md:text-base text-zinc-350 leading-relaxed max-w-3xl font-medium">
+                  Selamat datang di jaringan kolaborasi premium J5 EVO Indonesia. Selaku member resmi terdaftar, Anda berhak menikmati penawaran khusus, diskon eksklusif, serta jaminan layanan profesional dari mitra kurasi terbaik tim kami.
                 </p>
+                <div className="flex flex-wrap gap-4 pt-2">
+                  <div className="inline-flex items-center gap-2 bg-white/5 border border-white/10 px-3.5 py-1.5 rounded-xl backdrop-blur-xs">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+                    <span className="text-xs text-zinc-300 font-mono font-semibold">100% Produk Terverifikasi</span>
+                  </div>
+                  <div className="inline-flex items-center gap-2 bg-white/5 border border-white/10 px-3.5 py-1.5 rounded-xl backdrop-blur-xs">
+                    <span className="text-xs text-amber-400 font-mono">⚡ Benefit Khusus Member Terdaftar</span>
+                  </div>
+                </div>
               </div>
             </div>
 
-            {/* List of Sponsors */}
             {sponsors.length === 0 ? (
-              <div className="p-12 text-center rounded-3xl bg-white border border-zinc-200 shadow-sm space-y-3">
-                <Award className="w-12 h-12 text-zinc-350 mx-auto opacity-60 animate-bounce" />
-                <h4 className="font-bold text-zinc-700 text-lg">Belum Ada Sponsor Terdaftar</h4>
+              <div className="p-16 text-center rounded-3xl bg-white border border-zinc-200 shadow-sm space-y-4">
+                <Award className="w-16 h-16 text-zinc-300 mx-auto opacity-70 animate-bounce" />
+                <h4 className="font-mono font-black text-zinc-800 text-xl uppercase tracking-wider">Tahap Kurasi Administrasi</h4>
                 <p className="text-xs text-zinc-500 max-w-md mx-auto leading-relaxed">
-                  Mitra kerja sama sponsor resmi sedang dalam tahap finalisasi kurasi administrasi oleh tim J5 EVO.
+                  Mitra kerja sama sponsor dan penawaran eksklusif sedang dalam tahap finalisasi kurasi administrasi oleh jajaran manajemen J5 EVO Regional Indonesia. Harap kembali nanti!
                 </p>
               </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                {sponsors.map((spr) => (
-                  <div key={spr.id} id={`sponsor-card-${spr.id}`} className="bg-white border border-zinc-200 rounded-3xl p-6 md:p-8 hover:shadow-lg transition-all duration-300 flex flex-col justify-between space-y-6">
-                    <div className="space-y-4">
-                      {/* Sponsor Logo and Info */}
-                      <div className="flex items-center gap-4">
-                        {spr.logo ? (
-                          <img
-                            src={spr.logo}
-                            alt={spr.name}
-                            className="w-16 h-16 object-contain rounded-2xl bg-zinc-50 p-2 border border-zinc-200/60 shadow-inner shrink-0"
-                          />
-                        ) : (
-                          <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-teal-700 to-emerald-600 flex items-center justify-center text-white font-extrabold text-xl font-mono shrink-0">
-                            {spr.name.slice(0, 2).toUpperCase()}
-                          </div>
+            ) : (() => {
+              // Filter sponsors list based on search query
+              const filteredSponsors = sponsors.filter(spr => 
+                spr.name.toLowerCase().includes(sponsorSearchQuery.toLowerCase()) ||
+                (spr.description || "").toLowerCase().includes(sponsorSearchQuery.toLowerCase())
+              );
+
+              const getCleanWaUrl = (contactStr: string, nameStr: string, prodName?: string) => {
+                let clean = (contactStr || "").replace(/[^0-9]/g, "");
+                if (clean.startsWith("0")) {
+                  clean = "62" + clean.slice(1);
+                } else if (clean.startsWith("8")) {
+                  clean = "62" + clean;
+                }
+                const text = prodName
+                  ? `Halo *${nameStr}*, saya anggota resmi dari komunitas J5 EVO - INDONESIA yang terdaftar di database website. Saya melihat produk *${prodName}* di website J5 EVO dan ingin bertanya mengenai promo khusus member, spesifikasi detail, serta ketersediaan stoknya. Terima kasih!`
+                  : `Halo *${nameStr}*, saya anggota resmi dari komunitas J5 EVO - INDONESIA. Ingin berkonsultasi mengenai benefit member khusus, penawaran diskon, atau layanan servis yang disediakan untuk pemilik Jaecoo J5.`;
+                return `https://wa.me/${clean}?text=${encodeURIComponent(text)}`;
+              };
+
+              // If Selected Sponsor ID is null, we are on the Store/Partner Directory Stage (Card layout)
+              if (selectedSponsorId === null) {
+                return (
+                  <div className="space-y-8 animate-fadeIn">
+                    {/* Interactive Filter Bar */}
+                    <div className="bg-white border border-zinc-200/85 p-5 rounded-3xl shadow-3xs flex flex-col md:flex-row gap-4 justify-between items-center">
+                      <div className="flex items-center gap-3.5 w-full md:w-auto">
+                        <div className="p-2.5 rounded-2xl bg-teal-50 border border-teal-100 text-teal-800 shrink-0">
+                          <Award className="w-5 h-5 text-teal-750" />
+                        </div>
+                        <div className="text-left font-sans">
+                          <h3 className="font-extrabold text-sm text-zinc-900 leading-snug">Showroom Brand & Mitra Resmi ({filteredSponsors.length})</h3>
+                          <p className="text-[11px] text-zinc-500 font-semibold leading-tight">Pilih mitra di bawah ini untuk melihat jangkauan diskon, katalog produk, dan chat langsung</p>
+                        </div>
+                      </div>
+                      
+                      {/* Brand Quick Search Input */}
+                      <div className="relative w-full md:w-80">
+                        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
+                        <input 
+                          type="text"
+                          placeholder="Cari partner / kategori..."
+                          value={sponsorSearchQuery}
+                          onChange={(e) => setSponsorSearchQuery(e.target.value)}
+                          className="w-full pl-10 pr-4 py-2.5 bg-zinc-50 text-xs text-zinc-800 font-medium rounded-2xl border border-zinc-200 hover:border-zinc-350 focus:border-teal-550 focus:bg-white focus:outline-none transition-all placeholder:text-zinc-450" 
+                        />
+                        {sponsorSearchQuery && (
+                          <button 
+                            onClick={() => setSponsorSearchQuery("")}
+                            className="absolute right-3.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-650 text-xs font-bold font-mono"
+                          >
+                            ✕
+                          </button>
                         )}
-                        <div className="min-w-0">
-                          <h3 className="text-xl font-bold font-sans text-zinc-900 truncate">
-                            {spr.name}
+                      </div>
+                    </div>
+
+                    {/* Core Directory Grid */}
+                    {filteredSponsors.length === 0 ? (
+                      <div className="p-16 text-center rounded-3xl bg-white border border-zinc-200/80 shadow-3xs space-y-4">
+                        <span className="text-3xl block">🔍</span>
+                        <h4 className="font-mono font-black text-zinc-800 text-lg uppercase tracking-wider">Mitra Tidak Ditemukan</h4>
+                        <p className="text-xs text-zinc-500 max-w-sm mx-auto leading-relaxed">
+                          Tidak ditemukan mitra dengan nama atau deskripsi bertuliskan "{sponsorSearchQuery}". Silakan coba kata kunci lain.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-6.5">
+                        {filteredSponsors.map((spr) => (
+                          <div 
+                            key={spr.id} 
+                            onClick={() => {
+                              setSelectedSponsorId(spr.id);
+                              setProductSearchQuery(""); // clear internal search queries
+                            }}
+                            className="bg-white border border-zinc-200/90 hover:border-teal-400 rounded-3xl p-6 shadow-3xs hover:shadow-md transition-all duration-300 flex flex-col justify-between space-y-5 group cursor-pointer"
+                          >
+                            <div className="space-y-4.5 text-left">
+                              {/* Logo Unit */}
+                              <div className="flex items-center justify-between gap-3">
+                                <div className="w-16 h-16 flex items-center justify-center rounded-2xl bg-zinc-50 border border-zinc-150 p-2 group-hover:bg-teal-50/40 transition-colors shrink-0">
+                                  {spr.logo ? (
+                                    <img
+                                      src={spr.logo}
+                                      alt={spr.name}
+                                      className="max-w-full max-h-full object-contain filter drop-shadow-3xs"
+                                      referrerPolicy="no-referrer"
+                                    />
+                                  ) : (
+                                    <div className="w-12 h-12 rounded-xl bg-teal-850 text-white flex items-center justify-center font-black text-sm font-mono">
+                                      {spr.name.slice(0, 2).toUpperCase()}
+                                    </div>
+                                  )}
+                                </div>
+                                <span className="inline-flex px-2.5 py-1 bg-teal-500/10 border border-teal-500/20 text-teal-800 text-[9px] font-mono font-black rounded-lg uppercase tracking-wider">
+                                  🛡️ Verified
+                                </span>
+                              </div>
+
+                              {/* Sponsor Name & Product Tag count badge */}
+                              <div className="space-y-1.5">
+                                <h3 className="font-sans font-black text-base text-zinc-900 group-hover:text-teal-950 transition-colors leading-tight">
+                                  {spr.name}
+                                </h3>
+                                <div className="flex flex-wrap gap-2">
+                                  <span className="inline-flex items-center gap-1 text-[9px] text-teal-900 font-mono font-bold bg-teal-50 border border-teal-100 px-2 py-0.5 rounded-md">
+                                    📦 {spr.products?.length || 0} Katalog Promo
+                                  </span>
+                                  {spr.contact && (
+                                    <span className="inline-flex items-center gap-1 text-[9px] text-emerald-800 font-mono font-bold bg-emerald-50 border border-emerald-100/60 px-2 py-0.5 rounded-md">
+                                      💬 Chat Tersedia
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* High-level Description */}
+                              <p className="text-xs text-zinc-500 leading-relaxed line-clamp-3 font-medium">
+                                {spr.description || "Mitra kerja sama resmi komunitas J5 EVO Indonesia."}
+                              </p>
+                            </div>
+
+                            {/* Direct Trigger action area */}
+                            <div className="pt-3.5 border-t border-zinc-100/80">
+                              <span
+                                className="w-full py-3 bg-zinc-50 text-zinc-750 font-black text-[10px] tracking-widest uppercase rounded-xl border border-zinc-200 group-hover:bg-teal-700 group-hover:border-teal-750 group-hover:text-white transition-all flex items-center justify-center gap-2"
+                              >
+                                <span>Buka Katalog Toko</span>
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" />
+                                </svg>
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              }
+
+              // Otherwise, we are displaying the detailed view of ActiveSponsor
+              const activeSponsor = sponsors.find(s => s.id === selectedSponsorId);
+              if (!activeSponsor) {
+                // Graceful auto reset
+                setSelectedSponsorId(null);
+                return null;
+              }
+
+              const filteredProducts = (activeSponsor.products || []).filter((prod: any) => 
+                prod.name.toLowerCase().includes(productSearchQuery.toLowerCase())
+              );
+
+              return (
+                <div className="space-y-8 animate-fadeIn">
+                  
+                  {/* Brand Action Row with back navigation */}
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                    <button 
+                      onClick={() => {
+                        setSelectedSponsorId(null);
+                        setProductSearchQuery("");
+                      }}
+                      className="inline-flex items-center gap-2 px-4.5 py-2.5 bg-white hover:bg-zinc-100 hover:border-zinc-350 text-zinc-805 font-bold text-xs rounded-2xl border border-zinc-200 transition-all cursor-pointer shadow-3xs"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-zinc-550" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.8} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                      </svg>
+                      Kembali ke Semua Mitra
+                    </button>
+                    
+                    <span className="text-[10px] text-zinc-400 font-mono font-bold uppercase tracking-widest hidden sm:block">
+                      Showcase: {activeSponsor.name}
+                    </span>
+                  </div>
+
+                  {/* Single Brand Showcase Spotlight Header Card */}
+                  <div className="bg-white border border-zinc-200 rounded-3xl p-6 md:p-8 shadow-sm space-y-6">
+                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+                      
+                      <div className="flex items-center gap-5">
+                        <div className="w-18 h-18 md:w-22 md:h-22 flex items-center justify-center rounded-2xl bg-zinc-50 border border-zinc-150 p-2.5 shrink-0 shadow-3xs">
+                          {activeSponsor.logo ? (
+                            <img
+                              src={activeSponsor.logo}
+                              alt={activeSponsor.name}
+                              className="max-w-full max-h-full object-contain filter drop-shadow-2xs"
+                              referrerPolicy="no-referrer"
+                            />
+                          ) : (
+                            <div className="w-16 h-16 rounded-xl bg-teal-850 text-white flex items-center justify-center font-extrabold text-lg font-mono">
+                              {activeSponsor.name.slice(0, 2).toUpperCase()}
+                            </div>
+                          )}
+                        </div>
+                        <div className="text-left space-y-1.5 font-sans">
+                          <span className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-teal-50 border border-teal-200/60 text-teal-850 text-[9px] font-mono font-black tracking-wider uppercase">
+                            🛡️ MITRA SPONSOR TERVERIFIKASI
+                          </span>
+                          <h3 className="font-extrabold text-2xl md:text-3xl text-zinc-900 tracking-tight leading-none">
+                            {activeSponsor.name}
                           </h3>
-                          <p className="text-xs text-teal-700 font-mono font-bold mt-0.5">
-                            Kontak: {spr.contact || "-"}
-                          </p>
                         </div>
                       </div>
 
-                      {/* Description */}
-                      <p className="text-xs text-zinc-650 leading-relaxed bg-zinc-50/50 p-4 rounded-2xl border border-zinc-100 font-sans">
-                        {spr.description || "Tidak ada deskripsi tambahan mengenai sponsor ini."}
-                      </p>
+                      {/* Sponsor WhatsApp Call to Action */}
+                      <a
+                        href={getCleanWaUrl(activeSponsor.contact, activeSponsor.name)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="w-full md:w-auto inline-flex items-center justify-center gap-2 px-6 py-4 bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 text-white font-extrabold text-xs rounded-xl shadow-xs transition-all duration-300 hover:scale-[1.02] tracking-wider uppercase cursor-pointer"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 fill-white" viewBox="0 0 24 24">
+                          <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.514 2.266 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.717-1.456L0 24zm6.59-4.846c1.6.95 3.188 1.449 4.825 1.451 5.436 0 9.86-4.37 9.864-9.799.002-2.63-1.023-5.101-2.885-6.97C16.331 2.012 13.848.993 11.233.993 5.795.993 1.371 5.363 1.367 10.793c-.001 1.748.463 3.454 1.344 4.974l-.993 3.63 3.731-.969-.02.01c-.135-.22-.135-.22-.056-.056z"/>
+                        </svg>
+                        KONSULTASI CHAT
+                      </a>
                     </div>
 
-                    {/* Products listed */}
-                    <div className="space-y-3">
-                      <h4 className="text-xs font-mono font-black tracking-widest text-zinc-400 uppercase">
-                        PRODUK YANG DITAWARKAN ({spr.products?.length || 0})
-                      </h4>
+                    {/* Description Box */}
+                    {activeSponsor.description && (
+                      <div className="space-y-2.5 text-left bg-gradient-to-r from-teal-50/15 via-zinc-50/30 to-zinc-50/50 border-l-4 border-teal-600 rounded-r-2xl p-5 shadow-3xs transition-all">
+                        <span className="text-[10px] font-mono tracking-widest text-[#005c56] uppercase font-black block">
+                          🎁 INFORMASI & PROMO SPONSOR:
+                        </span>
+                        <p className="text-xs text-zinc-700 font-medium leading-relaxed italic">
+                          "{activeSponsor.description}"
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Catalog Collection Module */}
+                  <div className="space-y-6 text-left">
+                    {/* Catalog Header and filter settings */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-zinc-50 p-4.5 rounded-3xl border border-zinc-200">
+                      <div className="space-y-0.5 font-sans">
+                        <span className="font-sans font-black text-xs text-zinc-900 uppercase tracking-widest block">
+                          📄 KATALOG PRODUK PENAWARAN ({filteredProducts.length})
+                        </span>
+                        <span className="text-[10px] text-zinc-400 font-semibold block">Klik gambar produk untuk memperbesar resolusi & detil foto tambahan</span>
+                      </div>
                       
-                      {!spr.products || spr.products.length === 0 ? (
-                        <p className="text-xs text-zinc-400 italic font-sans">Belum ada katalog dirilis untuk brand ini.</p>
-                      ) : (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                          {spr.products.map((pdt: any, idx: number) => (
-                            <div key={idx} className="bg-zinc-50/20 hover:bg-zinc-50/80 border border-zinc-150 p-3.5 rounded-2xl flex flex-col justify-between space-y-2.5 transition">
-                              
-                              {/* Product Photo Carousel/Grid */}
-                              <div className="space-y-1.5">
-                                {pdt.photos && pdt.photos.length > 0 ? (
-                                  <div className="grid grid-cols-2 gap-1 rounded-xl overflow-hidden bg-zinc-100 border border-zinc-200/60">
-                                    {pdt.photos.slice(0, 2).map((photo: string, phIdx: number) => (
-                                      <img
-                                        key={phIdx}
-                                        src={photo}
-                                        alt={pdt.name}
-                                        className="w-full h-16 object-cover"
-                                      />
-                                    ))}
-                                    {pdt.photos.length > 2 && (
-                                      <div className="col-span-2 text-[9px] font-mono font-bold text-center py-0.5 bg-zinc-100 text-zinc-500 border-t border-zinc-200">
-                                        +{pdt.photos.length - 2} Foto Lainnya
+                      {/* Search Bar for store Catalog */}
+                      <div className="relative w-full sm:w-72">
+                        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
+                        <input 
+                          type="text"
+                          value={productSearchQuery}
+                          onChange={(e) => setProductSearchQuery(e.target.value)}
+                          placeholder="Cari item di toko ini..."
+                          className="w-full pl-9.5 pr-4 py-2.5 bg-white text-xs text-zinc-800 font-medium rounded-xl border border-zinc-200 focus:outline-none focus:border-teal-550"
+                        />
+                        {productSearchQuery && (
+                          <button 
+                            onClick={() => setProductSearchQuery("")}
+                            className="absolute right-3.5 top-1/2 -translate-y-1/2 text-zinc-405 hover:text-zinc-650 text-xs font-bold"
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Catalog Store list or empty block */}
+                    {filteredProducts.length === 0 ? (
+                      <div className="py-16 text-center rounded-2xl border border-dashed border-zinc-200 bg-white text-zinc-500 space-y-3 shadow-3xs">
+                        <span className="text-3xl block">📦</span>
+                        <p className="text-xs font-bold text-zinc-805">Katalog Kosong / Tidak Cocok</p>
+                        <p className="text-[11px] text-zinc-400 max-w-sm mx-auto leading-relaxed">
+                          Tidak ditemukan katalog produk yang sesuai dengan pencarian Anda. Silahkan hapus filter kata atau konsultasi langsung melalui tombol chat di atas.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4.5 sm:gap-6">
+                        {filteredProducts.map((prod: any, pIdx: number) => {
+                          const hasPhotos = prod.photos && prod.photos.length > 0;
+                          return (
+                            <div
+                              key={pIdx}
+                              className="bg-white border border-zinc-200 hover:border-teal-400 hover:shadow-2xs rounded-2xl overflow-hidden transition-all duration-300 flex flex-col justify-between group/card"
+                            >
+                              {/* Display Image with overlay tag */}
+                              <div className="relative aspect-square w-full bg-zinc-50 flex items-center justify-center overflow-hidden border-b border-zinc-150">
+                                {hasPhotos ? (
+                                  <>
+                                    <img
+                                      src={prod.photos[0]}
+                                      alt={prod.name}
+                                      className="w-full h-full object-cover transition-transform duration-500 group-hover/card:scale-104 cursor-zoom-in"
+                                      onClick={() => {
+                                        setSelectedProductPhoto(prod.photos[0]);
+                                        setLightboxPhotos(prod.photos || []);
+                                        setLightboxIndex(0);
+                                      }}
+                                      referrerPolicy="no-referrer"
+                                    />
+                                    {/* Corner Badge */}
+                                    <div className="absolute top-2.5 left-2.5 bg-zinc-950/70 text-[8px] sm:text-[9px] text-zinc-100 font-mono tracking-wider font-extrabold px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-md shadow-3xs flex items-center gap-1 uppercase select-none">
+                                      🏷️ Member Deal
+                                    </div>
+                                    {prod.photos.length > 1 && (
+                                      <div className="absolute right-2.5 bottom-2.5 bg-teal-900/90 text-white font-mono text-[8px] sm:text-[9px] px-1.5 py-0.5 rounded-md font-bold select-none border border-teal-700/50">
+                                        +{prod.photos.length - 1} Foto Lain
                                       </div>
                                     )}
-                                  </div>
+                                  </>
                                 ) : (
-                                  <div className="w-full h-16 rounded-xl bg-zinc-100 border border-zinc-200 flex items-center justify-center text-zinc-350">
-                                    <Car className="w-5 h-5 opacity-40" />
-                                  </div>
+                                  <span className="text-[10px] text-zinc-400 font-mono italic">Katalog Foto Kosong</span>
                                 )}
-
-                                <p className="font-bold text-zinc-800 text-xs line-clamp-2 leading-snug">
-                                  {pdt.name}
-                                </p>
                               </div>
 
-                              <div className="flex items-center justify-between gap-1.5 border-t border-zinc-100 pt-2 mt-auto">
-                                <span className="font-bold text-teal-700 text-[11px] font-mono">
-                                  {pdt.showPrice ? (
-                                    pdt.price === 0 || pdt.price === undefined || pdt.price === null ? (
-                                      "Gratis / Free"
+                              {/* Catalog Metadata details content */}
+                              <div className="p-3.5 sm:p-4.5 space-y-4 flex-1 flex flex-col justify-between">
+                                <div className="space-y-2 text-left">
+                                  <h4 className="font-sans font-bold text-xs text-zinc-800 leading-snug line-clamp-2 min-h-[2rem]">
+                                    {prod.name}
+                                  </h4>
+                                  <div>
+                                    {prod.showPrice ? (
+                                      <div className="inline-flex flex-col">
+                                        <p className="font-mono font-black text-xs sm:text-sm text-teal-850">
+                                          Rp {prod.price.toLocaleString("id-ID")}
+                                        </p>
+                                        <p className="text-[9px] text-zinc-450 font-bold font-mono uppercase tracking-wider">Garansi Harga J5 EVO</p>
+                                      </div>
                                     ) : (
-                                      new Intl.NumberFormat("id-ID", {
-                                        style: "currency",
-                                        currency: "IDR",
-                                        maximumFractionDigits: 0
-                                      }).format(pdt.price)
-                                    )
-                                  ) : (
-                                    "Hubungi Sponsor"
+                                      <span className="inline-flex px-1.5 py-0.5 rounded bg-zinc-100 text-zinc-650 text-[9px] font-bold font-mono tracking-wide">
+                                        Hubungi Sponsor
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+
+                                {/* Micro gallery rows and click buttons */}
+                                <div className="space-y-2.5 pt-1 border-t border-zinc-100">
+                                  {hasPhotos && prod.photos.length > 1 && (
+                                    <div className="flex gap-1 overflow-x-auto pb-1.5 scrollbar-none">
+                                      {prod.photos.map((ph: string, phIdx: number) => (
+                                        <img
+                                          key={phIdx}
+                                          src={ph}
+                                          alt=""
+                                          onClick={() => {
+                                            setSelectedProductPhoto(ph);
+                                            setLightboxPhotos(prod.photos || []);
+                                            setLightboxIndex(phIdx);
+                                          }}
+                                          className="w-8 h-8 rounded border border-zinc-200 object-cover cursor-zoom-in shrink-0 hover:border-teal-550 hover:scale-105 transition-all"
+                                          referrerPolicy="no-referrer"
+                                        />
+                                      ))}
+                                    </div>
                                   )}
-                                </span>
+
+                                  {/* Direct Inquiry triggers */}
+                                  <a
+                                    href={getCleanWaUrl(activeSponsor.contact, activeSponsor.name, prod.name)}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="w-full inline-flex items-center justify-center gap-1 px-2 py-2 bg-teal-50 border border-teal-200/85 hover:bg-teal-600 hover:text-white hover:border-teal-605 text-teal-900 font-extrabold text-[9px] sm:text-[10px] rounded-xl transition-all duration-300 shadow-3xs cursor-pointer tracking-wider"
+                                  >
+                                    TANYA DETAIL PROMO
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.8} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                                    </svg>
+                                  </a>
+                                </div>
                               </div>
                             </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
-                ))}
+                </div>
+              );
+            })()}
+
+            {/* Product Image Lightbox Modal with Next / Prev Carousel Controls */}
+            {selectedProductPhoto && (
+              <div 
+                className="fixed inset-0 bg-black/95 z-55 flex flex-col items-center justify-center p-4 animate-fadeIn select-none"
+                onClick={() => {
+                  setSelectedProductPhoto(null);
+                  setLightboxPhotos([]);
+                  setLightboxIndex(0);
+                }}
+              >
+                {/* Prevent click bubbling inside the container */}
+                <div 
+                  className="relative max-w-4xl w-full max-h-[85vh] flex flex-col items-center justify-center"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {/* Close button at top right of viewport */}
+                  <button 
+                    className="absolute -top-14 right-2 text-white hover:text-red-400 font-extrabold text-xs bg-zinc-900/80 hover:bg-zinc-900/100 px-4 py-2.5 rounded-xl border border-zinc-805 cursor-pointer shadow-lg transition-all duration-200 z-10 flex items-center gap-1.5"
+                    onClick={() => {
+                      setSelectedProductPhoto(null);
+                      setLightboxPhotos([]);
+                      setLightboxIndex(0);
+                    }}
+                  >
+                    <span>✕</span> Tutup Pratinjau
+                  </button>
+
+                  {/* Main Display Image Frame */}
+                  <div className="relative w-full flex items-center justify-center p-2">
+                    <img 
+                      src={selectedProductPhoto} 
+                      alt="Foto Produk Zoom" 
+                      className="max-w-full max-h-[65vh] object-contain rounded-2xl shadow-2xl border border-zinc-800/60 bg-zinc-950/20"
+                      referrerPolicy="no-referrer"
+                    />
+
+                    {/* Left/Prev Control Button */}
+                    {lightboxPhotos.length > 1 && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const newIdx = (lightboxIndex - 1 + lightboxPhotos.length) % lightboxPhotos.length;
+                          setLightboxIndex(newIdx);
+                          setSelectedProductPhoto(lightboxPhotos[newIdx]);
+                        }}
+                        className="absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 bg-zinc-900/75 hover:bg-zinc-900/100 text-white rounded-full flex items-center justify-center border border-zinc-800 hover:border-teal-500 shadow-xl transition-all duration-305 hover:scale-105 cursor-pointer text-lg font-black"
+                        title="Foto Sebelumnya"
+                      >
+                        ‹
+                      </button>
+                    )}
+
+                    {/* Right/Next Control Button */}
+                    {lightboxPhotos.length > 1 && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const newIdx = (lightboxIndex + 1) % lightboxPhotos.length;
+                          setLightboxIndex(newIdx);
+                          setSelectedProductPhoto(lightboxPhotos[newIdx]);
+                        }}
+                        className="absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 bg-zinc-900/75 hover:bg-zinc-900/100 text-white rounded-full flex items-center justify-center border border-zinc-800 hover:border-teal-500 shadow-xl transition-all duration-305 hover:scale-105 cursor-pointer text-lg font-black"
+                        title="Foto Berikutnya"
+                      >
+                        ›
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Indicators / Micro row */}
+                  {lightboxPhotos.length > 1 && (
+                    <div className="mt-5 flex flex-col items-center gap-3">
+                      {/* Dots and indexes */}
+                      <span className="text-zinc-400 text-[11px] font-mono font-bold tracking-widest uppercase">
+                        Foto {lightboxIndex + 1} dari {lightboxPhotos.length}
+                      </span>
+                      
+                      <div className="flex gap-2.5 overflow-x-auto max-w-xs scrollbar-none py-1">
+                        {lightboxPhotos.map((ph: string, idx: number) => {
+                          const isCurrent = idx === lightboxIndex;
+                          return (
+                            <img
+                              key={idx}
+                              src={ph}
+                              alt=""
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setLightboxIndex(idx);
+                                setSelectedProductPhoto(ph);
+                              }}
+                              className={`w-10 h-10 rounded-lg object-cover cursor-pointer transition-all duration-200 border-2 ${
+                                isCurrent 
+                                  ? "border-teal-400 scale-110 shadow-md shadow-teal-500/20" 
+                                  : "border-zinc-800 opacity-60 hover:opacity-100 hover:border-zinc-500"
+                              }`}
+                              referrerPolicy="no-referrer"
+                            />
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </div>
@@ -4096,9 +4601,9 @@ export default function App() {
                       {/* Tanggal & Waktu */}
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div className="space-y-1">
-                          <label className="text-zinc-750 font-bold font-sans">Hari / Tanggal *</label>
+                          <label className="text-zinc-750 font-bold font-sans">Tanggal Pelaksanaan *</label>
                           <input
-                            type="text"
+                            type="date"
                             required
                             value={editEventForm.date}
                             onChange={(e) => setEditEventForm({ ...editEventForm, date: e.target.value })}
@@ -4387,35 +4892,17 @@ export default function App() {
                     />
                   </div>
 
-                  {/* Hari / Tanggal with Calendar Helper */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div className="space-y-1">
-                      <label className="text-zinc-750 font-bold font-sans">Hari / Tanggal *</label>
-                      <input
-                        type="text"
-                        required
-                        placeholder="Contoh: Minggu, 24 Mei 2026"
-                        value={newEvent.date}
-                        onChange={(e) => setNewEvent({ ...newEvent, date: e.target.value })}
-                        className="w-full bg-zinc-50 text-zinc-900 border border-zinc-250 rounded-lg p-2.5 focus:outline-none focus:border-teal-500 focus:bg-white text-xs font-semibold"
-                      />
-                    </div>
-
-                    <div className="space-y-1">
-                      <label className="text-zinc-750 font-bold font-sans">Pilih dari Kalender (Auto-format)</label>
-                      <input
-                        type="date"
-                        onChange={(e) => {
-                          const dVal = e.target.value;
-                          if (dVal) {
-                            const formatted = formatDate(dVal);
-                            setNewEvent({ ...newEvent, date: formatted });
-                          }
-                        }}
-                        className="w-full bg-zinc-50 text-zinc-900 border border-zinc-250 rounded-lg p-2 focus:outline-none focus:border-teal-500 focus:bg-white text-xs font-semibold"
-                      />
-                    </div>
-                  </div>
+                   {/* Tanggal Pelaksanaan (datepicker saja) */}
+                   <div className="space-y-1">
+                     <label className="text-zinc-750 font-bold font-sans">Tanggal Pelaksanaan *</label>
+                     <input
+                       type="date"
+                       required
+                       value={newEvent.date}
+                       onChange={(e) => setNewEvent({ ...newEvent, date: e.target.value })}
+                       className="w-full bg-zinc-50 text-zinc-900 border border-zinc-250 rounded-lg p-2.5 focus:outline-none focus:border-teal-500 focus:bg-white text-xs font-semibold"
+                     />
+                   </div>
 
                   {/* Waktu & Kuota Slots */}
                   <div className="grid grid-cols-2 gap-3">
@@ -4772,19 +5259,6 @@ export default function App() {
                           </div>
 
                           <div className="flex items-center gap-2 self-end md:self-auto shrink-0">
-                            {/* Manage Tier Selector */}
-                            <div className="flex items-center gap-1 bg-white border border-zinc-200 rounded-lg p-1">
-                              <span className="text-[9px] text-zinc-400 px-1 font-bold uppercase whitespace-nowrap">TIER:</span>
-                              <select
-                                value={m.membershipTier || "SILVER"}
-                                onChange={(e) => handleUpdateMemberTier(m.id, m.membershipTier || "SILVER", e.target.value as any)}
-                                className="bg-transparent border-0 font-bold focus:ring-0 text-[#005c56] text-[11px] cursor-pointer outline-none"
-                              >
-                                <option value="SILVER">SILVER</option>
-                                <option value="GOLD">GOLD (Pendiri)</option>
-                              </select>
-                            </div>
-
                             <button
                               onClick={() => {
                                 setEditingMemberId(m.id);
@@ -4924,18 +5398,6 @@ export default function App() {
                                 {reg}
                               </option>
                             ))}
-                          </select>
-                        </div>
-
-                        <div className="space-y-1">
-                          <label className="text-zinc-700 font-bold block">Membership Tier *</label>
-                          <select
-                            value={editMemberForm.membershipTier || "SILVER"}
-                            onChange={(e) => setEditMemberForm({ ...editMemberForm, membershipTier: e.target.value })}
-                            className="w-full bg-white text-zinc-900 border border-teal-300 rounded-lg p-2.5 focus:outline-none focus:border-teal-555 text-xs font-bold text-[#005c56]"
-                          >
-                            <option value="SILVER">SILVER</option>
-                            <option value="GOLD">GOLD (Pendiri)</option>
                           </select>
                         </div>
 

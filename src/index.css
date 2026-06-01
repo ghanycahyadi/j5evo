@@ -4,4 +4,10 @@
 @theme {
   --font-card-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
   --font-card-display: "Montserrat", sans-serif;
+  --animate-marquee: marquee 30s linear infinite;
+}
+
+@keyframes marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
 }

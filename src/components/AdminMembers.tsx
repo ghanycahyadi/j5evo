@@ -254,19 +254,6 @@ export default function AdminMembers({
                 </div>
 
                 <div className="flex items-center gap-2 self-end md:self-auto shrink-0">
-                  {/* Manage Tier Selector */}
-                  <div className="flex items-center gap-1 bg-white border border-zinc-200 rounded-lg p-1">
-                    <span className="text-[9px] text-zinc-400 px-1 font-bold uppercase whitespace-nowrap">TIER:</span>
-                    <select
-                      value={m.membershipTier || "SILVER"}
-                      onChange={(e) => handleUpdateMemberTier(m.id, m.membershipTier || "SILVER", e.target.value as any)}
-                      className="bg-transparent border-0 font-bold focus:ring-0 text-[#005c56] text-[11px] cursor-pointer outline-none"
-                    >
-                      <option value="SILVER">SILVER</option>
-                      <option value="GOLD">GOLD (Pendiri)</option>
-                    </select>
-                  </div>
-
                   <button
                     onClick={() => {
                       setEditingMemberId(m.id);
@@ -428,18 +415,6 @@ export default function AdminMembers({
                       {reg}
                     </option>
                   ))}
-                </select>
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-zinc-[700] font-bold block">Membership Tier *</label>
-                <select
-                  value={editMemberForm.membershipTier || "SILVER"}
-                  onChange={(e) => setEditMemberForm({ ...editMemberForm, membershipTier: e.target.value })}
-                  className="w-full bg-white text-zinc-900 border border-teal-300 rounded-lg p-2.5 focus:outline-none focus:border-teal-500 text-xs font-bold text-[#005c56]"
-                >
-                  <option value="SILVER">SILVER</option>
-                  <option value="GOLD">GOLD (Pendiri)</option>
                 </select>
               </div>
 
