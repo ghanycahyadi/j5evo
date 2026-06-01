@@ -278,6 +278,8 @@ export default function App() {
   const [showEditVerification, setShowEditVerification] = useState<boolean>(false);
   const [verificationPhoneNum, setVerificationPhoneNum] = useState<string>("");
   const [verificationError, setVerificationError] = useState<string | null>(null);
+  const [showWaShareModal, setShowWaShareModal] = useState<boolean>(false);
+  const [waShareText, setWaShareText] = useState<string>("");
   const [isSelfEditing, setIsSelfEditing] = useState<boolean>(false);
   const [selfEditForm, setSelfEditForm] = useState({
     id: "",
@@ -1553,6 +1555,42 @@ export default function App() {
       showFeedback("Gagal mengunduh kartu. Silakan coba lagi.", true);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Modern sharing handler to send text directly to WhatsApp Group
+  const handleShareCardToWhatsApp = () => {
+    if (!lookupResult) return;
+    try {
+      const member = lookupResult.member;
+      const regDate = (() => {
+        const dateStr = member.registeredAt;
+        if (!dateStr) return "-";
+        try {
+          const date = new Date(dateStr);
+          return date.toLocaleDateString("id-ID", {
+            year: "numeric",
+            month: "long",
+            day: "numeric",
+          });
+        } catch (e) {
+          return "-";
+        }
+      })();
+
+      const captionText = `*Halo Keluarga Besar J5 Evo Community!* 👋🚗🔥\n\nSaya sangat senang mengumumkan bahwa saya telah bergabung secara resmi sebagai anggota terdaftar:\n\n📛 *Nama:* ${member.name.toUpperCase()}\n📍 *Regional:* ${(member.regional || member.city || "-").toUpperCase()}\n🗓️ *Tanggal Registrasi:* ${regDate}\n\nMohon bimbingan dan kerjasamanya dari rekan-rekan semua di jalan raya! Mari berkendara dengan aman, cerdas, dan penuh kekeluargaan bersama J5 Evo Community! 🛣️💨⚡\n\n#J5EvoCommunity #JaecooJ5 #DriveSafe`;
+
+      // Copy text to clipboard as support helper
+      try {
+        navigator.clipboard.writeText(captionText);
+      } catch (e) {}
+
+      showFeedback("Membuka WhatsApp...");
+      const waUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(captionText)}`;
+      window.open(waUrl, "_blank");
+    } catch (err) {
+      console.error(err);
+      showFeedback("Gagal membagikan ke WhatsApp.", true);
     }
   };
 
@@ -3208,15 +3246,13 @@ export default function App() {
                               {(lookupResult.member.regional || lookupResult.member.city || "-").toUpperCase()}
                             </span>
                           </div>
+                        </div>
 
-                          {/* 4. TANGGAL REGISTRASI (Moved below Regional and renamed from Bergabung) */}
-                          <div className="flex items-center text-zinc-950 py-0.5 border-t border-zinc-100 pt-2.5 mt-1">
-                            <div className="w-8 flex justify-start text-[#005c56] shrink-0">
-                              <Calendar className="w-[18px] h-[18px] stroke-[2.25]" />
-                            </div>
-                            <span className="w-28 text-zinc-400 font-card-display text-[10.5px] font-extrabold tracking-wider uppercase">TANGGAL REGISTRASI</span>
-                            <span className="text-zinc-450 font-semibold mx-2 shrink-0">:</span>
-                            <span className="flex-1 text-zinc-900 font-card-sans text-[13px] font-black uppercase select-all">
+                        {/* Tanggal Registrasi: Combined text in small font, right-aligned like indicated by arrow pointer */}
+                        <div className="text-right px-3 mb-4 select-none relative z-10 -mt-1">
+                          <span className="inline-block text-[10px] font-card-display font-medium text-zinc-400 tracking-wider">
+                            Tanggal Registrasi:&nbsp;
+                            <span className="text-zinc-650 font-black uppercase">
                               {(() => {
                                 const dateStr = lookupResult.member.registeredAt;
                                 if (!dateStr) return "-";
@@ -3232,7 +3268,7 @@ export default function App() {
                                 }
                               })()}
                             </span>
-                          </div>
+                          </span>
                         </div>
 
                         {/* ULTRA FUTURISTIC CORE FOOTER - Sleek matrix cyber cockpit with glowing neon elements */}
@@ -3298,26 +3334,38 @@ export default function App() {
                       </div>
 
                       {/* Action Buttons right under Card */}
-                      <div className="flex flex-col sm:flex-row gap-3 items-center justify-center max-w-[490px] mx-auto mt-2 mb-4 select-none">
+                      <div className="flex flex-col gap-3 max-w-[490px] mx-auto mt-2 mb-4 select-none">
+                        <div className="flex flex-col sm:flex-row gap-3 items-center justify-center w-full">
+                          <button
+                            onClick={handleDownloadCard}
+                            type="button"
+                            className="flex-1 w-full bg-gradient-to-r from-[#005c56] to-teal-700 hover:from-teal-700 hover:to-teal-600 font-sans text-xs font-black tracking-widest uppercase text-white py-3.5 px-6 rounded-2xl shadow-[0_8px_20px_rgba(0,92,86,0.25)] hover:shadow-[0_12px_24px_rgba(0,92,86,0.35)] hover:scale-[1.01] transition-all cursor-pointer flex items-center justify-center gap-2 transform active:scale-[0.98] duration-200"
+                          >
+                            <Download className="w-4 h-4" />
+                            Unduh Kartu (PNG)
+                          </button>
+                          <button
+                            onClick={() => {
+                              setShowEditVerification(true);
+                              setVerificationPhoneNum("");
+                              setVerificationError(null);
+                            }}
+                            type="button"
+                            className="flex-1 w-full bg-white hover:bg-zinc-50 border border-zinc-250 text-zinc-700 font-sans text-xs font-black tracking-widest uppercase py-3.5 px-6 rounded-2xl transition hover:scale-[1.01] cursor-pointer flex items-center justify-center gap-2 transform active:scale-[0.98] duration-200 shadow-3xs"
+                          >
+                            <Pencil className="w-4 h-4 text-zinc-500" />
+                            Edit Info Profil
+                          </button>
+                        </div>
+
+                        {/* WhatsApp Group Share button */}
                         <button
-                          onClick={handleDownloadCard}
+                          onClick={handleShareCardToWhatsApp}
                           type="button"
-                          className="flex-1 w-full bg-gradient-to-r from-[#005c56] to-teal-700 hover:from-teal-700 hover:to-teal-600 font-sans text-xs font-black tracking-widest uppercase text-white py-3.5 px-6 rounded-2xl shadow-[0_8px_20px_rgba(0,92,86,0.25)] hover:shadow-[0_12px_24px_rgba(0,92,86,0.35)] hover:scale-[1.01] transition-all cursor-pointer flex items-center justify-center gap-2 transform active:scale-[0.98] duration-200"
+                          className="w-full bg-[#25D366] hover:bg-[#20ba5a] text-white font-sans text-xs font-black tracking-widest uppercase py-3.5 px-6 rounded-2xl transition hover:scale-[1.01] cursor-pointer flex items-center justify-center gap-2 transform active:scale-[0.98] duration-200 shadow-[0_4px_14px_rgba(37,211,102,0.3)] hover:shadow-[0_6px_20px_rgba(37,211,102,0.45)]"
                         >
-                          <Download className="w-4 h-4" />
-                          Unduh Kartu (PNG)
-                        </button>
-                        <button
-                          onClick={() => {
-                            setShowEditVerification(true);
-                            setVerificationPhoneNum("");
-                            setVerificationError(null);
-                          }}
-                          type="button"
-                          className="flex-1 w-full bg-white hover:bg-zinc-50 border border-zinc-250 text-zinc-700 font-sans text-xs font-black tracking-widest uppercase py-3.5 px-6 rounded-2xl transition hover:scale-[1.01] cursor-pointer flex items-center justify-center gap-2 transform active:scale-[0.98] duration-200 shadow-3xs"
-                        >
-                          <Pencil className="w-4 h-4 text-zinc-500" />
-                          Edit Info Profil
+                          <Share2 className="w-4 h-4 text-white fill-white" />
+                          Bagikan ke WA Group Resmi
                         </button>
                       </div>
 
@@ -3376,6 +3424,85 @@ export default function App() {
                                 </button>
                               </div>
                             </form>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* WHATSAPP SHARE INSTRUCTIONS DIALOG MODAL (Web Fallback) */}
+                      {showWaShareModal && (
+                        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/75 backdrop-blur-md animate-fadeIn">
+                          <div className="bg-white rounded-3xl border border-zinc-200 shadow-2xl p-6 w-full max-w-sm text-left relative space-y-4">
+                            <button
+                              type="button"
+                              onClick={() => setShowWaShareModal(false)}
+                              className="absolute top-4 right-4 text-zinc-400 hover:text-zinc-650 font-bold text-lg p-1 cursor-pointer"
+                            >
+                              ✕
+                            </button>
+                            <div className="space-y-1.5">
+                              <span className="text-[9px] font-mono tracking-widest text-[#005c56] bg-teal-50 px-2 py-0.5 rounded-full font-bold uppercase border border-teal-100">
+                                Berbagi Ke Anggota
+                              </span>
+                              <h4 className="font-sans font-extrabold text-base text-zinc-900 flex items-center gap-1.5">
+                                💬 WhatsApp Share Assistant
+                              </h4>
+                              <p className="text-zinc-[650] text-2xs leading-relaxed">
+                                Untuk membagikan kartu member langsung tanpa URL link, silakan ikuti 2 langkah praktis di bawah ini:
+                              </p>
+                            </div>
+
+                            <div className="space-y-3 pt-1">
+                              {/* Step 1 */}
+                              <div className="flex gap-3 items-start bg-zinc-50 p-3 rounded-2xl border border-zinc-150">
+                                <span className="flex items-center justify-center w-6 h-6 rounded-full bg-emerald-100 text-emerald-800 text-xs font-black shrink-0 mt-0.5">
+                                  1
+                                </span>
+                                <div className="space-y-0.5">
+                                  <h5 className="text-[11px] font-bold text-zinc-900 uppercase tracking-wide">Gambar Kartu Diunduh</h5>
+                                  <p className="text-[10px] text-zinc-500 leading-normal">
+                                    Gambar kartu member premium digital Anda telah terunduh otomatis ke perangkat Anda.
+                                  </p>
+                                </div>
+                              </div>
+
+                              {/* Step 2 */}
+                              <div className="flex gap-3 items-start bg-zinc-50 p-3 rounded-2xl border border-zinc-150">
+                                <span className="flex items-center justify-center w-6 h-6 rounded-full bg-emerald-100 text-emerald-800 text-xs font-black shrink-0 mt-0.5">
+                                  2
+                                </span>
+                                <div className="space-y-0.5">
+                                  <h5 className="text-[11px] font-bold text-zinc-900 uppercase tracking-wide">Teks Caption Disalin</h5>
+                                  <p className="text-[10px] text-zinc-500 leading-normal">
+                                    Format teks salam perkenalan resmi keanggotaan Anda telah berhasil disalin ke papan klip ponsel/PC.
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="bg-[#e8fbf3] border border-emerald-150 rounded-2xl p-3 text-[10px] text-emerald-850 leading-relaxed font-sans font-medium">
+                              💡 <strong>Tips Cara Kirim:</strong> Saat WhatsApp terbuka, pilih group <strong>J5 Evo</strong>, lakukan <strong>Paste (Tempel)</strong> pesan, dan <strong>Lampirkan gambar kartu</strong> yang sudah terunduh!
+                            </div>
+
+                            <div className="pt-1 flex gap-2">
+                              <button
+                                type="button"
+                                onClick={() => setShowWaShareModal(false)}
+                                className="flex-1 py-3 bg-zinc-105 hover:bg-zinc-200 text-zinc-700 font-extrabold rounded-2xl text-xs transition cursor-pointer uppercase tracking-wider"
+                              >
+                                Tutup
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setShowWaShareModal(false);
+                                  const waUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(waShareText)}`;
+                                  window.open(waUrl, "_blank");
+                                }}
+                                className="flex-1 py-3 bg-[#25D366] hover:bg-[#20ba5a] text-white font-extrabold rounded-2xl text-xs transition uppercase tracking-wider cursor-pointer shadow-[0_4px_12px_rgba(37,211,102,0.25)] flex items-center justify-center gap-1"
+                              >
+                                Buka WA
+                              </button>
+                            </div>
                           </div>
                         </div>
                       )}
