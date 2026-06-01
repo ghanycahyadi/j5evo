@@ -22,7 +22,7 @@ interface AdminEventsProps {
   handleCreateEvent: (e: React.FormEvent) => void;
   handleEditEventSubmit: (e: React.FormEvent) => void;
   handleDeleteEvent: (id: string, title: string) => void;
-  startEditingEvent: (evt: CommunityEvent) => void;
+  startEditingEvent: (evt: CommunityEvent) => void | Promise<void>;
   compressImage: (fileOrBase64: File | string, maxW?: number, maxH?: number, qual?: number) => Promise<string>;
 }
 

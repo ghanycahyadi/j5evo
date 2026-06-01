@@ -1251,7 +1251,7 @@ export default function App() {
   };
 
   // Helper to start editing an event in admin mode
-  const startEditingEvent = (evt: CommunityEvent) => {
+  const startEditingEvent = async (evt: CommunityEvent) => {
     const eventRegs = registrations.filter((r) => r.eventId === evt.id);
     
     setEditingEventId(evt.id);
@@ -1265,7 +1265,7 @@ export default function App() {
       slots: evt.slots || 50,
       image: evt.image || "",
       status: evt.status,
-      galleryImages: evt.galleryImages || [],
+      galleryImages: [], // Starts empty while we dynamically load from the server
       registrations: eventRegs,
     });
     setEditEventSearchMember("");
@@ -1274,6 +1274,21 @@ export default function App() {
     setTimeout(() => {
       document.getElementById("editor-section-anchor")?.scrollIntoView({ behavior: "smooth" });
     }, 150);
+
+    try {
+      const res = await fetch(`/api/events/${evt.id}/gallery`);
+      if (res.ok) {
+        const fullGallery = await res.json();
+        setEditEventForm((prev: any) => {
+          if (prev && prev.id === evt.id) {
+            return { ...prev, galleryImages: fullGallery };
+          }
+          return prev;
+        });
+      }
+    } catch (err: any) {
+      console.error("Gagal memuat galeri foto kegiatan dalam mode edit:", err);
+    }
   };
 
   // Toggle member status for the event currently being edited

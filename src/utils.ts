@@ -21,153 +21,12 @@ export const EVENT_PHOTOS = {
 
 // Initial data seeds for backend database if empty
 export const INITIAL_MEMBERS: Member[] = [
-  {
-    id: "J5EVO-202604-0001",
-    name: "Rian Hidayat",
-    phone: "081234567890",
-    address: "Jl. Sudirman No. 45, Jakarta Selatan",
-    plateNumber: "B 1234 JAE",
-    chassisNumber: "JAE5EV00987654321",
-    carPhoto: CAR_PHOTOS.defaultTeal,
-    ownerPhoto: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=500&q=80",
-    registeredAt: "2026-04-10T08:00:00Z",
-    email: "rian.hidayat@gmail.com"
-  },
-  {
-    id: "J5EVO-202605-0002",
-    name: "Ghany Cahyadi",
-    phone: "089876543210",
-    address: "Kebayoran Baru, Jakarta Selatan",
-    plateNumber: "B 1111 XXX",
-    chassisNumber: "JAE5EV00555888222",
-    carPhoto: CAR_PHOTOS.snowWhite,
-    ownerPhoto: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=500&q=80",
-    registeredAt: "2026-05-01T14:30:22Z",
-    email: "ghany.cahyadi@gmail.com"
-  },
-  {
-    id: "J5EVO-202605-0003",
-    name: "Dewi Lestari",
-    phone: "082188899977",
-    address: "Gading Serpong, Tangerang",
-    plateNumber: "B 1989 DEW",
-    chassisNumber: "JAE5EV00441113334",
-    carPhoto: CAR_PHOTOS.metallicGrey,
-    ownerPhoto: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=500&q=80",
-    registeredAt: "2026-05-15T11:15:00Z",
-    email: "dewi.lestari@yahoo.com"
-  }
 ];
 
 export const INITIAL_EVENTS: CommunityEvent[] = [
-  {
-    id: "evt_1",
-    title: "First Meet Up J5 Evo Indonesia",
-    description: "Kumpul perdana regional seluruh pemilik dan pecinta mobil listrik J5 EV di Indonesia untuk perkenalan, membentuk perwakilan, serta diskusi tips pemeliharaan software.",
-    date: "2026-06-12",
-    location: "Senayan Park Mall, Jakarta",
-    image: EVENT_PHOTOS.coffeeMeet,
-    status: "upcoming",
-    slots: 50
-  },
-  {
-    id: "evt_2",
-    title: "Handover Ceremony 3000 Unit Jaecoo J5",
-    description: "Perayaan serah terima resmi simbolis 3000 unit perdana Jaecoo J5 EV kepada para pelanggan bersama mitra ATPM Jaecoo partners di Indonesia.",
-    date: "2026-05-24",
-    location: "ICE BSD Grand Ballroom, Tangerang",
-    image: EVENT_PHOTOS.touring,
-    status: "completed",
-    slots: 100,
-    galleryImages: [
-      "https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&w=800&q=80",
-      "https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=800&q=80"
-    ]
-  },
-  {
-    id: "evt_3",
-    title: "J5 Evo Ramadan Iftar and celebrating one year of jaecoo indonesia",
-    description: "Giat buka puasa bersama para member J5 Evo sekaligus memperingati satu tahun kelahiran brand premium Jaecoo di pangsa otomotif tanah air.",
-    date: "2026-03-24",
-    location: "Hotel Mulia Senayan, Jakarta",
-    image: EVENT_PHOTOS.charity,
-    status: "completed",
-    slots: 80,
-    galleryImages: [
-      "https://images.unsplash.com/photo-1511578314322-379afb476865?auto=format&fit=crop&w=800&q=80"
-    ]
-  },
-  {
-    id: "evt_4",
-    title: "Goes to Jaecoo Land",
-    description: "Perjalanan konvoi petualangan ramah lingkungan mengeksplorasi keindahan alam tersembunyi sekaligus menguji ketangguhan motor penggerak J5 EV.",
-    date: "2026-07-05",
-    location: "Jaecoo Land Park, Sentul",
-    image: EVENT_PHOTOS.touring,
-    status: "upcoming",
-    slots: 35
-  },
-  {
-    id: "evt_5",
-    title: "j5 Signatur SPKLU",
-    description: "Sinergi eksklusif komunitas bersama pengelola SPKLU untuk ketersediaan nozzle pengisian daya cepat (DC) yang diprioritaskan bagi member J5 Evo.",
-    date: "2026-06-25",
-    location: "SPKLU Hub Plaza Indonesia, Jakarta",
-    image: EVENT_PHOTOS.evCharging,
-    status: "upcoming",
-    slots: 30
-  },
-  {
-    id: "evt_6",
-    title: "CARS & Coffee Meet Up",
-    description: "Kopdar santai minggu pagi, menguji asisten kemudi ADAS Level 2+, update firmware, serta dibarengi sharing tren modifikasi roda & wrapping sticker.",
-    date: "2026-06-18",
-    location: "SCBD Lot 17, Jakarta Selatan",
-    image: EVENT_PHOTOS.coffeeMeet,
-    status: "upcoming",
-    slots: 40
-  },
-  {
-    id: "evt_7",
-    title: "Meet Up Jogjakarta J5 Evo",
-    description: "Turing antar kota jarak jauh pertama menguji ketahanan baterai jarak jauh dari Jakarta langsung menuju Yogyakarta bersama member regional Tengah.",
-    date: "2026-07-20",
-    location: "Candi Prambanan, Jogogyakarta",
-    image: EVENT_PHOTOS.touring,
-    status: "upcoming",
-    slots: 25
-  }
 ];
 
 export const INITIAL_REGISTRATIONS: EventRegistration[] = [
-  {
-    id: "reg_1",
-    memberId: "J5EVO-202605-0002", // Ghany Cahyadi
-    eventId: "evt_3",  // Charity
-    registeredAt: "2026-05-05T09:00:00Z",
-    status: "Attended"
-  },
-  {
-    id: "reg_2",
-    memberId: "J5EVO-202604-0001", // Rian Hidayat
-    eventId: "evt_3",  // Charity
-    registeredAt: "2026-05-06T10:15:20Z",
-    status: "Attended"
-  },
-  {
-    id: "reg_3",
-    memberId: "J5EVO-202605-0002", // Ghany Cahyadi
-    eventId: "evt_1",  // Eco Touring
-    registeredAt: "2026-05-20T16:45:00Z",
-    status: "Registered"
-  },
-  {
-    id: "reg_4",
-    memberId: "J5EVO-202605-0003", // Dewi Lestari
-    eventId: "evt_1",  // Eco Touring
-    registeredAt: "2026-05-22T08:30:10Z",
-    status: "Registered"
-  }
 ];
 
 export const INITIAL_FAQS: any[] = [
@@ -310,9 +169,9 @@ function compressBase64(
     let width = img.width;
     let height = img.height;
 
-    // Enforce robust maximum dimensions (1800x1800) for all uploads to keep images crisp/sharp yet safe from database payload issues
-    const targetMaxWidth = Math.max(maxWidth, 1800);
-    const targetMaxHeight = Math.max(maxHeight, 1800);
+    // Respect the passed dimensions directly to optimize database payload sizes (e.g. 1000px)
+    const targetMaxWidth = maxWidth;
+    const targetMaxHeight = maxHeight;
 
     if (width > height) {
       if (width > targetMaxWidth) {
