@@ -346,6 +346,33 @@ export default function App() {
 
   const [selectedAlbumPhotos, setSelectedAlbumPhotos] = useState<any[]>([]);
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState<number>(0);
+  const [loadingAlbumId, setLoadingAlbumId] = useState<string | null>(null);
+
+  const handleOpenAlbum = async (evtId: string, title: string) => {
+    try {
+      setLoadingAlbumId(evtId);
+      const res = await fetch(`/api/events/${evtId}/gallery`);
+      if (!res.ok) throw new Error("Gagal mengunduh foto dokumentasi.");
+      const images: string[] = await res.json();
+      
+      const formattedPhotos = images.map((img, idx) => ({
+        id: `${evtId}_g_${idx}_${img.substring(10, 20)}`,
+        badge: `${title.toUpperCase()}`,
+        title: title,
+        desc: `Foto dokumentasi #${idx + 1} kegiatan`,
+        image: img
+      }));
+      
+      setSelectedAlbum(title);
+      setSelectedAlbumPhotos(formattedPhotos);
+      setSelectedGalleryImage(formattedPhotos[0] || null);
+      setCurrentPhotoIndex(0);
+    } catch (err: any) {
+      showFeedback(err.message || "Gagal membuka album.", true);
+    } finally {
+      setLoadingAlbumId(null);
+    }
+  };
 
   const openGalleryPopup = (photos: any[], index: number) => {
     setSelectedAlbumPhotos(photos);
@@ -376,6 +403,7 @@ export default function App() {
         handlePrevPhoto();
       } else if (e.key === "Escape") {
         setSelectedGalleryImage(null);
+        setSelectedAlbum(null);
       }
     };
     window.addEventListener("keydown", handleKeyDown);
@@ -383,22 +411,8 @@ export default function App() {
   }, [selectedGalleryImage, selectedAlbumPhotos, currentPhotoIndex]);
 
   useEffect(() => {
-    const items: any[] = [];
-    events.forEach((evt) => {
-      if (evt.galleryImages && Array.isArray(evt.galleryImages)) {
-        evt.galleryImages.forEach((img, idx) => {
-          items.push({
-            id: `${evt.id}_g_${idx}_${img.substring(10, 20)}`,
-            badge: `${evt.title.toUpperCase()}`,
-            title: evt.title,
-            desc: `Foto dokumentasi #${idx + 1} kegiatan`,
-            image: img
-          });
-        });
-      }
-    });
-
-    setGalleryItems(items);
+    // galleryItems is now managed dynamically on-demand via handleOpenAlbum & selectedAlbumPhotos
+    setGalleryItems([]);
   }, [events]);
 
   // Admin module state for Kehadiran Member
@@ -1870,7 +1884,7 @@ export default function App() {
               </div>
 
             </div>
-            <div className="space-y-6">
+            <div id="gallery-section" className="space-y-6">
               <div className="flex items-center justify-between flex-wrap gap-2">
                 <div className="flex items-center gap-2">
                   <div className="w-2.5 h-6 bg-teal-600 rounded-sm"></div>
@@ -1887,7 +1901,7 @@ export default function App() {
                 )}
               </div>
 
-              {galleryItems.length === 0 ? (
+              {!events.some(evt => (evt.galleryCount ?? (evt.galleryImages?.length ?? 0)) > 0) ? (
                 <div className="p-12 text-center rounded-2xl bg-zinc-50 border border-zinc-200 text-zinc-400 font-sans">
                   Belum ada dokumentasi foto kegiatan yang diunggah sementara ini.
                 </div>
@@ -1895,31 +1909,37 @@ export default function App() {
                 /* Album Grid Selection View */
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
                   {(() => {
-                    const albumsMap = galleryItems.reduce((acc: { [key: string]: any[] }, item) => {
-                      if (!acc[item.title]) {
-                        acc[item.title] = [];
-                      }
-                      acc[item.title].push(item);
-                      return acc;
-                    }, {});
-
-                    return Object.keys(albumsMap).map((title) => {
-                      const photos = albumsMap[title];
-                      const albumPreview = photos[0]?.image || "/event_banner.jpeg";
-                      const albumCount = photos.length;
+                    const albumEvents = events.filter(evt => (evt.galleryCount ?? (evt.galleryImages?.length ?? 0)) > 0);
+                    return albumEvents.map((evt) => {
+                      const albumPreview = evt.image || "/event_banner.jpeg";
+                      const albumCount = evt.galleryCount ?? (evt.galleryImages?.length ?? 0);
+                      const isAlbumLoading = loadingAlbumId === evt.id;
 
                       return (
                         <div
-                          key={title}
-                          onClick={() => openGalleryPopup(photos, 0)}
-                          className="group relative rounded-2xl overflow-hidden border border-zinc-200 aspect-[4/3] bg-zinc-900 shadow-sm cursor-pointer transform hover:scale-[1.01] hover:shadow-md transition duration-300"
+                          key={evt.id}
+                          onClick={() => {
+                            if (!isAlbumLoading) {
+                              handleOpenAlbum(evt.id, evt.title);
+                            }
+                          }}
+                          className={`group relative rounded-2xl overflow-hidden border border-zinc-200 aspect-[4/3] bg-zinc-900 shadow-sm cursor-pointer transform hover:scale-[1.01] hover:shadow-md transition duration-300 ${isAlbumLoading ? "opacity-75 cursor-wait" : ""}`}
                         >
                           <img
                             src={albumPreview}
-                            alt={title}
+                            alt={evt.title}
                             className="w-full h-full object-cover opacity-75 group-hover:opacity-90 group-hover:scale-105 transition-all duration-500"
                             referrerPolicy="no-referrer"
                           />
+
+                          {/* Loading Indicator Overlay */}
+                          {isAlbumLoading && (
+                            <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center text-white z-10 gap-2">
+                              <span className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                              <span className="text-[10px] font-mono tracking-widest font-bold">LOADING FOTO...</span>
+                            </div>
+                          )}
+
                           {/* Folder/Album decoration tag */}
                           <div className="absolute top-3 left-3 px-2 py-1 bg-white/95 border border-zinc-200 rounded-lg text-[9px] font-mono font-black text-teal-800 tracking-wider shadow-sm flex items-center gap-1">
                             <Folder className="w-3 h-3 text-teal-600" />
@@ -1932,10 +1952,10 @@ export default function App() {
 
                           <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/20 to-transparent flex flex-col justify-end p-5">
                             <h4 className="text-base font-black text-white group-hover:text-teal-300 transition-colors tracking-tight line-clamp-2">
-                              {title}
+                              {evt.title}
                             </h4>
                             <p className="text-xs text-zinc-350 font-medium mt-1 line-clamp-1">
-                              Klik untuk langsung membuka pratinjau foto album slideshow kegiatan ini.
+                              {isAlbumLoading ? "Sedang mengunduh galeri berita..." : "Klik untuk membuka pratinjau foto album slideshow kegiatan ini."}
                             </p>
                           </div>
                         </div>
@@ -1952,34 +1972,33 @@ export default function App() {
                       <h4 className="text-base font-black text-[#005c56] leading-tight mt-0.5">{selectedAlbum}</h4>
                     </div>
                     <span className="px-3 py-1 bg-teal-100 border border-teal-200 text-teal-905 font-mono text-xs font-bold rounded-lg shrink-0">
-                      📂 {galleryItems.filter((item) => item.title === selectedAlbum).length} Foto
+                      📂 {selectedAlbumPhotos.length} Foto
                     </span>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                    {galleryItems
-                      .filter((item) => item.title === selectedAlbum)
-                      .map((item, idx) => (
-                        <div
-                          key={item.id}
-                          onClick={() => setSelectedGalleryImage(item)}
-                          className="group relative rounded-2xl overflow-hidden border border-zinc-200 aspect-[4/3] bg-zinc-100 shadow-xs cursor-pointer"
-                          title="Klik untuk memperbesar"
-                        >
-                          <img
-                            src={item.image}
-                            alt={item.title}
-                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                            referrerPolicy="no-referrer"
-                          />
-                          <div className="absolute inset-0 bg-gradient-to-t from-zinc-950/80 via-zinc-950/20 to-transparent flex flex-col justify-end p-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                            <span className="text-[9px] font-mono text-teal-300 tracking-wider font-bold truncate block">{item.badge}</span>
-                            <h5 className="text-[11px] font-bold text-white mt-0.5 line-clamp-1">
-                              Foto Dokumentasi #{idx + 1}
-                            </h5>
-                          </div>
+                    {selectedAlbumPhotos.map((item, idx) => (
+                      <div
+                        key={item.id}
+                        onClick={() => setSelectedGalleryImage(item)}
+                        className="group relative rounded-2xl overflow-hidden border border-zinc-200 aspect-[4/3] bg-zinc-100 shadow-xs cursor-pointer"
+                        title="Klik untuk memperbesar"
+                      >
+                        <img
+                          src={item.image}
+                          alt={item.title}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                          referrerPolicy="no-referrer"
+                          loading="lazy"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-zinc-950/80 via-zinc-950/20 to-transparent flex flex-col justify-end p-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                          <span className="text-[9px] font-mono text-teal-300 tracking-wider font-bold truncate block">{item.badge}</span>
+                          <h5 className="text-[11px] font-bold text-white mt-0.5 line-clamp-1">
+                            Foto Dokumentasi #{idx + 1}
+                          </h5>
                         </div>
-                      ))}
+                      </div>
+                    ))}
                   </div>
                 </div>
               )}
@@ -2134,9 +2153,22 @@ export default function App() {
                               <span className="text-zinc-650">
                                 Anggota Hadir Terpapar: <strong className="text-emerald-700 font-mono font-extrabold">{countAttendees || 2} member</strong>
                               </span>
-                              <span className="text-[10px] font-mono text-teal-700 font-bold bg-teal-50 px-1.5 py-0.5 rounded border border-teal-150 shadow-2xs">
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const albumCount = evt.galleryCount ?? (evt.galleryImages?.length ?? 0);
+                                  if (albumCount === 0) {
+                                    showFeedback("Kegiatan ini belum memiliki foto dokumentasi galeri.", true);
+                                    return;
+                                  }
+                                  handleOpenAlbum(evt.id, evt.title);
+                                  document.getElementById("gallery-section")?.scrollIntoView({ behavior: "smooth" });
+                                }}
+                                className="text-[10px] font-mono text-teal-700 font-bold bg-teal-50 hover:bg-teal-100 px-2 py-1 rounded border border-teal-150 shadow-2xs cursor-pointer transform hover:scale-[1.03] transition active:scale-[0.97]"
+                              >
                                 LIHAT DOKUMENTASI
-                              </span>
+                              </button>
                             </div>
                           </div>
                         );
@@ -5722,7 +5754,10 @@ export default function App() {
               {/* Close Button Top Right */}
               <button
                 type="button"
-                onClick={() => setSelectedGalleryImage(null)}
+                onClick={() => {
+                  setSelectedGalleryImage(null);
+                  setSelectedAlbum(null);
+                }}
                 className="absolute top-4 right-4 bg-white/90 hover:bg-white text-zinc-900 p-2 rounded-full cursor-pointer transition shadow-md hover:scale-105 z-30 border border-zinc-200 focus:outline-none"
                 title="Tutup Galeri (Esc)"
               >
@@ -5773,7 +5808,10 @@ export default function App() {
                 
                 <button
                   type="button"
-                  onClick={() => setSelectedGalleryImage(null)}
+                  onClick={() => {
+                    setSelectedGalleryImage(null);
+                    setSelectedAlbum(null);
+                  }}
                   className="ml-auto px-6 py-2 bg-[#005c56] hover:bg-[#004843] text-white font-extrabold text-xs rounded-xl shadow-xs transition uppercase cursor-pointer"
                 >
                   Selesai Melihat

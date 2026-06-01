@@ -343,7 +343,7 @@ async function startServer() {
     res.json({ success: true, message: "Member berhasil diperbarui.", member });
   });
 
-  // GET all events
+  // GET all events (stripped of heavy galleryImages for fast initial loading)
   app.get("/api/events", (req, res) => {
     const data = loadDatabase();
     // Sort upcoming events first, then completed
@@ -352,7 +352,27 @@ async function startServer() {
       if (a.status !== "upcoming" && b.status === "upcoming") return 1;
       return new Date(b.date).getTime() - new Date(a.date).getTime();
     });
-    res.json(sortedEvents);
+
+    // Strip gallery images array (keeps only size / presence check)
+    const compactEvents = sortedEvents.map((evt) => {
+      return {
+        ...evt,
+        galleryImages: [], // strip heavy base64 strings
+        galleryCount: evt.galleryImages ? evt.galleryImages.length : 0
+      };
+    });
+
+    res.json(compactEvents);
+  });
+
+  // GET specific event's gallery images (Loads on-demand when opening album!)
+  app.get("/api/events/:id/gallery", (req, res) => {
+    const data = loadDatabase();
+    const event = data.events.find((e) => e.id === req.params.id);
+    if (!event) {
+      return res.status(404).json({ error: "Kegiatan tidak ditemukan." });
+    }
+    res.json(event.galleryImages || []);
   });
 
   // POST create a new event (Admin panel)
