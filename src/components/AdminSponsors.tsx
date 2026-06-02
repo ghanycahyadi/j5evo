@@ -52,6 +52,54 @@ export default function AdminSponsors({
 }: AdminSponsorsProps) {
   const isSponsorUser = currentUser?.role === "sponsor";
 
+  const [editingProductIdx, setEditingProductIdx] = React.useState<number | null>(null);
+
+  const startEditProduct = (idx: number) => {
+    setEditingProductIdx(idx);
+    const prod = sponsorForm.products[idx];
+    setTempProduct({
+      name: prod.name || "",
+      photos: prod.photos || [],
+      price: prod.price || 0,
+      showPrice: prod.showPrice !== undefined ? prod.showPrice : true,
+      useSponsorContact: prod.useSponsorContact !== undefined ? prod.useSponsorContact : true,
+      customContact: prod.customContact || ""
+    });
+  };
+
+  const saveUpdatedProduct = () => {
+    if (!tempProduct.name) {
+      alert("Nama produk wajib diisi!");
+      return;
+    }
+    setSponsorForm((prev: any) => {
+      const updatedProducts = [...(prev.products || [])];
+      updatedProducts[editingProductIdx!] = { ...tempProduct };
+      return { ...prev, products: updatedProducts };
+    });
+    setTempProduct({
+      name: "",
+      photos: [],
+      price: 0,
+      showPrice: true,
+      useSponsorContact: true,
+      customContact: ""
+    });
+    setEditingProductIdx(null);
+  };
+
+  const cancelEditProduct = () => {
+    setTempProduct({
+      name: "",
+      photos: [],
+      price: 0,
+      showPrice: true,
+      useSponsorContact: true,
+      customContact: ""
+    });
+    setEditingProductIdx(null);
+  };
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start animate-fadeIn text-xs">
       {/* Left Column: Form Add/Edit Sponsor */}
@@ -173,7 +221,7 @@ export default function AdminSponsors({
           {/* Staged Products Management Sub-Form */}
           <div className="border border-teal-100 rounded-2xl p-4 bg-teal-50/20 space-y-4">
             <span className="font-black text-teal-850 text-[10px] tracking-wider uppercase font-mono block">
-              + Tambah Produk Jualan Ke Sponsor Ini (Multiple)
+              {editingProductIdx !== null ? "📝 Edit Produk Terpilih" : "+ Tambah Produk Jualan Ke Sponsor Ini (Multiple)"}
             </span>
             
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -273,40 +321,73 @@ export default function AdminSponsors({
               )}
             </div>
 
-            <button
-              type="button"
-              onClick={addStagedProduct}
-              className="w-full py-2 bg-teal-800 hover:bg-teal-900 text-white rounded-lg font-bold text-2xs uppercase tracking-wider transition shadow-3xs"
-            >
-              ✔ Masukkan Produk Ke Daftar
-            </button>
+            {editingProductIdx !== null ? (
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={saveUpdatedProduct}
+                  className="flex-1 py-2.5 bg-[#1d4ed8] hover:bg-[#1e40af] text-white rounded-lg font-bold text-xs uppercase tracking-wider transition shadow-3xs cursor-pointer"
+                >
+                  💾 Perbarui Produk
+                </button>
+                <button
+                  type="button"
+                  onClick={cancelEditProduct}
+                  className="py-2.5 px-4 bg-zinc-200 hover:bg-zinc-300 text-zinc-700 rounded-lg font-bold text-xs uppercase tracking-wider transition cursor-pointer"
+                >
+                  Batal
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={addStagedProduct}
+                className="w-full py-2 bg-teal-800 hover:bg-teal-900 text-white rounded-lg font-bold text-2xs uppercase tracking-wider transition shadow-3xs cursor-pointer"
+              >
+                ✔ Masukkan Produk Ke Daftar
+              </button>
+            )}
           </div>
 
           {/* Staged products list */}
           {sponsorForm.products && sponsorForm.products.length > 0 && (
             <div className="space-y-2 border-t border-zinc-100 pt-3 text-left">
-              <h5 className="font-bold text-zinc-805 text-xs font-sans uppercase tracking-wide">
+              <h5 className="font-bold text-zinc-850 text-xs font-sans uppercase tracking-wide">
                 Katalog Produk Disiapkan ({sponsorForm.products.length})
               </h5>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-48 overflow-y-auto pr-1">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-56 overflow-y-auto pr-1">
                 {sponsorForm.products.map((p, idx) => (
-                  <div key={idx} className="p-3 bg-zinc-50 border border-zinc-205 rounded-xl flex items-center justify-between gap-2 text-xs">
+                  <div key={idx} className={`p-3 bg-zinc-50 border rounded-xl flex items-center justify-between gap-2 text-xs transition-all ${editingProductIdx === idx ? "border-amber-450 bg-amber-50/20" : "border-zinc-200"}`}>
                     <div className="min-w-0 pr-1">
                       <p className="font-bold text-zinc-900 truncate">{p.name}</p>
                       <p className="font-mono text-[10px] text-teal-800 font-bold mt-0.5">
                         {p.showPrice ? `Rp ${p.price.toLocaleString("id-ID")}` : "Harga disembunyikan"}
                       </p>
-                      <p className="font-sans text-[8.5px] text-zinc-450 mt-0.5 italic">
+                      <p className="font-sans text-[8.5px] text-zinc-[500] mt-0.5 italic">
                         {p.useSponsorContact === false ? `📞 WA Khusus: ${p.customContact || "-"}` : "📞 Kontak Sponsor Utama"}
                       </p>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => removeStagedProduct(idx)}
-                      className="text-red-650 hover:text-red-900 hover:underline text-[10px] font-black shrink-0 cursor-pointer"
-                    >
-                      Hapus
-                    </button>
+                    <div className="flex flex-col items-end gap-1.5 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => startEditProduct(idx)}
+                        className={`text-sky-700 hover:text-sky-900 font-extrabold text-[10px] cursor-pointer ${editingProductIdx === idx ? "underline font-black text-amber-700" : ""}`}
+                      >
+                        {editingProductIdx === idx ? "Sedang Diedit" : "Ubah"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (editingProductIdx === idx) {
+                            cancelEditProduct();
+                          }
+                          removeStagedProduct(idx);
+                        }}
+                        className="text-red-600 hover:text-red-900 text-[10px] font-bold cursor-pointer"
+                      >
+                        Hapus
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>

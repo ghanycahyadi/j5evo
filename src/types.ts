@@ -17,6 +17,7 @@ export interface Member {
   ownerPhoto?: string; // Base64 or placeholder avatar for the owner
   registeredAt: string;
   email: string;
+  pin: string;
   membershipTier?: "GOLD" | "SILVER";
   birthDate?: string; // Tanggal lahir
 }

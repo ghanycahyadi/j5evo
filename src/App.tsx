@@ -10,6 +10,7 @@ import {
   Shield,
   Sparkles,
   Search,
+  Image,
   CheckCircle2,
   FileText,
   PlusCircle,
@@ -53,6 +54,7 @@ import AdminEvents from "./components/AdminEvents";
 import AdminAttendance from "./components/AdminAttendance";
 import AdminSocials from "./components/AdminSocials";
 import AdminFaq from "./components/AdminFaq";
+import HomeCarousel from "./components/HomeCarousel";
 import AdminManager from "./components/AdminManager";
 import { toPng } from "html-to-image";
 import { Member, CommunityEvent, EventRegistration, DashboardStats, FAQ } from "./types";
@@ -243,12 +245,15 @@ export default function App() {
   const [eventJoiningId, setEventJoiningId] = useState<string | null>(null);
   const [joinForm, setJoinForm] = useState({
     plateNumber: "",
-    phone: "",
+    pin: "",
     pax: 1
   });
 
   // Lookup Membership State
   const [lookupQuery, setLookupQuery] = useState<string>("");
+  const [lookupPlate1, setLookupPlate1] = useState<string>("");
+  const [lookupPlate2, setLookupPlate2] = useState<string>("");
+  const [lookupPlate3, setLookupPlate3] = useState<string>("");
   const [lookupResult, setLookupResult] = useState<{ member: Member; history: any[] } | null>(null);
   const [lookupError, setLookupError] = useState<string | null>(null);
 
@@ -266,6 +271,7 @@ export default function App() {
   // States - Member Self-Edit Profile
   const [showEditVerification, setShowEditVerification] = useState<boolean>(false);
   const [verificationPhoneNum, setVerificationPhoneNum] = useState<string>("");
+  const [verificationPin, setVerificationPin] = useState<string>("");
   const [verificationError, setVerificationError] = useState<string | null>(null);
   const [showWaShareModal, setShowWaShareModal] = useState<boolean>(false);
   const [waShareText, setWaShareText] = useState<string>("");
@@ -281,7 +287,8 @@ export default function App() {
     p1: "",
     p2: "",
     p3: "",
-    ownerPhoto: ""
+    ownerPhoto: "",
+    pin: ""
   });
 
   // FAQ implementation state variables
@@ -378,6 +385,12 @@ export default function App() {
     setGalleryItems([]);
   }, [events]);
 
+  // PIN reset dialog helper states
+  const [pinResetOpen, setPinResetOpen] = useState(false);
+  const [pinResetIdentity, setPinResetIdentity] = useState("");
+  const [pinResetLoading, setPinResetLoading] = useState(false);
+  const [pinResetSuccessData, setPinResetSuccessData] = useState<any | null>(null);
+
   // Admin module state for Kehadiran Member
   const [adminAttendanceEventId, setAdminAttendanceEventId] = useState<string>("");
   const [adminAttendanceQuery, setAdminAttendanceQuery] = useState<string>("");
@@ -457,6 +470,8 @@ export default function App() {
     emblemLogo: ""
   });
 
+  const [cmsSlides, setCmsSlides] = useState<string[]>([]);
+
   // Fetch initial database items on mount and handle deep linking scan QR codes
   useEffect(() => {
     fetchData();
@@ -478,6 +493,15 @@ export default function App() {
             setLookupResult(null);
           } else {
             setLookupResult(data);
+            const matchedMember = data.member;
+            if (matchedMember && matchedMember.plateNumber) {
+              const parts = matchedMember.plateNumber.trim().split(/\s+/);
+              if (parts.length >= 3) {
+                setLookupPlate1(parts[0]);
+                setLookupPlate2(parts[1]);
+                setLookupPlate3(parts[2]);
+              }
+            }
           }
         } catch (err) {
           setLookupError("Kesalahan server mendeteksi pencarian otomatis.");
@@ -548,6 +572,7 @@ export default function App() {
           emblemWatermark: hcRes.emblemWatermark || "",
           emblemLogo: hcRes.emblemLogo || ""
         });
+        setCmsSlides(hcRes.slides || []);
       }
     } catch (err) {
       console.error("Error communicating with full-stack J5 API:", err);
@@ -596,6 +621,46 @@ export default function App() {
     }
   };
 
+  const handleSaveSlidesCms = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      setLoading(true);
+      const res = await fetch("/api/home-content/slides", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ slides: cmsSlides })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        showFeedback(data.error || "Gagal memperbarui slide beranda.", true);
+        return;
+      }
+      showFeedback("Slide foto halaman beranda berhasil disimpan!");
+      fetchData();
+    } catch (err) {
+      showFeedback("Terjadi kesalahan sistem saat menyimpan slide beranda.", true);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSlideImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      try {
+        const reader = new FileReader();
+        reader.onloadend = async () => {
+          const compressed = await compressImage(reader.result as string, 1920, 960, 0.88);
+          setCmsSlides((prev) => [...prev, compressed]);
+          showFeedback("Foto slide baru ditambahkan ke antrean sementara! Tekan tombol 'Simpan Slide' di segmen bawah.");
+        };
+        reader.readAsDataURL(file);
+      } catch (err) {
+        showFeedback("Gagal memproses foto slide", true);
+      }
+    }
+  };
+
 
 
   const handleSelfEditPhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -618,13 +683,7 @@ export default function App() {
     e.preventDefault();
     if (!lookupResult) return;
     
-    const p1 = verificationPhoneNum.replace(/[^0-9]/g, "");
-    const p2 = lookupResult.member.phone.replace(/[^0-9]/g, "");
-    
-    const core1 = p1.startsWith("62") ? p1.slice(2) : p1.startsWith("0") ? p1.slice(1) : p1;
-    const core2 = p2.startsWith("62") ? p2.slice(2) : p2.startsWith("0") ? p2.slice(1) : p2;
-    
-    if (core1 === core2 && core1.length > 0) {
+    if (verificationPin && verificationPin === lookupResult.member.pin) {
       // verified successfully
       setVerificationError(null);
       setShowEditVerification(false);
@@ -647,16 +706,22 @@ export default function App() {
         p1: part1,
         p2: part2,
         p3: part3,
-        ownerPhoto: lookupResult.member.ownerPhoto || ""
+        ownerPhoto: lookupResult.member.ownerPhoto || "",
+        pin: lookupResult.member.pin || ""
       });
     } else {
-      setVerificationError("Nomor handphone yang dimasukkan tidak cocok dengan data pendaftaran.");
+      setVerificationError("PIN 6 Digit yang Anda masukkan salah.");
     }
   };
 
   const handleSaveSelfEdit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!lookupResult) return;
+
+    if (!selfEditForm.pin || !/^\d{6}$/.test(selfEditForm.pin)) {
+      showFeedback("PIN Baru harus tepat terdiri dari 6 digit angka!", true);
+      return;
+    }
 
     // Email validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -685,6 +750,7 @@ export default function App() {
       regional: selfEditForm.regional,
       birthDate: selfEditForm.birthDate,
       ownerPhoto: selfEditForm.ownerPhoto,
+      pin: selfEditForm.pin,
       plateNumber: mergedPlate
     };
 
@@ -703,12 +769,12 @@ export default function App() {
 
       showFeedback("Profil Anda berhasil diperbarui!");
       setIsSelfEditing(false);
-      setVerificationPhoneNum("");
+      setVerificationPin("");
       
       // Update local profile result view
       setLookupResult({
         ...lookupResult,
-        member: data.member
+        member: data.member || data
       });
 
       fetchData();
@@ -1058,9 +1124,23 @@ export default function App() {
       return;
     }
 
-    // Email validation (Only valid email structure allowed if provided)
-    if (regForm.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(regForm.email)) {
+    // Email validation (Mandatory)
+    if (!regForm.email) {
+      showFeedback("Alamat Email Aktif wajib diisi untuk keamanan akun Anda!", true);
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(regForm.email)) {
       showFeedback("Format alamat email aktif yang Anda masukkan tidak valid!", true);
+      return;
+    }
+
+    // PIN validation (Mandatory, 6 digits)
+    if (!regForm.pin) {
+      showFeedback("PIN Keamanan 6 digit angka wajib ditentukan!", true);
+      return;
+    }
+    if (!/^\d{6}$/.test(regForm.pin)) {
+      showFeedback("PIN Keamanan harus terdiri dari tepat 6 digit angka saja!", true);
       return;
     }
 
@@ -1105,11 +1185,53 @@ export default function App() {
     }
   };
 
-  // Lookup Membership Profile & Participation History
-  const handleLookup = async (e: React.FormEvent) => {
+  // Submit request to reset PIN
+  const handlePinResetSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!lookupQuery.trim()) {
-      setLookupError("Silakan masukkan Nomor Plat Kendaraan, Email, atau ID Anggota!");
+    if (!pinResetIdentity.trim()) {
+      showFeedback("Masukkan Plat Nomor atau Email Anda!", true);
+      return;
+    }
+
+    try {
+      setPinResetLoading(true);
+      setPinResetSuccessData(null);
+      const res = await fetch("/api/members/reset-pin", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ identity: pinResetIdentity.trim() })
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        showFeedback(data.error || "Gagal melakukan reset PIN.", true);
+        return;
+      }
+
+      setPinResetSuccessData(data);
+      showFeedback(data.message);
+    } catch (err) {
+      showFeedback("Terjadi kesalahan jaringan rute API reset PIN.", true);
+    } finally {
+      setPinResetLoading(false);
+    }
+  };
+
+  // Lookup Membership Profile & Participation History
+  const handleLookup = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    
+    let searchQuery = "";
+    const p1 = lookupPlate1.trim().toUpperCase().replace(/[^A-Z]/g, "");
+    const p2 = lookupPlate2.trim().replace(/[^0-9]/g, "");
+    const p3 = lookupPlate3.trim().toUpperCase().replace(/[^A-Z]/g, "");
+    
+    if (p1 && p2 && p3) {
+      searchQuery = `${p1} ${p2} ${p3}`;
+    } else if (lookupQuery.trim()) {
+      searchQuery = lookupQuery.trim();
+    } else {
+      setLookupError("Silakan masukkan Nomor Plat Kendaraan secara lengkap (B 1234 ABC)!");
       setLookupResult(null);
       return;
     }
@@ -1117,7 +1239,7 @@ export default function App() {
     try {
       setLoading(true);
       setLookupError(null);
-      const res = await fetch(`/api/members/${encodeURIComponent(lookupQuery.trim())}`);
+      const res = await fetch(`/api/members/${encodeURIComponent(searchQuery)}`);
       const data = await res.json();
 
       if (!res.ok) {
@@ -1127,6 +1249,16 @@ export default function App() {
       }
 
       setLookupResult(data);
+      // Auto-fill lookup fields from the matched member's plate number in case of scanned ID
+      const matchedMember = data.member;
+      if (matchedMember && matchedMember.plateNumber) {
+        const parts = matchedMember.plateNumber.trim().split(/\s+/);
+        if (parts.length >= 3) {
+          setLookupPlate1(parts[0]);
+          setLookupPlate2(parts[1]);
+          setLookupPlate3(parts[2]);
+        }
+      }
     } catch (err) {
       setLookupError("Kesalahan server mendeteksi pencarian anggota.");
     } finally {
@@ -1136,14 +1268,12 @@ export default function App() {
 
   // Helper to check if a user is already registered in an event
   const getAlreadyRegisteredMember = (eventId: string) => {
-    if (!joinForm.plateNumber && !joinForm.phone) return null;
+    if (!joinForm.plateNumber || !joinForm.pin) return null;
     const searchPlate = (joinForm.plateNumber || "").toUpperCase().replace(/\s+/g, "");
-    const searchPhone = (joinForm.phone || "").replace(/\s+/g, "");
 
     const matched = members.find((m) => {
       const dbPlate = (m.plateNumber || "").toUpperCase().replace(/\s+/g, "");
-      const dbPhone = (m.phone || "").replace(/\s+/g, "");
-      return (searchPlate && dbPlate === searchPlate) || (searchPhone && dbPhone === searchPhone);
+      return dbPlate === searchPlate && m.pin === joinForm.pin;
     });
 
     if (!matched) return null;
@@ -1157,8 +1287,13 @@ export default function App() {
   // Member signs up for an event
   const registerForEvent = async (e: React.FormEvent, eventId: string) => {
     e.preventDefault();
-    if (!joinForm.plateNumber && !joinForm.phone) {
-      showFeedback("Tentukan Nomor Plat atau No Whatsapp terdaftar untuk mencocokkan akun!", true);
+    if (!joinForm.plateNumber || !joinForm.pin) {
+      showFeedback("Masukkan Nomor Plat Kendaraan dan PIN 6 Digit Anda!", true);
+      return;
+    }
+
+    if (!/^\d{6}$/.test(joinForm.pin)) {
+      showFeedback("PIN Keamanan harus terdiri dari tepat 6 digit angka!", true);
       return;
     }
 
@@ -1167,7 +1302,7 @@ export default function App() {
     if (alreadyRegisteredMember) {
       showFeedback(`⚠️ Halo Kak ${alreadyRegisteredMember.name.toUpperCase()}! Anda sudah terdaftar secara resmi untuk kegiatan ini. Nomor kupon & partisipasi Anda aman sudah tercatat.`, false);
       setEventJoiningId(null);
-      setJoinForm({ plateNumber: "", phone: "", pax: 1 });
+      setJoinForm({ plateNumber: "", pin: "", pax: 1 });
       return;
     }
 
@@ -1184,7 +1319,7 @@ export default function App() {
         if (data.error && data.error.includes("sudah terdaftar")) {
           showFeedback("⚠️ Halo Kak! Anda sudah terdaftar secara resmi untuk kegiatan ini. Nomor kupon & partisipasi Anda aman sudah tercatat.", false);
           setEventJoiningId(null);
-          setJoinForm({ plateNumber: "", phone: "", pax: 1 });
+          setJoinForm({ plateNumber: "", pin: "", pax: 1 });
         } else {
           showFeedback(data.error || "Pendaftaran kegiatan gagal.", true);
         }
@@ -1193,7 +1328,7 @@ export default function App() {
 
       showFeedback(data.message || "Berhasil bergabung!");
       setEventJoiningId(null);
-      setJoinForm({ plateNumber: "", phone: "", pax: 1 });
+      setJoinForm({ plateNumber: "", pin: "", pax: 1 });
       fetchData(); // reload statistics and lists
     } catch (err) {
       showFeedback("Eror saat registrasi keterlibatan kegiatan.", true);
@@ -1846,6 +1981,9 @@ export default function App() {
                 </div>
               </div>
             </div>
+
+            {/* Slider/Carousel Promosi & Informasi Beranda */}
+            <HomeCarousel slides={homeContent?.slides} />
 
             {/* JAECOO J5 EV - DETAILED VEHICLE INFO GRID */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
@@ -2718,20 +2856,45 @@ export default function App() {
                   />
                 </div>
 
-                {/* Optional Field: Email */}
+                {/* Mandatory Field: Email */}
                 <div id="field-email" className="bg-white p-6 rounded-2xl border border-zinc-200 shadow-xs space-y-3">
                   <label className="text-base font-bold text-zinc-900 block">
-                    Alamat Email Aktif <span className="text-zinc-500 font-normal">(Opsional)</span>
+                    Alamat Email Aktif <span className="text-red-500 font-bold">*</span>
                   </label>
                   <p className="text-xs text-zinc-500 -mt-1 leading-relaxed">
-                    Tuliskan email Anda untuk menerima salinan soft file Kartu Keanggotaan J5 EVO.
+                    Tuliskan email aktif Anda. Email ini wajib dan digunakan sebagai otentikasi akun, pengiriman salinan Kartu Anggota, serta instruksi reset PIN jika Anda lupa.
                   </p>
                   <input
                     type="email"
+                    required
                     placeholder="Contoh: nama@domain.com"
                     value={regForm.email}
                     onChange={(e) => setRegForm({ ...regForm, email: e.target.value })}
                     className="w-full bg-zinc-50/50 text-zinc-900 border-b-2 border-zinc-200 focus:border-teal-500 py-2 px-3 focus:outline-none transition font-sans text-sm rounded-md"
+                  />
+                </div>
+
+                {/* Mandatory Field: PIN 6 Digit */}
+                <div id="field-pin" className="bg-white p-6 rounded-2xl border border-zinc-200 shadow-xs space-y-3">
+                  <label className="text-base font-bold text-zinc-900 block">
+                    PIN Keamanan 6 Digit <span className="text-red-500 font-bold">*</span>
+                  </label>
+                  <p className="text-xs text-zinc-500 -mt-1 leading-relaxed">
+                    Tentukan 6 digit angka sebagai PIN keamanan Anda. PIN ini wajib diinput saat mendaftar event kegiatan atau memverifikasi info profil Anda demi kenyamanan data pribadi.
+                  </p>
+                  <input
+                    type="text"
+                    required
+                    pattern="[0-9]*"
+                    inputMode="numeric"
+                    maxLength={6}
+                    placeholder="Masukkan 6 angka PIN Anda"
+                    value={regForm.pin}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/[^0-9]/g, "").slice(0, 6);
+                      setRegForm({ ...regForm, pin: val });
+                    }}
+                    className="w-full bg-zinc-50/50 text-zinc-950 border-b-2 border-zinc-200 focus:border-teal-500 py-2.5 px-3 focus:outline-none transition font-mono text-sm rounded-md tracking-widest font-extrabold text-center text-base"
                   />
                 </div>
 
@@ -3048,7 +3211,7 @@ export default function App() {
                             LOG MASUK PARTISIPASI
                           </h5>
                           <p className="text-xs text-zinc-650 mb-4 font-sans">
-                            Konfirmasi kepemilikan akun. Masukkan Nomor Plat J5 Anda (Contoh: B 555 EVO) atau No Handphone terdaftar.
+                            Konfirmasi kepemilikan akun. Masukkan Nomor Plat J5 Anda (Contoh: B 555 EVO) beserta PIN 6 digit terdaftar Anda.
                           </p>
 
                           <form onSubmit={(e) => registerForEvent(e, evt.id)} className="grid grid-cols-1 sm:grid-cols-4 gap-4 items-end">
@@ -3064,13 +3227,31 @@ export default function App() {
                             </div>
                             
                             <div>
-                              <label className="text-[11px] font-mono text-zinc-700 block mb-1 font-bold">No HP Terdaftar *</label>
+                              <div className="flex justify-between items-center mb-1">
+                                <label className="text-[11px] font-mono text-zinc-700 block font-bold">PIN 6 Digit *</label>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setPinResetIdentity(joinForm.plateNumber);
+                                    setPinResetOpen(true);
+                                  }}
+                                  className="text-[10px] text-teal-700 hover:text-teal-900 font-semibold cursor-pointer underline hover:no-underline"
+                                >
+                                  Lupa PIN?
+                                </button>
+                              </div>
                               <input
-                                type="text"
-                                placeholder="Contoh: 0812xxxxxxxx"
-                                value={joinForm.phone}
-                                onChange={(e) => setJoinForm({ ...joinForm, phone: e.target.value })}
-                                className="w-full bg-white text-zinc-900 border border-zinc-300 focus:border-teal-400 rounded-lg py-1.5 px-3 focus:outline-none text-xs font-mono"
+                                type="password"
+                                pattern="[0-9]*"
+                                inputMode="numeric"
+                                maxLength={6}
+                                placeholder="******"
+                                value={joinForm.pin}
+                                onChange={(e) => {
+                                  const val = e.target.value.replace(/[^0-9]/g, "").slice(0, 6);
+                                  setJoinForm({ ...joinForm, pin: val });
+                                }}
+                                className="w-full bg-white text-zinc-900 border border-zinc-300 focus:border-teal-400 rounded-lg py-1.5 px-3 focus:outline-none text-xs font-mono text-center tracking-widest font-extrabold"
                               />
                             </div>
 
@@ -3140,28 +3321,56 @@ export default function App() {
 
             {/* Lookup Search Input Bar */}
             <div className="bg-white p-6 rounded-2xl border border-zinc-200 shadow-sm">
-              <form onSubmit={handleLookup} className="space-y-3">
+              <form onSubmit={handleLookup} className="space-y-4">
                 <label className="text-xs font-mono tracking-wider text-zinc-700 uppercase block font-bold">
-                  Masukkan ID Anggota / Plat Nomor
+                  Masukkan Plat Nomor Kendaraan J5 EVO
                 </label>
-                <div className="flex flex-col sm:flex-row gap-3">
-                  <div className="relative flex-1">
-                    <Search className="w-5 h-5 absolute left-3 top-3.5 text-zinc-400" />
-                    <input
-                      type="text"
-                      placeholder="Cari Plat (Misal: B 1111 XXX)"
-                      value={lookupQuery}
-                      onChange={(e) => setLookupQuery(e.target.value)}
-                      className="w-full bg-zinc-50 text-zinc-900 border border-zinc-250 rounded-xl py-3 pl-11 pr-4 focus:outline-none focus:border-teal-500 font-sans text-sm uppercase"
-                    />
+                <div className="flex flex-col md:flex-row gap-3 items-end">
+                  <div className="grid grid-cols-3 gap-2 flex-1 w-full">
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-zinc-400 block mb-1">Seri Depan</span>
+                      <input
+                        type="text"
+                        required
+                        placeholder="B"
+                        maxLength={2}
+                        value={lookupPlate1}
+                        onChange={(e) => setLookupPlate1(e.target.value.toUpperCase().replace(/[^A-Z]/g, ""))}
+                        className="w-full bg-zinc-50 text-zinc-900 border border-zinc-250 focus:border-teal-500 rounded-xl py-3 px-3 focus:outline-none text-center font-bold font-mono text-sm uppercase"
+                      />
+                    </div>
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-zinc-400 block mb-1">Nomor Polisi</span>
+                      <input
+                        type="text"
+                        required
+                        placeholder="555"
+                        maxLength={4}
+                        value={lookupPlate2}
+                        onChange={(e) => setLookupPlate2(e.target.value.replace(/[^0-9]/g, ""))}
+                        className="w-full bg-zinc-50 text-zinc-900 border border-zinc-250 focus:border-teal-500 rounded-xl py-3 px-3 focus:outline-none text-center font-bold font-mono text-sm"
+                      />
+                    </div>
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-zinc-400 block mb-1">Seri Belakang</span>
+                      <input
+                        type="text"
+                        required
+                        placeholder="EVO"
+                        maxLength={3}
+                        value={lookupPlate3}
+                        onChange={(e) => setLookupPlate3(e.target.value.toUpperCase().replace(/[^A-Z]/g, ""))}
+                        className="w-full bg-zinc-50 text-zinc-900 border border-zinc-250 focus:border-teal-500 rounded-xl py-3 px-3 focus:outline-none text-center font-bold font-mono text-sm uppercase"
+                      />
+                    </div>
                   </div>
                   <button
                     type="submit"
                     id="search-lookup-btn"
                     disabled={loading}
-                    className="px-6 py-3 bg-teal-600 hover:bg-teal-700 text-white font-bold text-sm rounded-xl transition flex items-center justify-center gap-1.5 focus:outline-none cursor-pointer"
+                    className="w-full md:w-auto px-6 py-3 bg-teal-600 hover:bg-teal-700 text-white font-bold text-sm rounded-xl transition flex items-center justify-center gap-1.5 focus:outline-none cursor-pointer h-[46px] md:mb-0.5"
                   >
-                    {loading ? "Sedang Mengambil..." : "Cek Keterlibatan"}
+                    {loading ? "Sedang Mengambil..." : "Cari Member"}
                   </button>
                 </div>
               </form>
@@ -3434,10 +3643,10 @@ export default function App() {
                         </button>
                       </div>
 
-                      {/* VERIFICATION DIALOG MODAL (No HP check) */}
+                      {/* VERIFICATION DIALOG MODAL (PIN check) */}
                       {showEditVerification && (
                         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-900/60 backdrop-blur-xs animate-fadeIn">
-                          <div className="bg-white rounded-3xl border border-zinc-200 shadow-2xl p-6 w-full max-w-sm text-left relative space-y-4">
+                          <div className="bg-white rounded-3xl border border-zinc-200 shadow-2xl p-6 w-full max-w-sm text-left relative space-y-4 font-sans">
                             <button
                               type="button"
                               onClick={() => setShowEditVerification(false)}
@@ -3447,28 +3656,45 @@ export default function App() {
                             </button>
                             <div className="space-y-1">
                               <h4 className="font-sans font-extrabold text-base text-zinc-900 flex items-center gap-1.5">
-                                🔐 Validasi Pemilik Akun
+                                🔐 Validasi PIN Keamanan
                               </h4>
                               <p className="text-zinc-[650] text-2xs leading-relaxed">
-                                Untuk menjaga privasi dan keamanan Anda, silakan masukkan nomor handphone yang terdaftar untuk akun/plat member ini.
+                                Untuk menjaga privasi data Anda, silakan masukkan PIN 6 Digit keamanan terdaftar Anda untuk melanjutkan penyuntingan profil.
                               </p>
                             </div>
 
                             <form onSubmit={handleVerifyProfileEdit} className="space-y-3">
                               <div className="space-y-1">
-                                <label className="text-2xs font-bold text-zinc-600 block uppercase tracking-wider">No Hp Terdaftar *</label>
+                                <div className="flex justify-between items-center mb-1">
+                                  <label className="text-2xs font-bold text-zinc-600 block uppercase tracking-wider">PIN Keamanan *</label>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      if (lookupResult) {
+                                        setPinResetIdentity(lookupResult.member.email || lookupResult.member.plateNumber);
+                                      }
+                                      setPinResetOpen(true);
+                                    }}
+                                    className="text-[10px] text-teal-700 font-bold hover:underline cursor-pointer"
+                                  >
+                                    Lupa PIN / Reset?
+                                  </button>
+                                </div>
                                 <input
-                                  type="text"
-                                  placeholder="Contoh: 0812XXXXXXXX / +62812..."
+                                  type="password"
+                                  pattern="[0-9]*"
+                                  inputMode="numeric"
+                                  maxLength={6}
+                                  placeholder="Masukkan 6 Digit PIN"
                                   required
-                                  value={verificationPhoneNum}
-                                  onChange={(e) => setVerificationPhoneNum(e.target.value.replace(/[^0-9+]/g, ""))}
-                                  className="w-full bg-zinc-50 text-zinc-900 border border-zinc-250 rounded-xl p-3 focus:outline-none focus:border-teal-500 text-xs font-semibold"
+                                  value={verificationPin}
+                                  onChange={(e) => setVerificationPin(e.target.value.replace(/[^0-9]/g, "").slice(0, 6))}
+                                  className="w-full bg-zinc-50 text-zinc-900 border border-zinc-250 rounded-xl p-3 focus:outline-none focus:border-teal-500 text-sm font-semibold tracking-widest text-center"
                                 />
                               </div>
 
                               {verificationError && (
-                                <p className="text-2xs text-red-600 font-bold leading-relaxed">
+                                <p className="text-2xs text-red-650 font-bold leading-relaxed">
                                   ⚠️ {verificationError}
                                 </p>
                               )}
@@ -3634,17 +3860,23 @@ export default function App() {
                                 />
                               </div>
 
-                              {/* No HP & Alamat Email Row */}
+                              {/* PIN Keamanan & Alamat Email Row */}
                               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                 <div className="space-y-1">
-                                  <label className="text-zinc-700 font-bold block uppercase tracking-wider">No Hp Aktif (Hanya Angka &amp; +) *</label>
+                                  <div className="flex justify-between items-center">
+                                    <label className="text-zinc-700 font-bold block uppercase tracking-wider">PIN 6 Digit Baru *</label>
+                                    <span className="text-[10px] text-zinc-400 font-semibold">Ganti PIN Anda</span>
+                                  </div>
                                   <input
-                                    type="text"
+                                    type="password"
+                                    pattern="[0-9]*"
+                                    inputMode="numeric"
+                                    maxLength={6}
                                     required
-                                    value={selfEditForm.phone}
-                                    onChange={(e) => setSelfEditForm({ ...selfEditForm, phone: e.target.value.replace(/[^0-9+]/g, "") })}
-                                    className="w-full bg-zinc-50 text-zinc-900 border border-zinc-250 rounded-xl p-3 focus:outline-none focus:border-teal-500 font-semibold text-xs"
-                                    placeholder="Contoh: +62812XXXXX"
+                                    value={selfEditForm.pin}
+                                    onChange={(e) => setSelfEditForm({ ...selfEditForm, pin: e.target.value.replace(/[^0-9]/g, "").slice(0, 6) })}
+                                    className="w-full bg-zinc-50 text-zinc-900 border border-zinc-250 rounded-xl p-3 focus:outline-none focus:border-teal-500 font-semibold text-center tracking-widest"
+                                    placeholder="******"
                                   />
                                 </div>
                                 <div className="space-y-1">
@@ -4857,6 +5089,145 @@ export default function App() {
                     Simpan Perubahan Beranda
                   </button>
                 </form>
+
+                {/* Segment Baru: Kelola Slide Carousel Beranda (Terpisah) */}
+                <div className="border-t border-zinc-200 pt-6 mt-6">
+                  <div className="space-y-4 text-left">
+                    <div className="flex items-center gap-2">
+                      <Image className="w-5 h-5 text-teal-700" />
+                      <h4 className="font-sans font-bold text-base text-zinc-900">Kelola Slide Banner Beranda J5 EVO</h4>
+                    </div>
+                    <p className="text-zinc-[650] text-xs leading-relaxed">
+                      Tambahkan berkas gambar/foto slide promosi atau spanduk pengumuman baru untuk ditampilkan pada halaman depan.
+                      Setiap slide dapat diunggah langsung (akan dikompres secara otomatis) atau menggunakan URL gambar eksternal.
+                    </p>
+
+                    <form onSubmit={handleSaveSlidesCms} className="space-y-4 text-xs bg-zinc-50/50 p-5 rounded-2xl border border-zinc-200">
+                      <div>
+                        <label className="text-zinc-700 font-bold font-sans block mb-1">Unggah Slide Gambar Baru (.jpg, .png)</label>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleSlideImageUpload}
+                          className="file:mr-2 file:py-1.5 file:px-3 file:rounded-md file:border file:border-teal-205 file:text-xs file:bg-white file:text-teal-900 hover:file:bg-teal-50 text-xs text-zinc-500 focus:outline-none w-full cursor-pointer"
+                        />
+                      </div>
+
+                      {/* URL Slide Form */}
+                      <div className="space-y-1">
+                        <label className="text-zinc-700 font-bold font-sans block">Atau Masukkan URL Gambar Slide</label>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            placeholder="https://images.unsplash.com/photo-xxx..."
+                            id="cms-slide-url-input"
+                            className="flex-1 bg-white text-zinc-900 border border-zinc-250 rounded-lg p-2 focus:outline-none focus:border-teal-500 text-xs"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const el = document.getElementById("cms-slide-url-input") as HTMLInputElement;
+                              if (el && el.value.trim()) {
+                                setCmsSlides((prev) => [...prev, el.value.trim()]);
+                                el.value = "";
+                                showFeedback("URL gambar slide berhasil ditambahkan ke antrean sementara.");
+                              } else {
+                                showFeedback("Silakan masukkan URL gambar yang valid!", true);
+                              }
+                            }}
+                            className="px-4 py-2 bg-zinc-800 hover:bg-zinc-900 text-white font-bold rounded-lg transition text-xs shrink-0 cursor-pointer"
+                          >
+                            Tambah URL
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Display current slides array */}
+                      <div className="space-y-2.5">
+                        <label className="text-zinc-700 font-bold font-sans block">Daftar Slide Aktif Saat Ini ({cmsSlides.length})</label>
+                        {cmsSlides.length === 0 ? (
+                          <div className="p-6 text-center border border-dashed border-zinc-200 rounded-xl text-zinc-400 bg-white leading-normal">
+                            Tidak ada slide aktif. Slider/carousel tidak akan ditampilkan di beranda.
+                          </div>
+                        ) : (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {cmsSlides.map((slide, idx) => (
+                              <div key={idx} className="relative bg-white rounded-xl border border-zinc-200 overflow-hidden shadow-xs">
+                                <div className="aspect-[21/9] bg-zinc-900 relative">
+                                  <img 
+                                    src={slide} 
+                                    alt={`Slide ${idx + 1}`} 
+                                    className="w-full h-full object-cover"
+                                    referrerPolicy="no-referrer"
+                                  />
+                                </div>
+                                <div className="p-2 flex items-center justify-between gap-2 bg-zinc-50 border-t border-zinc-100">
+                                  <span className="font-mono text-[10px] font-bold text-zinc-500">Slide #{idx + 1}</span>
+                                  <div className="flex gap-1.5">
+                                    {idx > 0 && (
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          const nextSlides = [...cmsSlides];
+                                          // Swap with prev
+                                          const tmp = nextSlides[idx];
+                                          nextSlides[idx] = nextSlides[idx - 1];
+                                          nextSlides[idx - 1] = tmp;
+                                          setCmsSlides(nextSlides);
+                                        }}
+                                        className="px-1.5 py-0.5 bg-zinc-100 hover:bg-zinc-200 border border-zinc-200 rounded text-[9px] font-bold cursor-pointer"
+                                        title="Pindah Kiri"
+                                      >
+                                        &larr;
+                                      </button>
+                                    )}
+                                    {idx < cmsSlides.length - 1 && (
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          const nextSlides = [...cmsSlides];
+                                          // Swap with next
+                                          const tmp = nextSlides[idx];
+                                          nextSlides[idx] = nextSlides[idx + 1];
+                                          nextSlides[idx + 1] = tmp;
+                                          setCmsSlides(nextSlides);
+                                        }}
+                                        className="px-1.5 py-0.5 bg-zinc-100 hover:bg-zinc-200 border border-zinc-200 rounded text-[9px] font-bold cursor-pointer"
+                                        title="Pindah Kanan"
+                                      >
+                                        &rarr;
+                                      </button>
+                                    )}
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setCmsSlides((prev) => prev.filter((_, i) => i !== idx));
+                                        showFeedback("Slide dihapus dari daftar sementara.");
+                                      }}
+                                      className="px-2 py-0.5 bg-red-50 text-red-600 hover:bg-red-500 hover:text-white border border-red-200 rounded text-[9px] font-bold cursor-pointer"
+                                    >
+                                      Hapus
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Separate submit button for this segment */}
+                      <div className="pt-2 border-t border-zinc-200">
+                        <button
+                          type="submit"
+                          className="w-full py-2.5 bg-teal-600 hover:bg-teal-700 text-white font-extrabold text-xs rounded-xl shadow-md transition uppercase cursor-pointer"
+                        >
+                          Simpan Slide Beranda
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
               </div>
             )}
 
@@ -6243,7 +6614,7 @@ export default function App() {
                     <div className="space-y-1">
                       <h5 className="font-extrabold text-teal-900 text-sm">Ikuti Kegiatan Ini Sebagai Member</h5>
                       <p className="text-xs text-zinc-650 leading-relaxed font-sans">
-                        Silakan masukkan info plat nomor kendaraan J5 EVO Anda dan No HP WhatsApp yang terdaftar untuk mengonfirmasi kehadiran Anda.
+                        Silakan masukkan info plat nomor kendaraan J5 EVO Anda dan PIN 6 Digit rahasia Anda untuk mengonfirmasi kehadiran Anda.
                       </p>
                     </div>
 
@@ -6257,24 +6628,41 @@ export default function App() {
                       <div className="space-y-1">
                         <label className="text-[10px] font-bold text-zinc-750 uppercase block">Nomor Plat Mobil J5 EVO</label>
                         <input
-                          type="text"
-                          required
-                          placeholder="Contoh: B 1111 XXX"
-                          value={joinForm.plateNumber}
-                          onChange={(e) => setJoinForm({ ...joinForm, plateNumber: e.target.value })}
-                          className="w-full bg-white text-zinc-900 border border-zinc-250 rounded-xl py-2 px-3 focus:outline-none focus:border-teal-500 font-mono text-xs uppercase"
+                           type="text"
+                           required
+                           placeholder="Contoh: B 1111 XXX"
+                           value={joinForm.plateNumber}
+                           onChange={(e) => setJoinForm({ ...joinForm, plateNumber: e.target.value })}
+                           className="w-full bg-white text-zinc-900 border border-zinc-250 rounded-xl py-2 px-3 focus:outline-none focus:border-teal-500 font-mono text-xs uppercase"
                         />
                       </div>
 
                       <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-zinc-750 uppercase block">No HP WhatsApp Terdaftar</label>
+                        <div className="flex justify-between items-center">
+                          <label className="text-[10px] font-bold text-zinc-750 uppercase block">PIN 6 Digit</label>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setPinResetIdentity(joinForm.plateNumber);
+                              setPinResetOpen(true);
+                            }}
+                            className="text-[9px] text-[#005c56] hover:underline font-bold cursor-pointer"
+                          >
+                            Lupa PIN?
+                          </button>
+                        </div>
                         <input
-                          type="text"
-                          required
-                          placeholder="Contoh: 0813xxxxxxxx"
-                          value={joinForm.phone}
-                          onChange={(e) => setJoinForm({ ...joinForm, phone: e.target.value })}
-                          className="w-full bg-white text-zinc-900 border border-zinc-250 rounded-xl py-2 px-3 focus:outline-none focus:border-teal-500 font-mono text-xs"
+                          type="password"
+                          pattern="[0-9]*"
+                          inputMode="numeric"
+                          maxLength={6}
+                          placeholder="******"
+                          value={joinForm.pin}
+                          onChange={(e) => {
+                            const val = e.target.value.replace(/[^0-9]/g, "").slice(0, 6);
+                            setJoinForm({ ...joinForm, pin: val });
+                          }}
+                          className="w-full bg-white text-zinc-900 border border-zinc-250 rounded-xl py-2 px-3 focus:outline-none focus:border-teal-500 font-mono text-xs text-center tracking-widest font-black"
                         />
                       </div>
 
@@ -6382,6 +6770,114 @@ export default function App() {
                 {confirmDialog.confirmText}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* PIN RESET MODAL DIALOG */}
+      {pinResetOpen && (
+        <div className="fixed inset-0 z-[210] flex items-center justify-center p-4 bg-zinc-950/80 backdrop-blur-xs animate-fadeIn">
+          <div className="bg-white rounded-3xl border border-zinc-200 shadow-2xl max-w-md w-full p-6 space-y-4 text-left font-sans animate-scaleIn relative">
+            <button
+              onClick={() => {
+                setPinResetOpen(false);
+                setPinResetSuccessData(null);
+                setPinResetIdentity("");
+              }}
+              className="absolute top-4 right-4 text-zinc-400 hover:text-zinc-650 font-bold p-1 cursor-pointer text-sm"
+              type="button"
+            >
+              ✕
+            </button>
+
+            <div className="flex items-center gap-3 border-b border-zinc-150 pb-3">
+              <span className="text-xl">🔑</span>
+              <div>
+                <h3 className="text-base font-extrabold text-zinc-900 leading-tight">Reset PIN Keanggotaan</h3>
+                <p className="text-[10px] text-zinc-500 font-medium">Bantuan Lupa PIN Keamanan Member J5 Evo</p>
+              </div>
+            </div>
+
+            {!pinResetSuccessData ? (
+              <form onSubmit={handlePinResetSubmit} className="space-y-4">
+                <p className="text-xs text-zinc-600 leading-relaxed font-sans">
+                  Kehilangan kode keamanan PIN 6 Digit Anda? Masukkan alamat email aktif Anda yang terdaftar atau Nomor Plat J5 EVO terdaftar Anda. Sistem akan mencari kecocokan akun Anda dan mengirimkan ulang detail PIN tersebut.
+                </p>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-zinc-750 block uppercase tracking-wider">Identias Registrasi (Plat Nomor / Email) *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="Contoh: B 555 EVO atau nama@email.com"
+                    value={pinResetIdentity}
+                    onChange={(e) => setPinResetIdentity(e.target.value)}
+                    className="w-full bg-zinc-50 text-zinc-900 border border-zinc-250 rounded-xl p-3 focus:outline-none focus:border-teal-500 font-sans text-xs font-semibold"
+                  />
+                </div>
+
+                <div className="flex gap-2 justify-end pt-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPinResetOpen(false);
+                      setPinResetIdentity("");
+                    }}
+                    className="py-2 px-4 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 text-xs font-bold rounded-xl transition cursor-pointer"
+                  >
+                    Batal
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={pinResetLoading}
+                    className="py-2 px-5 bg-[#005c56] hover:bg-[#004843] text-white text-xs font-black rounded-xl transition uppercase cursor-pointer"
+                  >
+                    {pinResetLoading ? "Mengirim..." : "Kirim PIN ke Email"}
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <div className="space-y-4 animate-fadeIn">
+                <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-2xl text-emerald-950 font-sans text-xs flex items-start gap-2.5">
+                  <span className="text-lg">📧</span>
+                  <div>
+                    <span className="font-extrabold block">Email Simulator Terkirim!</span>
+                    <span className="text-[11px] text-emerald-850 mt-0.5 block leading-relaxed">
+                      Sistem kami berhasil menyimulasikan pengiriman sandi rahasia PIN Anda ke alamat email: <strong className="underline text-emerald-950">{pinResetSuccessData.email}</strong>.
+                    </span>
+                  </div>
+                </div>
+
+                <div className="border border-zinc-200 rounded-2xl bg-zinc-50 p-4 space-y-2.5 font-mono">
+                  <div className="flex justify-between items-center text-[10px] border-b border-zinc-200 pb-1.5 text-zinc-500">
+                    <span>FROM: jaecoo_j5_evo_admin</span>
+                    <span>TODAY UTC</span>
+                  </div>
+                  <div className="text-[11px] text-zinc-800 space-y-1">
+                    <p className="font-extrabold font-sans">Halo, {pinResetSuccessData.name || "Member"}!</p>
+                    <p className="font-sans leading-relaxed text-zinc-600 font-medium">Berikut adalah PIN 6 digit keanggotaan terdaftar Anda untuk Plat nomor <strong className="font-mono text-zinc-900">{pinResetSuccessData.plateNumber}</strong>:</p>
+                    <div className="bg-white border border-zinc-200/80 rounded-xl p-3 text-center my-2 select-text">
+                      <span className="text-2xl font-black text-[#005c56] tracking-[0.25em]">{pinResetSuccessData.pin}</span>
+                      <span className="text-[9px] text-zinc-455 block font-sans font-bold mt-1 uppercase">PIN RAHASIA JADI JANGAN BAGIKAN</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex justify-end pt-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPinResetOpen(false);
+                      setPinResetSuccessData(null);
+                      setPinResetIdentity("");
+                    }}
+                    className="py-2.5 px-5 bg-zinc-900 hover:bg-zinc-800 text-white text-xs font-black rounded-xl transition cursor-pointer uppercase"
+                  >
+                    Tutup Bantuan
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

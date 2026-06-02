@@ -41,7 +41,8 @@ const DEFAULT_HOME_CONTENT = {
   emblemTitle: "Komunitas J5 EVO Indonesia",
   emblemDesc: "Logo resmi Tameng J5 Evo melambangkan ketahanan baterai (Tameng Hijau), keamanan ADAS 2+, dan kekuatan sinergi seluruh member JAECOO Indonesia.",
   emblemWatermark: "OFFICIAL J5 EVO MEMBER",
-  emblemLogo: ""
+  emblemLogo: "",
+  slides: [] as string[]
 };
 
 const DEFAULT_SPONSORS = [
@@ -71,7 +72,8 @@ function loadDatabase(): DatabaseSchema {
         return {
           ...m,
           membershipTier: m.membershipTier || "SILVER",
-          regional: memberReg
+          regional: memberReg,
+          pin: m.pin || "123456"
         };
       }),
       events: INITIAL_EVENTS,
@@ -119,7 +121,8 @@ function loadDatabase(): DatabaseSchema {
         return {
           ...m,
           membershipTier: m.membershipTier || "SILVER",
-          regional: memberReg
+          regional: memberReg,
+          pin: m.pin || "123456"
         };
       });
     }
@@ -132,7 +135,7 @@ function loadDatabase(): DatabaseSchema {
         if (m.city && m.city.toLowerCase().includes("tangerang")) {
           memberReg = "J5 EVO - TANGERANG RAYA";
         }
-        return { ...m, membershipTier: m.membershipTier || "SILVER", regional: memberReg };
+        return { ...m, membershipTier: m.membershipTier || "SILVER", regional: memberReg, pin: m.pin || "123456" };
       }),
       events: INITIAL_EVENTS,
       registrations: INITIAL_REGISTRATIONS,
@@ -180,22 +183,33 @@ async function startServer() {
 
   // POST register a new member (form submission)
   app.post("/api/members", (req, res) => {
-    const { name, phone, address, regional, plateNumber, chassisNumber, carPhoto, ownerPhoto, email, birthDate } = req.body;
+    const { name, phone, address, regional, plateNumber, chassisNumber, carPhoto, ownerPhoto, email, birthDate, pin } = req.body;
     
     // Simple validation
-    if (!name || !phone || !address || !plateNumber || !chassisNumber || !regional) {
-      return res.status(400).json({ error: "Kolom Nama, No Hp, Alamat, Regional, Plat Nomor, dan No Rangka wajib diisi!" });
+    if (!name || !phone || !address || !plateNumber || !chassisNumber || !regional || !email || !pin) {
+      return res.status(400).json({ error: "Kolom Nama, No Hp, Alamat, Regional, Plat Nomor, No Rangka, Alamat Email Aktif, dan PIN 6 Digit wajib diisi!" });
+    }
+
+    if (!/^\d{6}$/.test(pin)) {
+      return res.status(400).json({ error: "PIN harus terdiri dari tepat 6 digit angka!" });
     }
 
     const data = loadDatabase();
 
-    // Check if plateNumber or phone or chassisNumber already registered (case insensitive)
+    // Check if plateNumber or chassisNumber already registered (case insensitive)
     const normalizedPlate = plateNumber.toUpperCase().replace(/\s+/g, "");
     const duplicatePlate = data.members.find(
       (m) => m.plateNumber.toUpperCase().replace(/\s+/g, "") === normalizedPlate
     );
     if (duplicatePlate) {
       return res.status(400).json({ error: `Nomor Plat kendaraan ${plateNumber} sudah terdaftar!` });
+    }
+
+    const duplicateEmail = data.members.find(
+      (m) => m.email.toLowerCase().trim() === email.toLowerCase().trim()
+    );
+    if (duplicateEmail) {
+      return res.status(400).json({ error: `Alamat email ${email} sudah terdaftar!` });
     }
 
     const now = new Date();
@@ -229,7 +243,8 @@ async function startServer() {
       carPhoto: carPhoto || CAR_PHOTOS.defaultTeal,
       ownerPhoto: ownerPhoto || "", // Option default handler will fallback to avatar
       registeredAt: now.toISOString(),
-      email: email || `${name.toLowerCase().replace(/\s+/g, ".")}@jaecoo-member.net`,
+      email: email,
+      pin: pin,
       membershipTier: "SILVER",
       birthDate: birthDate || "",
     };
@@ -300,12 +315,19 @@ async function startServer() {
   // PUT update a member (Admin feature - can alter fields including membershipTier)
   app.put("/api/members/:id", (req, res) => {
     const memberId = req.params.id;
-    const { name, phone, address, regional, plateNumber, chassisNumber, membershipTier, email, birthDate, ownerPhoto } = req.body;
+    const { name, phone, address, regional, plateNumber, chassisNumber, membershipTier, email, birthDate, ownerPhoto, pin } = req.body;
     
     const data = loadDatabase();
     const member = data.members.find((m) => m.id === memberId);
     if (!member) {
       return res.status(404).json({ error: "Anggota tidak ditemukan." });
+    }
+
+    if (pin !== undefined) {
+      if (!/^\d{6}$/.test(pin)) {
+        return res.status(400).json({ error: "PIN harus terdiri dari tepat 6 digit angka!" });
+      }
+      member.pin = pin;
     }
 
     // Apply updates
@@ -476,10 +498,10 @@ async function startServer() {
   // POST member signs up for an event
   app.post("/api/events/:id/register", (req, res) => {
     const eventId = req.params.id;
-    const { plateNumber, phone, pax } = req.body;
+    const { plateNumber, pin, pax } = req.body;
 
-    if (!plateNumber && !phone) {
-      return res.status(400).json({ error: "Masukkan Nomor Plat atau No Handphone Anda yang telah terdaftar!" });
+    if (!plateNumber || !pin) {
+      return res.status(400).json({ error: "Masukkan Nomor Plat Kendaraan dan PIN 6 Digit Anda!" });
     }
 
     const data = loadDatabase();
@@ -490,20 +512,22 @@ async function startServer() {
       return res.status(404).json({ error: "Kegiatan tidak ditemukan." });
     }
 
-    // Find member
+    // Find member by plateNumber
+    const searchPlate = (plateNumber || "").toUpperCase().replace(/\s+/g, "");
     const member = data.members.find((m) => {
       const dbPlate = m.plateNumber.toUpperCase().replace(/\s+/g, "");
-      const searchPlate = (plateNumber || "").toUpperCase().replace(/\s+/g, "");
-      const dbPhone = m.phone.replace(/\s+/g, "");
-      const searchPhone = (phone || "").replace(/\s+/g, "");
-      
-      return (searchPlate && dbPlate === searchPlate) || (searchPhone && dbPhone === searchPhone);
+      return dbPlate === searchPlate;
     });
 
     if (!member) {
       return res.status(404).json({ 
-        error: "Akun belum terdaftar dalam sistem. Silakan isi Form Pendaftaran Member J5 Evo terlebih dahulu!" 
+        error: "Nomor plat kendaraan belum terdaftar dalam sistem. Silakan isi Form Pendaftaran Member J5 Evo terlebih dahulu!" 
       });
+    }
+
+    // Verify PIN matches
+    if (member.pin !== pin) {
+      return res.status(401).json({ error: "PIN yang Anda masukkan salah!" });
     }
 
     // Check if copy is already registered
@@ -541,6 +565,39 @@ async function startServer() {
       message: `Terima kasih ${member.name}, Anda berhasil mendaftar untuk: ${eventDetails.title}`,
       registration: newRegistration,
       member,
+    });
+  });
+
+  // POST reset PIN for member
+  app.post("/api/members/reset-pin", (req, res) => {
+    const { identity } = req.body; // plateNumber or email
+    
+    if (!identity) {
+      return res.status(400).json({ error: "Masukkan Nomor Plat atau Alamat Email Anda!" });
+    }
+
+    const data = loadDatabase();
+    
+    // Find member
+    const searchVal = identity.toUpperCase().replace(/\s+/g, "");
+    const member = data.members.find((m) => {
+      const dbPlate = m.plateNumber.toUpperCase().replace(/\s+/g, "");
+      const dbEmail = m.email.toUpperCase().trim();
+      return dbPlate === searchVal || dbEmail === identity.toUpperCase().trim();
+    });
+
+    if (!member) {
+      return res.status(404).json({ error: "Akun Anggota tidak ditemukan. Pastikan data yang dimasukkan benar!" });
+    }
+
+    res.json({
+      success: true,
+      message: `Permintaan reset PIN diterima. Kode PIN Anda telah dikirimkan ke email terdaftar: ${member.email}`,
+      simulatedEmailDelivery: {
+        to: member.email,
+        subject: "Reset PIN Komunitas J5 EVO Indonesia",
+        body: `Halo ${member.name}, PIN keamanan Anda untuk masuk dan mendaftar kegiatan adalah: ${member.pin}. Amankan pin Anda dan jangan sebarkan kepada siapa pun.`
+      }
     });
   });
 
@@ -1024,9 +1081,29 @@ async function startServer() {
     res.json(data.homeContent || DEFAULT_HOME_CONTENT);
   });
 
+  // GET slides of home page content specifically
+  app.get("/api/home-content/slides", (req, res) => {
+    const data = loadDatabase();
+    const hc = data.homeContent || DEFAULT_HOME_CONTENT;
+    res.json(hc.slides || []);
+  });
+
+  // PUT slides of home page content specifically (separate segment save)
+  app.put("/api/home-content/slides", (req, res) => {
+    const { slides } = req.body;
+    if (!Array.isArray(slides)) {
+      return res.status(400).json({ error: "Slides must be an array" });
+    }
+    const data = loadDatabase();
+    if (!data.homeContent) data.homeContent = { ...DEFAULT_HOME_CONTENT };
+    data.homeContent.slides = slides;
+    saveDatabase(data);
+    res.json({ success: true, slides: data.homeContent.slides });
+  });
+
   // POST & PUT update home page content
   const handleUpdateHomeContent = (req, res) => {
-    const { heroTitle, heroSubtitle, aboutTitle, aboutDescription, heroBadge, emblemTitle, emblemDesc, emblemWatermark, emblemLogo } = req.body;
+    const { heroTitle, heroSubtitle, aboutTitle, aboutDescription, heroBadge, emblemTitle, emblemDesc, emblemWatermark, emblemLogo, slides } = req.body;
     const data = loadDatabase();
     if (!data.homeContent) data.homeContent = { ...DEFAULT_HOME_CONTENT };
     
@@ -1039,6 +1116,7 @@ async function startServer() {
     if (emblemDesc !== undefined) data.homeContent.emblemDesc = emblemDesc;
     if (emblemWatermark !== undefined) data.homeContent.emblemWatermark = emblemWatermark;
     if (emblemLogo !== undefined) data.homeContent.emblemLogo = emblemLogo;
+    if (slides !== undefined) data.homeContent.slides = slides;
     
     saveDatabase(data);
     res.json({ success: true, homeContent: data.homeContent });

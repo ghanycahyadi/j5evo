@@ -31,7 +31,8 @@ export const INITIAL_MEMBERS: Member[] = [
     carPhoto: CAR_PHOTOS.defaultTeal,
     ownerPhoto: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=500&q=80",
     registeredAt: "2026-04-10T08:00:00Z",
-    email: "rian.hidayat@gmail.com"
+    email: "rian.hidayat@gmail.com",
+    pin: "111111"
   },
   {
     id: "J5EVO-202605-0002",
@@ -43,7 +44,8 @@ export const INITIAL_MEMBERS: Member[] = [
     carPhoto: CAR_PHOTOS.snowWhite,
     ownerPhoto: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=500&q=80",
     registeredAt: "2026-05-01T14:30:22Z",
-    email: "ghany.cahyadi@gmail.com"
+    email: "ghany.cahyadi@gmail.com",
+    pin: "222222"
   },
   {
     id: "J5EVO-202605-0003",
@@ -55,7 +57,8 @@ export const INITIAL_MEMBERS: Member[] = [
     carPhoto: CAR_PHOTOS.metallicGrey,
     ownerPhoto: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=500&q=80",
     registeredAt: "2026-05-15T11:15:00Z",
-    email: "dewi.lestari@yahoo.com"
+    email: "dewi.lestari@yahoo.com",
+    pin: "333333"
   }
 ];
 
