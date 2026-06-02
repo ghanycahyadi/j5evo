@@ -699,7 +699,7 @@ export default function App() {
       try {
         const reader = new FileReader();
         reader.onloadend = async () => {
-          const compressed = await compressImage(reader.result as string, 400, 400, 0.72);
+          const compressed = await compressImage(reader.result as string, 600, 600, 0.82);
           setSelfEditForm({ ...selfEditForm, ownerPhoto: compressed });
         };
         reader.readAsDataURL(file);
@@ -2960,7 +2960,7 @@ export default function App() {
                         const reader = new FileReader();
                         reader.onloadend = async () => {
                           try {
-                            const compressed = await compressImage(reader.result as string, 400, 400, 0.72);
+                            const compressed = await compressImage(reader.result as string, 600, 600, 0.82);
                             setRegForm((prev) => ({ ...prev, ownerPhoto: compressed }));
                           } catch (err) {
                             setRegForm((prev) => ({ ...prev, ownerPhoto: reader.result as string }));
@@ -2994,7 +2994,7 @@ export default function App() {
                           const reader = new FileReader();
                           reader.onloadend = async () => {
                             try {
-                              const compressed = await compressImage(reader.result as string, 400, 400, 0.72);
+                              const compressed = await compressImage(reader.result as string, 600, 600, 0.82);
                               setRegForm((prev) => ({ ...prev, ownerPhoto: compressed }));
                             } catch (err) {
                               setRegForm((prev) => ({ ...prev, ownerPhoto: reader.result as string }));
@@ -3426,29 +3426,7 @@ export default function App() {
                   // Generate an elegant, scannable high-contrast teal-black QR code using a standard stable secure API
                   const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&color=091e1f&bgcolor=ffffff&data=${encodeURIComponent(redirectUrl)}`;
 
-                  // Determine Tier styling & accents
-                  let cardBorderClass = "border-zinc-800";
-                  let tierName = "PERUNGGU (BRONZE)";
-                  let tierGlow = "shadow-teal-900/20";
-                  let tierColorText = "text-teal-400";
-                  let badgeBgClass = "bg-teal-950/40 text-teal-300 border-teal-800";
-                  let cardBgGlow = "from-[#0a1516] via-[#040809] to-[#0c1819]";
-
-                  if (attendedCount >= 4) {
-                    cardBorderClass = "border-amber-500/50";
-                    tierName = "ANGGOTA EMAS (GOLD)";
-                    tierGlow = "shadow-amber-900/30 ring-2 ring-amber-500/30";
-                    tierColorText = "text-amber-400";
-                    badgeBgClass = "bg-amber-950/60 text-amber-300 border-amber-600/50";
-                    cardBgGlow = "from-[#1b1c11] via-[#080805] to-[#12130e]";
-                  } else if (attendedCount >= 2) {
-                    cardBorderClass = "border-zinc-400/40";
-                    tierName = "ANGGOTA PERAK (SILVER)";
-                    tierGlow = "shadow-zinc-700/20";
-                    tierColorText = "text-zinc-300";
-                    badgeBgClass = "bg-zinc-900/60 text-zinc-200 border-zinc-600";
-                    cardBgGlow = "from-[#141618] via-[#050607] to-[#0f1112]";
-                  }
+                  // Unified membership representation (bronze/silver/gold badges phased out)
 
                   return (
                     <div id="card-and-actions-wrapper" className="space-y-4">
