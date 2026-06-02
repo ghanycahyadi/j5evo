@@ -28,7 +28,7 @@ export default function Header({ activeTab, setActiveTab, isAdmin, setIsAdmin }:
               J5 EVO
             </span>
             <p className="text-[8px] text-zinc-500 font-semibold -mt-0.5 tracking-wider uppercase leading-none">
-              JACOOL J5 COMMUNITY
+              JAECOO J5 COMMUNITY
             </p>
           </div>
         </div>
