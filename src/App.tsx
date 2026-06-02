@@ -53,6 +53,7 @@ import AdminEvents from "./components/AdminEvents";
 import AdminAttendance from "./components/AdminAttendance";
 import AdminSocials from "./components/AdminSocials";
 import AdminFaq from "./components/AdminFaq";
+import AdminManager from "./components/AdminManager";
 import { toPng } from "html-to-image";
 import { Member, CommunityEvent, EventRegistration, DashboardStats, FAQ } from "./types";
 import { formatDate, CAR_PHOTOS, getGoogleMapsUrl, compressImage } from "./utils";
@@ -69,33 +70,6 @@ interface NewsArticle {
 }
 
 const J5_NEWS: NewsArticle[] = [
-  {
-    id: "news_1",
-    title: "JAECOO J5 EV Siap Mengaspal di Indonesia: Mengusung Baterai LFP 61.2 kWh & ADAS Level 2+",
-    summary: "Kendaraan listrik petualang ramah lingkungan JAECOO J5 EV menyajikan efisiensi superior, kabin premium, dan ketangguhan suspensi kelas dunia siap memikat pasar EV Indonesia.",
-    source: "OtoMedia Indonesia",
-    date: "28 Mei 2026",
-    image: "https://images.unsplash.com/photo-1563720223185-11003d516935?auto=format&fit=crop&w=800&q=80",
-    readTime: "4 menit"
-  },
-  {
-    id: "news_2",
-    title: "Komunitas J5 EVO Indonesia Selenggarakan Kampanye Penghijauan 'Green Drive, Clear Future'",
-    summary: "Sejalan dengan filosofi nihil emisi J5 EV, member J5 EVO menanam 1.000 bibit mangrove di pesisir utara Jakarta sebagai komitmen keberlanjutan ekosistem bumi nusantara.",
-    source: "EcoGreen Press",
-    date: "15 Mei 2026",
-    image: "https://images.unsplash.com/photo-1488521787991-ed7bbaae773c?auto=format&fit=crop&w=800&q=80",
-    readTime: "3 menit"
-  },
-  {
-    id: "news_3",
-    title: "Uji Nyali Jalur Menanjak Cipularang: JAECOO J5 Membuktikan Torsi Instan Tanpa Batas",
-    summary: "Evaluasi lapangan membuktikan bahwa motor listrik responsif J5 EV tidak mengalami kendala mendaki tanjakan curam dalam kondisi beban penuh, hemat konsumsi daya hingga 14.2 kWh/100km.",
-    source: "EV-Evolution ID",
-    date: "03 Mei 2026",
-    image: "https://images.unsplash.com/photo-1511919884226-fd3cad34687c?auto=format&fit=crop&w=800&q=80",
-    readTime: "5 menit"
-  }
 ];
 
 export default function App() {
@@ -140,48 +114,62 @@ export default function App() {
   };
 
   // States for administrative authentication gate
-  const [adminUsername, setAdminUsername] = useState<string>("");
-  const [adminPassword, setAdminPassword] = useState<string>("");
-
-  const [adminAuthenticated, setAdminAuthenticatedState] = useState<boolean>(() => {
+  const [currentUser, setCurrentUser] = useState<any>(() => {
     try {
-      return sessionStorage.getItem("adminAuthenticated") === "true";
+      const stored = sessionStorage.getItem("currentUser");
+      return stored ? JSON.parse(stored) : null;
     } catch (e) {
-      return false;
+      return null;
     }
   });
 
-  const setAdminAuthenticated = (val: boolean) => {
-    setAdminAuthenticatedState(val);
-    try {
-      if (val) {
-        sessionStorage.setItem("adminAuthenticated", "true");
-      } else {
-        sessionStorage.removeItem("adminAuthenticated");
-      }
-    } catch (e) {}
-  };
+  const adminAuthenticated = !!currentUser;
 
+  const [adminUsername, setAdminUsername] = useState<string>("");
+  const [adminPassword, setAdminPassword] = useState<string>("");
   const [loginError, setLoginError] = useState<string>("");
 
-  const handleAdminLogin = (e: React.FormEvent) => {
+  const handleAdminLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (adminUsername.trim().toLowerCase() === "admin" && adminPassword === "j5evopas") {
-      setAdminAuthenticated(true);
-      setLoginError("");
-      showFeedback("Login berhasil! Selamat datang di Panel Admin.");
-    } else {
-      setLoginError("Username atau password salah!");
+    setLoginError("");
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: adminUsername.trim(), password: adminPassword }),
+      });
+
+      if (res.ok) {
+        const user = await res.json();
+        setCurrentUser(user);
+        sessionStorage.setItem("currentUser", JSON.stringify(user));
+        
+        // If sponsor, automatically activate sponsor tab
+        if (user.role === "sponsor") {
+          setActiveAdminSubTab("sponsor-cms");
+        } else {
+          setActiveAdminSubTab("member-list");
+        }
+
+        showFeedback("Login berhasil! Selamat datang.");
+      } else {
+        const errData = await res.json();
+        setLoginError(errData.error || "Username atau password salah!");
+      }
+    } catch (err) {
+      console.error(err);
+      setLoginError("Koneksi gagal saat berkomunikasi dengan server.");
     }
   };
 
   const handleAdminLogout = () => {
-    setAdminAuthenticated(false);
+    setCurrentUser(null);
+    sessionStorage.removeItem("currentUser");
     setAdminUsername("");
     setAdminPassword("");
     setIsAdmin(false);
     setActiveTab("home");
-    showFeedback("Anda telah keluar dari Panel Admin secara aman.");
+    showFeedback("Anda telah keluar secara aman.");
   };
 
   // States for dynamic system datasets
@@ -234,7 +222,7 @@ export default function App() {
     name: "",
     phone: "",
     address: "",
-    regional: "J5 EVO - DKI JAKARTA",
+    regional: "J5 EVO - INDONESIA",
     plateNumber: "",
     chassisNumber: "",
     email: "",
@@ -255,7 +243,8 @@ export default function App() {
   const [eventJoiningId, setEventJoiningId] = useState<string | null>(null);
   const [joinForm, setJoinForm] = useState({
     plateNumber: "",
-    phone: ""
+    phone: "",
+    pax: 1
   });
 
   // Lookup Membership State
@@ -310,34 +299,6 @@ export default function App() {
 
   // Gallery image lightbox and randomized pool
   const INITIAL_GALLERY_ITEMS = [
-    {
-      id: 1,
-      badge: "EVENTS - JAECOO LAND",
-      title: "Jaecoo Land 2026 Jakarta",
-      desc: "Keseruan talkshow interaktif & gathering akbar pengurus pusat bersanding gagah unit J5 EV.",
-      image: "https://images.unsplash.com/photo-1511578314322-379afb476865?auto=format&fit=crop&w=800&q=80",
-    },
-    {
-      id: 2,
-      badge: "ANNIVERSARY - 1 YEAR",
-      title: "Milestone of Trust Celebration",
-      desc: "Merayakan sepak terjang satu tahun Jaecoo berkiprah di tanah air bersama barisan armada mobil listrik premium.",
-      image: "https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&w=800&q=80",
-    },
-    {
-      id: 3,
-      badge: "KOPDAR - SHARING TIPS",
-      title: "Technical Discussion Circle",
-      desc: "Suasana akrab bedah tuntas kecanggihan ADAS, perawatan baterai, serta persiapan rute touring berkendara jauh.",
-      image: "https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=800&q=80",
-    },
-    {
-      id: 4,
-      badge: "EVENTS - YED 2026",
-      title: "Kopdar Yogyakarta J5 EVO",
-      desc: "Satu tujuan, satu semangat, satu keluarga besar Jaecoo Indonesia. Brosur rincian agenda kumpul resmi.",
-      image: "/event_banner.jpeg",
-    }
   ];
 
   const [galleryItems, setGalleryItems] = useState<any[]>([]);
@@ -454,13 +415,37 @@ export default function App() {
     contact: "",
     logo: "",
     description: "",
+    username: "",
+    password: "",
     products: [] as any[]
   });
+
+  // Synchronize sponsor details form for sponsor logins automatically
+  useEffect(() => {
+    if (currentUser?.role === "sponsor" && sponsors.length > 0) {
+      const spr = sponsors.find((s) => s.id === currentUser.sponsorId);
+      if (spr) {
+        setEditingSponsorId(spr.id);
+        setSponsorForm({
+          name: spr.name || "",
+          contact: spr.contact || "",
+          logo: spr.logo || "",
+          description: spr.description || "",
+          username: spr.username || "",
+          password: spr.password || "",
+          products: spr.products || []
+        });
+      }
+    }
+  }, [currentUser, sponsors]);
+
   const [tempProduct, setTempProduct] = useState({
     name: "",
     photos: [] as string[],
     price: 0,
-    showPrice: true
+    showPrice: true,
+    useSponsorContact: true,
+    customContact: ""
   });
 
   const [homeCmsForm, setHomeCmsForm] = useState({
@@ -840,14 +825,18 @@ export default function App() {
         return;
       }
       showFeedback(`Sponsor "${sponsorForm.name}" berhasil disimpan.`);
-      setEditingSponsorId(null);
-      setSponsorForm({
-        name: "",
-        contact: "",
-        logo: "",
-        description: "",
-        products: []
-      });
+      if (currentUser?.role !== "sponsor") {
+        setEditingSponsorId(null);
+        setSponsorForm({
+          name: "",
+          contact: "",
+          logo: "",
+          description: "",
+          username: "",
+          password: "",
+          products: []
+        });
+      }
       fetchData();
     } catch (err) {
       showFeedback("Terjadi kesalahan memproses kiriman sponsor.", true);
@@ -910,7 +899,9 @@ export default function App() {
       name: "",
       photos: [],
       price: 0,
-      showPrice: true
+      showPrice: true,
+      useSponsorContact: true,
+      customContact: ""
     });
     showFeedback("Produk berhasil ditambahkan ke katalog sponsor ini.");
   };
@@ -1143,11 +1134,40 @@ export default function App() {
     }
   };
 
+  // Helper to check if a user is already registered in an event
+  const getAlreadyRegisteredMember = (eventId: string) => {
+    if (!joinForm.plateNumber && !joinForm.phone) return null;
+    const searchPlate = (joinForm.plateNumber || "").toUpperCase().replace(/\s+/g, "");
+    const searchPhone = (joinForm.phone || "").replace(/\s+/g, "");
+
+    const matched = members.find((m) => {
+      const dbPlate = (m.plateNumber || "").toUpperCase().replace(/\s+/g, "");
+      const dbPhone = (m.phone || "").replace(/\s+/g, "");
+      return (searchPlate && dbPlate === searchPlate) || (searchPhone && dbPhone === searchPhone);
+    });
+
+    if (!matched) return null;
+
+    const isReg = registrations.some(
+      (r) => r.memberId === matched.id && r.eventId === eventId
+    );
+    return isReg ? matched : null;
+  };
+
   // Member signs up for an event
   const registerForEvent = async (e: React.FormEvent, eventId: string) => {
     e.preventDefault();
     if (!joinForm.plateNumber && !joinForm.phone) {
       showFeedback("Tentukan Nomor Plat atau No Whatsapp terdaftar untuk mencocokkan akun!", true);
+      return;
+    }
+
+    // Client-side quick check for already registered
+    const alreadyRegisteredMember = getAlreadyRegisteredMember(eventId);
+    if (alreadyRegisteredMember) {
+      showFeedback(`⚠️ Halo Kak ${alreadyRegisteredMember.name.toUpperCase()}! Anda sudah terdaftar secara resmi untuk kegiatan ini. Nomor kupon & partisipasi Anda aman sudah tercatat.`, false);
+      setEventJoiningId(null);
+      setJoinForm({ plateNumber: "", phone: "", pax: 1 });
       return;
     }
 
@@ -1161,13 +1181,19 @@ export default function App() {
       const data = await res.json();
 
       if (!res.ok) {
-        showFeedback(data.error || "Pendaftaran kegiatan gagal.", true);
+        if (data.error && data.error.includes("sudah terdaftar")) {
+          showFeedback("⚠️ Halo Kak! Anda sudah terdaftar secara resmi untuk kegiatan ini. Nomor kupon & partisipasi Anda aman sudah tercatat.", false);
+          setEventJoiningId(null);
+          setJoinForm({ plateNumber: "", phone: "", pax: 1 });
+        } else {
+          showFeedback(data.error || "Pendaftaran kegiatan gagal.", true);
+        }
         return;
       }
 
       showFeedback(data.message || "Berhasil bergabung!");
       setEventJoiningId(null);
-      setJoinForm({ plateNumber: "", phone: "" });
+      setJoinForm({ plateNumber: "", phone: "", pax: 1 });
       fetchData(); // reload statistics and lists
     } catch (err) {
       showFeedback("Eror saat registrasi keterlibatan kegiatan.", true);
@@ -2393,24 +2419,32 @@ export default function App() {
                       {sponsors.map((spr) => (
                         <div
                           key={spr.id}
-                          className="w-full flex flex-col items-center justify-center p-4 transition-all duration-300 group"
+                          onClick={() => {
+                            setSelectedSponsorId(spr.id);
+                            setProductSearchQuery("");
+                            setActiveTab("sponsor");
+                            window.scrollTo({ top: 0, behavior: 'smooth' });
+                          }}
+                          className="w-full flex flex-col items-center justify-center p-4 transition-all duration-300 group cursor-pointer hover:bg-zinc-800/10 active:bg-zinc-850/20 rounded-2xl select-none"
+                          role="button"
+                          tabIndex={0}
                         >
-                          <div className="h-16 w-full flex items-center justify-center transition-all duration-300 group-hover:scale-110">
+                          <div className="h-16 w-full flex items-center justify-center transition-all duration-300 group-hover:scale-110 group-active:scale-95">
                             {spr.logo ? (
                               <img
                                 src={spr.logo}
                                 alt={spr.name}
-                                className="max-h-12 max-w-full object-contain filter grayscale opacity-70 brightness-200 group-hover:grayscale-0 group-hover:opacity-100 group-hover:brightness-100 transition-all duration-300"
+                                className="max-h-12 max-w-full object-contain filter grayscale opacity-70 brightness-200 group-hover:grayscale-0 group-hover:opacity-100 group-hover:brightness-100 group-active:grayscale-0 group-active:opacity-100 group-active:brightness-100 group-focus:grayscale-0 group-focus:opacity-100 group-focus:brightness-100 transition-all duration-300"
                                 referrerPolicy="no-referrer"
                               />
                             ) : (
-                              <span className="text-sm font-black text-white group-hover:text-teal-400 font-mono tracking-wider transition-colors duration-300 text-center uppercase">
+                              <span className="text-sm font-black text-white group-hover:text-teal-400 group-active:text-teal-400 group-focus:text-teal-400 font-mono tracking-wider transition-colors duration-300 text-center uppercase">
                                 {spr.name}
                               </span>
                             )}
                           </div>
                           {spr.logo && (
-                            <span className="text-[10px] font-bold text-zinc-500 group-hover:text-zinc-300 transition-colors duration-300 mt-2 text-center select-none tracking-wide">
+                            <span className="text-[10px] font-bold text-zinc-500 group-hover:text-zinc-300 group-active:text-zinc-200 transition-colors duration-300 mt-2 text-center select-none tracking-wide">
                               {spr.name}
                             </span>
                           )}
@@ -3017,7 +3051,7 @@ export default function App() {
                             Konfirmasi kepemilikan akun. Masukkan Nomor Plat J5 Anda (Contoh: B 555 EVO) atau No Handphone terdaftar.
                           </p>
 
-                          <form onSubmit={(e) => registerForEvent(e, evt.id)} className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
+                          <form onSubmit={(e) => registerForEvent(e, evt.id)} className="grid grid-cols-1 sm:grid-cols-4 gap-4 items-end">
                             <div>
                               <label className="text-[11px] font-mono text-zinc-700 block mb-1 font-bold">Nomor Plat J5 EVO *</label>
                               <input
@@ -3040,13 +3074,44 @@ export default function App() {
                               />
                             </div>
 
+                            <div>
+                              <label className="text-[11px] font-sans text-zinc-700 block mb-1 font-bold">Jumlah Pax (Orang) *</label>
+                              <input
+                                type="number"
+                                min={1}
+                                max={20}
+                                required
+                                value={joinForm.pax || 1}
+                                onChange={(e) => setJoinForm({ ...joinForm, pax: parseInt(e.target.value) || 1 })}
+                                className="w-full bg-white text-zinc-900 border border-zinc-300 focus:border-teal-400 rounded-lg py-1.5 px-3 focus:outline-none text-xs font-bold font-mono"
+                              />
+                            </div>
+
                             <button
                               type="submit"
                               disabled={loading}
-                              className="w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-lg transition shadow-xs cursor-pointer"
+                              className="w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-lg transition shadow-xs cursor-pointer h-[34px]"
                             >
-                              {loading ? "Memproses..." : "Konfirmasi & Daftar Kegiatan"}
+                              {loading ? "Memproses..." : "Konfirmasi & Daftar"}
                             </button>
+
+                            {(() => {
+                              const dupeMatched = getAlreadyRegisteredMember(evt.id);
+                              if (dupeMatched) {
+                                return (
+                                  <div className="col-span-1 sm:col-span-4 bg-amber-50 text-amber-900 p-3 rounded-xl border border-amber-200/80 text-2xs font-semibold font-sans mt-2 animate-fadeIn flex items-start gap-2 text-left">
+                                    <span className="text-base select-none">⚠️</span>
+                                    <div>
+                                      <span className="font-extrabold text-amber-950 block leading-tight">Mendaftar Ulang Terdeteksi</span>
+                                      <span className="text-[10px] text-amber-700 block leading-normal mt-0.5">
+                                        Halo Kak <strong>{dupeMatched.name.toUpperCase()}</strong>, Anda sudah terdaftar secara resmi untuk kegiatan ini. Kupon partisipasi Anda aman tercatat di daftar peserta.
+                                      </span>
+                                    </div>
+                                  </div>
+                                );
+                              }
+                              return null;
+                            })()}
                           </form>
                         </div>
                       )}
@@ -4151,7 +4216,7 @@ export default function App() {
                                   <h4 className="font-sans font-bold text-xs text-zinc-800 leading-snug line-clamp-2 min-h-[2rem]">
                                     {prod.name}
                                   </h4>
-                                  <div>
+                                  <div className="space-y-1.5">
                                     {prod.showPrice ? (
                                       <div className="inline-flex flex-col">
                                         <p className="font-mono font-black text-xs sm:text-sm text-teal-850">
@@ -4163,6 +4228,17 @@ export default function App() {
                                       <span className="inline-flex px-1.5 py-0.5 rounded bg-zinc-100 text-zinc-650 text-[9px] font-bold font-mono tracking-wide">
                                         Hubungi Sponsor
                                       </span>
+                                    )}
+
+                                    {/* Direct Custom WA indicator on item */}
+                                    {prod.useSponsorContact === false && prod.customContact && (
+                                      <div className="text-[8.5px] font-mono text-teal-855 font-bold bg-teal-50 px-2 py-0.5 rounded-md border border-teal-100/60 flex items-center gap-1 w-fit mt-1 select-none">
+                                        <span className="relative flex h-1.5 w-1.5">
+                                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                          <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
+                                        </span>
+                                        <span>WA Toko: {prod.customContact}</span>
+                                      </div>
                                     )}
                                   </div>
                                 </div>
@@ -4188,9 +4264,15 @@ export default function App() {
                                     </div>
                                   )}
 
-                                  {/* Direct Inquiry triggers */}
+                                  {/* Direct Inquiry triggers with Dynamic WA link routing */}
                                   <a
-                                    href={getCleanWaUrl(activeSponsor.contact, activeSponsor.name, prod.name)}
+                                    href={getCleanWaUrl(
+                                      (prod.useSponsorContact === false && prod.customContact) 
+                                        ? prod.customContact 
+                                        : activeSponsor.contact, 
+                                      activeSponsor.name, 
+                                      prod.name
+                                    )}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="w-full inline-flex items-center justify-center gap-1 px-2 py-2 bg-teal-50 border border-teal-200/85 hover:bg-teal-600 hover:text-white hover:border-teal-605 text-teal-900 font-extrabold text-[9px] sm:text-[10px] rounded-xl transition-all duration-300 shadow-3xs cursor-pointer tracking-wider"
@@ -4376,151 +4458,192 @@ export default function App() {
           ) : (
             <div id="tab-admin-panel" className="space-y-10 animate-fadeIn text-left">
             
-            {/* Header banner with report download button */}
-            <div className="bg-white border border-zinc-200 p-6 md:p-8 rounded-3xl sm:flex items-center justify-between gap-6 relative overflow-hidden shadow-sm">
-              <div className="absolute right-0 top-0 -mr-12 -mt-12 w-44 h-44 bg-teal-500/5 rounded-full blur-2xl"></div>
-              
-              <div className="space-y-2 flex-1">
-                <span className="px-3 py-1 text-[9px] font-mono tracking-widest text-[#005c56] bg-teal-50 rounded-full border border-teal-200 font-bold uppercase">
-                  ADMINISTRATOR SECURE AREA
-                </span>
-                <h2 className="text-2xl md:text-3xl font-extrabold text-zinc-900">Panel Monitoring &amp; Ekspor Laporan</h2>
-                <p className="text-zinc-[650] text-sm leading-relaxed max-w-2xl font-medium">
-                  Sistem kendali terpusat untuk memantau data member, mendaftarkan kegiatan touring resmi baru, melakukan pencatatan visual kehadiran, serta mengunduh database format Excel untuk laporan tahunan.
-                </p>
+            {currentUser?.role === "sponsor" ? (
+              <div className="bg-[#005c56] text-white p-6 md:p-8 rounded-3xl sm:flex items-center justify-between gap-6 relative overflow-hidden shadow-md">
+                <div className="absolute right-0 top-0 -mr-12 -mt-12 w-44 h-44 bg-teal-400/20 rounded-full blur-2xl"></div>
+                
+                <div className="space-y-1.5 flex-1">
+                  <span className="px-3 py-1 text-[9px] font-mono tracking-widest text-[#005c56] bg-teal-100 rounded-full border border-teal-200 font-extrabold uppercase">
+                    SPONSOR SECURE PORTAL
+                  </span>
+                  <h2 className="text-2xl md:text-3xl font-extrabold text-white">Dashboard Katalog Sponsor: {currentUser.name}</h2>
+                  <p className="text-teal-50 text-sm leading-relaxed max-w-2xl font-medium">
+                    Selamat datang di Akses Mandiri Mitra Sponsor J5 EVO Indonesia. Perbarui profil perusahaan dan pasang katalog produk jualan resmi Anda di bawah ini secara real-time.
+                  </p>
+                </div>
+
+                <div className="mt-4 sm:mt-0 shrink-0">
+                  <button
+                    type="button"
+                    onClick={handleAdminLogout}
+                    className="px-5 py-3 bg-[#b23b3b] hover:bg-red-800 border border-red-800 text-white font-extrabold text-xs rounded-xl transition cursor-pointer shadow-md uppercase"
+                  >
+                    Keluar Dashboard
+                  </button>
+                </div>
               </div>
+            ) : (
+              <>
+                {/* Header banner with report download button */}
+                <div className="bg-white border border-zinc-200 p-6 md:p-8 rounded-3xl sm:flex items-center justify-between gap-6 relative overflow-hidden shadow-sm">
+                  <div className="absolute right-0 top-0 -mr-12 -mt-12 w-44 h-44 bg-teal-500/5 rounded-full blur-2xl"></div>
+                  
+                  <div className="space-y-2 flex-1">
+                    <span className="px-3 py-1 text-[9px] font-mono tracking-widest text-[#005c56] bg-teal-50 rounded-full border border-teal-200 font-bold uppercase">
+                       ADMINISTRATOR SECURE AREA
+                    </span>
+                    <h2 className="text-2xl md:text-3xl font-extrabold text-zinc-900">Panel Monitoring &amp; Ekspor Laporan</h2>
+                    <p className="text-zinc-[650] text-sm leading-relaxed max-w-2xl font-medium">
+                      Sistem kendali terpusat untuk memantau data member, mendaftarkan kegiatan touring resmi baru, melakukan pencatatan visual kehadiran, serta mengunduh database format Excel untuk laporan tahunan.
+                    </p>
+                  </div>
 
-              <div className="mt-6 sm:mt-0 flex-shrink-0 flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={handleExportExcel}
-                  className="px-5 py-3 bg-emerald-600 border border-emerald-700 hover:bg-emerald-700 text-white font-extrabold text-sm rounded-xl transition duration-300 shadow-md flex items-center justify-center gap-2 focus:outline-none cursor-pointer min-w-[210px]"
-                >
-                  <Download className="w-4 h-4 text-white" strokeWidth={3} />
-                  Ekspor Database ke Excel
-                </button>
-                <button
-                  type="button"
-                  onClick={handleAdminLogout}
-                  className="px-5 py-3 bg-red-600 border border-red-700 hover:bg-red-700 text-white font-extrabold text-sm rounded-xl transition duration-300 shadow-md flex items-center justify-center gap-2 focus:outline-none cursor-pointer"
-                >
-                  Keluar Admin
-                </button>
-              </div>
-            </div>
+                  <div className="mt-6 sm:mt-0 flex-shrink-0 flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleExportExcel}
+                      className="px-5 py-3 bg-emerald-600 border border-emerald-700 hover:bg-emerald-700 text-white font-extrabold text-sm rounded-xl transition duration-300 shadow-md flex items-center justify-center gap-2 focus:outline-none cursor-pointer min-w-[210px]"
+                    >
+                      <Download className="w-4 h-4 text-white" strokeWidth={3} />
+                      Ekspor Database ke Excel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleAdminLogout}
+                      className="px-5 py-3 bg-red-600 border border-red-700 hover:bg-red-700 text-white font-extrabold text-sm rounded-xl transition duration-300 shadow-md flex items-center justify-center gap-2 focus:outline-none cursor-pointer"
+                    >
+                      Keluar Admin
+                    </button>
+                  </div>
+                </div>
 
-            {/* 8 Groups Sub-Navigation Hub */}
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-2.5 bg-zinc-100 p-2 rounded-2xl border border-zinc-200 shadow-inner">
-              <button
-                type="button"
-                onClick={() => {
-                  setActiveAdminSubTab("member-list");
-                  setEditingMemberId(null);
-                }}
-                className={`py-2 px-3 rounded-xl text-center flex flex-col items-center justify-center gap-1 transition-all duration-205 cursor-pointer ${
-                  activeAdminSubTab === "member-list"
-                    ? "bg-[#005c56] text-white font-bold shadow-md"
-                    : "bg-white hover:bg-zinc-50 text-zinc-700 border border-zinc-205 hover:border-zinc-300"
-                }`}
-              >
-                <Users className="w-4 h-4 shrink-0" />
-                <span className="text-[10px] font-semibold leading-tight">1. Member</span>
-              </button>
+                {/* 9 Groups Sub-Navigation Hub */}
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-9 gap-2 bg-zinc-100 p-2 rounded-2xl border border-zinc-200 shadow-inner">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveAdminSubTab("member-list");
+                      setEditingMemberId(null);
+                    }}
+                    className={`py-2 px-1.5 rounded-xl text-center flex flex-col items-center justify-center gap-1 transition-all duration-205 cursor-pointer ${
+                      activeAdminSubTab === "member-list"
+                        ? "bg-[#005c56] text-white font-bold shadow-md"
+                        : "bg-white hover:bg-zinc-50 text-zinc-700 border border-zinc-205 hover:border-zinc-300"
+                    }`}
+                  >
+                    <Users className="w-4 h-4 shrink-0" />
+                    <span className="text-[10px] font-semibold leading-tight">1. Member</span>
+                  </button>
 
-              <button
-                type="button"
-                onClick={() => {
-                  setActiveAdminSubTab("events-manager");
-                  setEditingEventId(null);
-                }}
-                className={`py-2 px-3 rounded-xl text-center flex flex-col items-center justify-center gap-1 transition-all duration-205 cursor-pointer ${
-                  activeAdminSubTab === "events-manager"
-                    ? "bg-[#005c56] text-white font-bold shadow-md"
-                    : "bg-white hover:bg-zinc-50 text-zinc-700 border border-zinc-205 hover:border-zinc-300"
-                }`}
-              >
-                <Calendar className="w-4 h-4 shrink-0" />
-                <span className="text-[10px] font-semibold leading-tight">2. Kegiatan</span>
-              </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveAdminSubTab("events-manager");
+                      setEditingEventId(null);
+                    }}
+                    className={`py-2 px-1.5 rounded-xl text-center flex flex-col items-center justify-center gap-1 transition-all duration-205 cursor-pointer ${
+                      activeAdminSubTab === "events-manager"
+                        ? "bg-[#005c56] text-white font-bold shadow-md"
+                        : "bg-white hover:bg-zinc-50 text-zinc-700 border border-zinc-205 hover:border-zinc-300"
+                    }`}
+                  >
+                    <Calendar className="w-4 h-4 shrink-0" />
+                    <span className="text-[10px] font-semibold leading-tight">2. Kegiatan</span>
+                  </button>
 
-              <button
-                type="button"
-                onClick={() => setActiveAdminSubTab("attendance-manager")}
-                className={`py-2 px-3 rounded-xl text-center flex flex-col items-center justify-center gap-1 transition-all duration-205 cursor-pointer ${
-                  activeAdminSubTab === "attendance-manager"
-                    ? "bg-[#005c56] text-white font-bold shadow-md"
-                    : "bg-white hover:bg-zinc-50 text-zinc-700 border border-zinc-205 hover:border-zinc-300"
-                }`}
-              >
-                <CheckCircle2 className="w-4 h-4 shrink-0" />
-                <span className="text-[10px] font-semibold leading-tight">3. Absensi</span>
-              </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveAdminSubTab("attendance-manager")}
+                    className={`py-2 px-1.5 rounded-xl text-center flex flex-col items-center justify-center gap-1 transition-all duration-205 cursor-pointer ${
+                      activeAdminSubTab === "attendance-manager"
+                        ? "bg-[#005c56] text-white font-bold shadow-md"
+                        : "bg-white hover:bg-zinc-50 text-zinc-700 border border-zinc-205 hover:border-zinc-300"
+                    }`}
+                  >
+                    <CheckCircle2 className="w-4 h-4 shrink-0" />
+                    <span className="text-[10px] font-semibold leading-tight">3. Absensi</span>
+                  </button>
 
-              <button
-                type="button"
-                onClick={() => setActiveAdminSubTab("socials-cms")}
-                className={`py-2 px-3 rounded-xl text-center flex flex-col items-center justify-center gap-1 transition-all duration-205 cursor-pointer ${
-                  activeAdminSubTab === "socials-cms"
-                    ? "bg-[#005c56] text-white font-bold shadow-md"
-                    : "bg-white hover:bg-zinc-50 text-zinc-700 border border-zinc-205 hover:border-zinc-300"
-                }`}
-              >
-                <Share2 className="w-4 h-4 shrink-0" />
-                <span className="text-[10px] font-semibold leading-tight">4. Sosmed</span>
-              </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveAdminSubTab("socials-cms")}
+                    className={`py-2 px-1.5 rounded-xl text-center flex flex-col items-center justify-center gap-1 transition-all duration-205 cursor-pointer ${
+                      activeAdminSubTab === "socials-cms"
+                        ? "bg-[#005c56] text-white font-bold shadow-md"
+                        : "bg-white hover:bg-zinc-50 text-zinc-700 border border-zinc-205 hover:border-zinc-300"
+                    }`}
+                  >
+                    <Share2 className="w-4 h-4 shrink-0" />
+                    <span className="text-[10px] font-semibold leading-tight">4. Sosmed</span>
+                  </button>
 
-              <button
-                type="button"
-                onClick={() => setActiveAdminSubTab("faq-cms")}
-                className={`py-2 px-3 rounded-xl text-center flex flex-col items-center justify-center gap-1 transition-all duration-205 cursor-pointer ${
-                  activeAdminSubTab === "faq-cms"
-                    ? "bg-[#005c56] text-white font-bold shadow-md"
-                    : "bg-white hover:bg-zinc-50 text-zinc-700 border border-zinc-205 hover:border-zinc-300"
-                }`}
-              >
-                <HelpCircle className="w-4 h-4 shrink-0" />
-                <span className="text-[10px] font-semibold leading-tight">5. FAQ</span>
-              </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveAdminSubTab("faq-cms")}
+                    className={`py-2 px-1.5 rounded-xl text-center flex flex-col items-center justify-center gap-1 transition-all duration-205 cursor-pointer ${
+                      activeAdminSubTab === "faq-cms"
+                        ? "bg-[#005c56] text-white font-bold shadow-md"
+                        : "bg-white hover:bg-zinc-50 text-zinc-700 border border-zinc-205 hover:border-zinc-300"
+                    }`}
+                  >
+                    <HelpCircle className="w-4 h-4 shrink-0" />
+                    <span className="text-[10px] font-semibold leading-tight">5. FAQ</span>
+                  </button>
 
-              <button
-                type="button"
-                onClick={() => setActiveAdminSubTab("regional-cms")}
-                className={`py-2 px-3 rounded-xl text-center flex flex-col items-center justify-center gap-1 transition-all duration-205 cursor-pointer ${
-                  activeAdminSubTab === "regional-cms"
-                    ? "bg-[#005c56] text-white font-bold shadow-md"
-                    : "bg-white hover:bg-zinc-50 text-zinc-700 border border-zinc-205 hover:border-zinc-300"
-                }`}
-              >
-                <Globe className="w-4 h-4 shrink-0" />
-                <span className="text-[10px] font-semibold leading-tight">6. Regional</span>
-              </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveAdminSubTab("regional-cms")}
+                    className={`py-2 px-1.5 rounded-xl text-center flex flex-col items-center justify-center gap-1 transition-all duration-205 cursor-pointer ${
+                      activeAdminSubTab === "regional-cms"
+                        ? "bg-[#005c56] text-white font-bold shadow-md"
+                        : "bg-white hover:bg-zinc-50 text-zinc-700 border border-zinc-205 hover:border-zinc-300"
+                    }`}
+                  >
+                    <Globe className="w-4 h-4 shrink-0" />
+                    <span className="text-[10px] font-semibold leading-tight">6. Regional</span>
+                  </button>
 
-              <button
-                type="button"
-                onClick={() => setActiveAdminSubTab("sponsor-cms")}
-                className={`py-2 px-3 rounded-xl text-center flex flex-col items-center justify-center gap-1 transition-all duration-205 cursor-pointer ${
-                  activeAdminSubTab === "sponsor-cms"
-                    ? "bg-[#005c56] text-white font-bold shadow-md"
-                    : "bg-white hover:bg-zinc-50 text-zinc-700 border border-zinc-205 hover:border-zinc-300"
-                }`}
-              >
-                <Award className="w-4 h-4 shrink-0" />
-                <span className="text-[10px] font-semibold leading-tight">7. Sponsor</span>
-              </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveAdminSubTab("sponsor-cms")}
+                    className={`py-2 px-1.5 rounded-xl text-center flex flex-col items-center justify-center gap-1 transition-all duration-205 cursor-pointer ${
+                      activeAdminSubTab === "sponsor-cms"
+                        ? "bg-[#005c56] text-white font-bold shadow-md"
+                        : "bg-white hover:bg-zinc-50 text-zinc-700 border border-zinc-205 hover:border-zinc-300"
+                    }`}
+                  >
+                    <Award className="w-4 h-4 shrink-0" />
+                    <span className="text-[10px] font-semibold leading-tight">7. Sponsor</span>
+                  </button>
 
-              <button
-                type="button"
-                onClick={() => setActiveAdminSubTab("home-cms")}
-                className={`py-2 px-3 rounded-xl text-center flex flex-col items-center justify-center gap-1 transition-all duration-205 cursor-pointer ${
-                  activeAdminSubTab === "home-cms"
-                    ? "bg-[#005c56] text-white font-bold shadow-md"
-                    : "bg-white hover:bg-zinc-50 text-zinc-700 border border-zinc-205 hover:border-zinc-300"
-                }`}
-              >
-                <Settings className="w-4 h-4 shrink-0" />
-                <span className="text-[10px] font-semibold leading-tight">8. Beranda</span>
-              </button>
-            </div>
+                  <button
+                    type="button"
+                    onClick={() => setActiveAdminSubTab("home-cms")}
+                    className={`py-2 px-1.5 rounded-xl text-center flex flex-col items-center justify-center gap-1 transition-all duration-205 cursor-pointer ${
+                      activeAdminSubTab === "home-cms"
+                        ? "bg-[#005c56] text-white font-bold shadow-md"
+                        : "bg-white hover:bg-zinc-50 text-zinc-700 border border-zinc-205 hover:border-zinc-300"
+                    }`}
+                  >
+                    <Settings className="w-4 h-4 shrink-0" />
+                    <span className="text-[10px] font-semibold leading-tight">8. Beranda</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setActiveAdminSubTab("admin-manager")}
+                    className={`py-2 px-1.5 rounded-xl text-center flex flex-col items-center justify-center gap-1 transition-all duration-205 cursor-pointer ${
+                      activeAdminSubTab === "admin-manager"
+                        ? "bg-[#005c56] text-white font-bold shadow-md"
+                        : "bg-white hover:bg-zinc-50 text-zinc-700 border border-zinc-205 hover:border-zinc-300"
+                    }`}
+                  >
+                    <Shield className="w-4 h-4 shrink-0" />
+                    <span className="text-[10px] font-semibold leading-tight">9. Admin</span>
+                  </button>
+                </div>
+              </>
+            )}
 
             {/* Conditional Sub-tabs content Rendering */}
             {activeAdminSubTab === "member-list" && (
@@ -4540,6 +4663,8 @@ export default function App() {
             {activeAdminSubTab === "events-manager" && (
               <AdminEvents
                 events={events}
+                members={members}
+                registrations={registrations}
                 newEvent={newEvent}
                 setNewEvent={setNewEvent}
                 loading={loading}
@@ -4618,7 +4743,12 @@ export default function App() {
                 addStagedProduct={addStagedProduct}
                 removeStagedProduct={removeStagedProduct}
                 compressImage={compressImage}
+                currentUser={currentUser}
               />
+            )}
+
+            {activeAdminSubTab === "admin-manager" && currentUser?.role === "admin" && (
+              <AdminManager currentUsername={currentUser.username} />
             )}
 
             {activeAdminSubTab === "home-cms" && (
@@ -6072,10 +6202,40 @@ export default function App() {
                 <div className="flex items-center justify-between">
                   <div>
                     <h4 className="font-extrabold text-xs uppercase tracking-wider text-zinc-400 font-mono">Status Kuota & Peserta</h4>
-                    <p className="text-zinc-800 font-bold text-sm mt-0.5">
+                    <p className="text-zinc-805 font-bold text-sm mt-0.5">
                       Sisa Kuota: <span className="text-teal-700 text-base font-mono font-extrabold">{selectedEvent.slots - (registrations.filter(r => r.eventId === selectedEvent.id).length)}</span> dari {selectedEvent.slots} slot
                     </p>
                   </div>
+                </div>
+
+                {/* Daftar Peserta Terdaftar */}
+                <div className="bg-zinc-50 border border-zinc-200/80 rounded-2xl p-4.5 space-y-2.5 text-left">
+                  <h5 className="font-extrabold text-zinc-800 text-[11px] uppercase tracking-wider font-mono">Daftar Peserta Terdaftar ({registrations.filter(r => r.eventId === selectedEvent.id).length})</h5>
+                  {registrations.filter(r => r.eventId === selectedEvent.id).length === 0 ? (
+                    <p className="text-zinc-400 text-2xs italic font-sans font-medium">Belum ada anggota yang mendaftar kegiatan ini.</p>
+                  ) : (
+                    <div className="max-h-48 overflow-y-auto space-y-1.5 pr-1">
+                      {registrations.filter(r => r.eventId === selectedEvent.id).map((reg, idx) => {
+                        const matched = members.find(m => m.id === reg.memberId);
+                        const paxLabel = reg.pax ? `${reg.pax} PAX` : "1 PAX";
+                        return (
+                          <div key={reg.id || idx} className="flex justify-between items-center text-2xs font-semibold py-2 px-3 rounded-xl bg-white border border-zinc-200 shadow-3xs gap-2">
+                            <div className="flex items-center gap-2 truncate pr-2">
+                              <span className="text-zinc-[750] truncate font-extrabold uppercase">
+                                {matched ? matched.name : "ANGGOTA COMMONS"}
+                              </span>
+                              <span className="text-[9px] font-mono text-zinc-500 bg-zinc-100 hover:bg-zinc-200 font-bold px-1.5 py-0.2 rounded select-none shrink-0 transition">
+                                {paxLabel}
+                              </span>
+                            </div>
+                            <span className="font-mono font-black text-teal-855 bg-teal-50 px-2 py-0.5 rounded border border-teal-100 flex-shrink-0 uppercase tracking-tight">
+                              {matched ? matched.plateNumber : "-"}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
 
                 {selectedEvent.status === "upcoming" ? (
@@ -6092,7 +6252,7 @@ export default function App() {
                         e.preventDefault();
                         await registerForEvent(e, selectedEvent.id);
                       }}
-                      className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-end"
+                      className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end"
                     >
                       <div className="space-y-1">
                         <label className="text-[10px] font-bold text-zinc-750 uppercase block">Nomor Plat Mobil J5 EVO</label>
@@ -6118,14 +6278,44 @@ export default function App() {
                         />
                       </div>
 
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-zinc-750 uppercase block">Jumlah Pax (Orang)</label>
+                        <input
+                          type="number"
+                          min={1}
+                          required
+                          value={joinForm.pax || 1}
+                          onChange={(e) => setJoinForm({ ...joinForm, pax: parseInt(e.target.value) || 1 })}
+                          className="w-full bg-white text-zinc-900 border border-zinc-250 rounded-xl py-2 px-3 focus:outline-none focus:border-teal-500 font-bold font-mono text-xs"
+                        />
+                      </div>
+
                       <button
                         type="submit"
                         disabled={loading}
-                        className="w-full sm:col-span-2 py-3 bg-[#005c56] hover:bg-[#004843] text-white font-extrabold text-xs rounded-xl shadow-md transition uppercase tracking-wider cursor-pointer flex items-center justify-center gap-2 mt-2"
+                        className="w-full sm:col-span-3 py-3 bg-[#005c56] hover:bg-[#004843] text-white font-extrabold text-xs rounded-xl shadow-md transition uppercase tracking-wider cursor-pointer flex items-center justify-center gap-2 mt-2"
                       >
                         <CheckCircle2 className="w-4 h-4" strokeWidth={2.5} />
                         {loading ? "Menyimpan Partisipasi..." : "Daftar Kegiatan Sekarang"}
                       </button>
+
+                      {(() => {
+                        const dupeMatched = getAlreadyRegisteredMember(selectedEvent.id);
+                        if (dupeMatched) {
+                          return (
+                            <div className="col-span-1 sm:col-span-3 bg-amber-50 text-amber-900 p-3.5 rounded-xl border border-amber-200/80 text-2xs font-semibold font-sans mt-1 animate-fadeIn flex items-start gap-2.5 text-left">
+                              <span className="text-base select-none">⚠️</span>
+                              <div>
+                                <span className="font-extrabold text-amber-950 block leading-tight">Mendaftar Ulang Terdeteksi</span>
+                                <span className="text-[10px] text-amber-700 block leading-normal mt-1">
+                                  Halo Kak <strong>{dupeMatched.name.toUpperCase()}</strong>! Anda sudah terdaftar secara resmi untuk kegiatan ini. Nomor kupon serta rincian partisipasi Anda sudah aman tercatat.
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        }
+                        return null;
+                      })()}
                     </form>
                   </div>
                 ) : (

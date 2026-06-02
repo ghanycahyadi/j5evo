@@ -41,6 +41,7 @@ export interface EventRegistration {
   registeredAt: string;
   status: "Registered" | "Attended" | "Absent";
   notes?: string;
+  pax?: number;
 }
 
 // Stats interface for dashboard reporting
@@ -65,6 +66,8 @@ export interface SponsorProduct {
   photos: string[]; // Base64 or Unsplash URLs
   price?: string | number;
   showPrice: boolean;
+  useSponsorContact?: boolean;
+  customContact?: string;
 }
 
 export interface Sponsor {
@@ -74,6 +77,8 @@ export interface Sponsor {
   logo: string; // Logo image as Base64/url
   description: string;
   products: SponsorProduct[];
+  username?: string;
+  password?: string;
 }
 
 export interface HomeContent {

@@ -100,9 +100,12 @@ export default function AdminAttendance({
                 className="p-3.5 rounded-xl bg-zinc-50 border border-zinc-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
               >
                 <div className="space-y-1">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-bold text-zinc-900 text-sm">{reg.memberName}</span>
                     <span className="font-mono text-[#005c56] font-bold">({reg.memberPlate})</span>
+                    <span className="font-mono text-[9px] font-bold text-amber-850 bg-amber-50 px-1.5 py-0.2 rounded border border-amber-200/50 uppercase select-none shrink-0">
+                      {reg.pax ? `${reg.pax} PAX` : "1 PAX"}
+                    </span>
                   </div>
                   <p className="text-zinc-700 font-semibold text-[10px]">
                     Tujuan: {reg.eventTitle}

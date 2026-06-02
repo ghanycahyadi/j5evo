@@ -45,29 +45,6 @@ const DEFAULT_HOME_CONTENT = {
 };
 
 const DEFAULT_SPONSORS = [
-  {
-    id: "sp_1",
-    name: "Jaecoo Official Partners",
-    contact: "081122223333",
-    description: "Sponsor Resmi Penyedia Suku Cadang Orisinil & Aksesoris Gaya Hidup Premium Jaecoo J5 EV.",
-    logo: "https://images.unsplash.com/photo-1622560480605-d83c853bc5c3?auto=format&fit=crop&w=200&q=80",
-    products: [
-      {
-        id: "prod_1",
-        name: "Premium Floor Mat Jaecoo J5",
-        photos: ["https://images.unsplash.com/photo-1605559424843-9e4c228bf1c2?auto=format&fit=crop&w=300&q=80"],
-        price: 1500000,
-        showPrice: true
-      },
-      {
-        id: "prod_2",
-        name: "EV Fast Charger 22kW Home Installation",
-        photos: ["https://images.unsplash.com/photo-1563720223185-11003d516935?auto=format&fit=crop&w=300&q=80"],
-        price: 8500000,
-        showPrice: false
-      }
-    ]
-  }
 ];
 
 interface DatabaseSchema {
@@ -78,6 +55,7 @@ interface DatabaseSchema {
   socialMediaConfig?: any;
   regionals?: string[];
   sponsors?: any[];
+  admins?: any[];
   homeContent?: any;
 }
 
@@ -102,6 +80,7 @@ function loadDatabase(): DatabaseSchema {
       socialMediaConfig: DEFAULT_SOCIALS,
       regionals: DEFAULT_REGIONALS,
       sponsors: DEFAULT_SPONSORS,
+      admins: [{ id: "admin_default", username: "admin", password: "j5evopas" }],
       homeContent: DEFAULT_HOME_CONTENT
     };
     fs.writeFileSync(DB_FILE, JSON.stringify(initialData, null, 2), "utf8");
@@ -121,6 +100,9 @@ function loadDatabase(): DatabaseSchema {
     }
     if (!parsed.sponsors) {
       parsed.sponsors = DEFAULT_SPONSORS;
+    }
+    if (!parsed.admins) {
+      parsed.admins = [{ id: "admin_default", username: "admin", password: "j5evopas" }];
     }
     if (!parsed.homeContent) {
       parsed.homeContent = DEFAULT_HOME_CONTENT;
@@ -158,6 +140,7 @@ function loadDatabase(): DatabaseSchema {
       socialMediaConfig: DEFAULT_SOCIALS,
       regionals: DEFAULT_REGIONALS,
       sponsors: DEFAULT_SPONSORS,
+      admins: [{ id: "admin_default", username: "admin", password: "j5evopas" }],
       homeContent: DEFAULT_HOME_CONTENT
     };
     fs.writeFileSync(DB_FILE, JSON.stringify(initialData, null, 2), "utf8");
@@ -493,7 +476,7 @@ async function startServer() {
   // POST member signs up for an event
   app.post("/api/events/:id/register", (req, res) => {
     const eventId = req.params.id;
-    const { plateNumber, phone } = req.body;
+    const { plateNumber, phone, pax } = req.body;
 
     if (!plateNumber && !phone) {
       return res.status(400).json({ error: "Masukkan Nomor Plat atau No Handphone Anda yang telah terdaftar!" });
@@ -538,6 +521,8 @@ async function startServer() {
       return res.status(400).json({ error: "Maaf, kuota kupon peserta untuk kegiatan ini sudah habis dipesan." });
     }
 
+    const paxCount = parseInt(pax) || 1;
+
     // Register member
     const newRegistration: EventRegistration = {
       id: `reg_${Date.now()}`,
@@ -545,6 +530,7 @@ async function startServer() {
       eventId: eventId,
       registeredAt: new Date().toISOString(),
       status: "Registered",
+      pax: paxCount,
     };
 
     data.registrations.push(newRegistration);
@@ -699,6 +685,7 @@ async function startServer() {
         "Nama Kegiatan": eventDetails?.title || "-",
         "Tanggal Kegiatan": eventDetails?.date || "-",
         Lokasi: eventDetails?.location || "-",
+        "Jumlah Pax": r.pax || 1,
         "Status Kehadiran": r.status === "Registered" ? "Terdaftar (Menunggu)" : r.status === "Attended" ? "Hadir (Hadir)" : "Absen (Tidak Hadir)",
         "Tanggal Mendaftar": new Date(r.registeredAt).toLocaleString("id-ID"),
       };
@@ -842,7 +829,7 @@ async function startServer() {
 
   // POST create a sponsor
   app.post("/api/sponsors", (req, res) => {
-    const { name, contact, logo, description, products } = req.body;
+    const { name, contact, logo, description, products, username, password } = req.body;
     if (!name) return res.status(400).json({ error: "Nama sponsor wajib diisi" });
     const data = loadDatabase();
     if (!data.sponsors) data.sponsors = [];
@@ -852,6 +839,8 @@ async function startServer() {
       contact: contact || "",
       logo: logo || "https://images.unsplash.com/photo-1622560480605-d83c853bc5c3?auto=format&fit=crop&w=200&q=80",
       description: description || "",
+      username: username || "",
+      password: password || "",
       products: products || []
     };
     data.sponsors.push(newSponsor);
@@ -861,7 +850,7 @@ async function startServer() {
 
   // PUT update a sponsor
   app.put("/api/sponsors/:id", (req, res) => {
-    const { name, contact, logo, description, products } = req.body;
+    const { name, contact, logo, description, products, username, password } = req.body;
     const data = loadDatabase();
     if (!data.sponsors) data.sponsors = [];
     const sponsorIndex = data.sponsors.findIndex(s => s.id === req.params.id);
@@ -874,6 +863,8 @@ async function startServer() {
     if (logo !== undefined) sponsor.logo = logo;
     if (description !== undefined) sponsor.description = description;
     if (products !== undefined) sponsor.products = products;
+    if (username !== undefined) sponsor.username = username;
+    if (password !== undefined) sponsor.password = password;
     
     saveDatabase(data);
     res.json({ success: true, sponsor });
@@ -890,6 +881,141 @@ async function startServer() {
     data.sponsors.splice(sponsorIndex, 1);
     saveDatabase(data);
     res.json({ success: true, message: "Sponsor berhasil dihapus" });
+  });
+
+  // ==================== AUTH & ADMIN CONFIG MANAGEMENT ENDPOINTS ====================
+
+  // POST auth/login
+  app.post("/api/auth/login", (req, res) => {
+    const { username, password } = req.body;
+    if (!username || !password) {
+      return res.status(400).json({ error: "Username dan password wajib diisi." });
+    }
+
+    const data = loadDatabase();
+
+    // 1. Check inside admins
+    const adminUser = (data.admins || []).find(
+      (a) => a.username.trim().toLowerCase() === username.trim().toLowerCase()
+    );
+    if (adminUser) {
+      if (adminUser.password === password) {
+        return res.json({
+          role: "admin",
+          username: adminUser.username,
+          id: adminUser.id,
+          token: "admin-session-token"
+        });
+      } else {
+        return res.status(400).json({ error: "Password admin salah!" });
+      }
+    }
+
+    // 2. Check inside sponsors
+    const sponsorUser = (data.sponsors || []).find(
+      (s) => s.username?.trim().toLowerCase() === username.trim().toLowerCase()
+    );
+    if (sponsorUser) {
+      if (sponsorUser.password === password) {
+        return res.json({
+          role: "sponsor",
+          username: sponsorUser.username,
+          sponsorId: sponsorUser.id,
+          name: sponsorUser.name,
+          token: `sponsor-session-token-${sponsorUser.id}`
+        });
+      } else {
+        return res.status(400).json({ error: "Password sponsor salah!" });
+      }
+    }
+
+    return res.status(400).json({ error: "Username tidak terdaftar sebagai admin atau sponsor!" });
+  });
+
+  // GET list of admins
+  app.get("/api/admins", (req, res) => {
+    const data = loadDatabase();
+    res.json(data.admins || []);
+  });
+
+  // POST create administrative user
+  app.post("/api/admins", (req, res) => {
+    const { username, password } = req.body;
+    if (!username || !password) {
+      return res.status(400).json({ error: "Username dan password wajib diisi." });
+    }
+
+    const data = loadDatabase();
+    if (!data.admins) data.admins = [];
+
+    const exists = data.admins.some(
+      (a) => a.username.trim().toLowerCase() === username.trim().toLowerCase()
+    );
+    if (exists) {
+      return res.status(400).json({ error: "Username sudah digunakan!" });
+    }
+
+    const newAdmin = {
+      id: `admin_${Date.now()}`,
+      username: username.trim(),
+      password: password
+    };
+    data.admins.push(newAdmin);
+    saveDatabase(data);
+    res.status(201).json(newAdmin);
+  });
+
+  // PUT update administrative user (username / password / base admin change)
+  app.put("/api/admins/:id", (req, res) => {
+    const { id } = req.params;
+    const { username, password } = req.body;
+
+    const data = loadDatabase();
+    if (!data.admins) data.admins = [];
+
+    const adminIndex = data.admins.findIndex((a) => a.id === id);
+    if (adminIndex === -1) {
+      return res.status(404).json({ error: "Akun admin tidak ditemukan." });
+    }
+
+    const admin = data.admins[adminIndex];
+
+    if (username !== undefined) {
+      const exists = data.admins.some(
+        (a) => a.id !== id && a.username.trim().toLowerCase() === username.trim().toLowerCase()
+      );
+      if (exists) {
+        return res.status(400).json({ error: "Username sudah digunakan oleh admin lain!" });
+      }
+      admin.username = username.trim();
+    }
+
+    if (password !== undefined) {
+      admin.password = password;
+    }
+
+    saveDatabase(data);
+    res.json(admin);
+  });
+
+  // DELETE administrative user
+  app.delete("/api/admins/:id", (req, res) => {
+    const { id } = req.params;
+    const data = loadDatabase();
+    if (!data.admins) data.admins = [];
+
+    if (data.admins.length <= 1) {
+      return res.status(400).json({ error: "Tidak dapat menghapus admin terakhir!" });
+    }
+
+    const adminIndex = data.admins.findIndex((a) => a.id === id);
+    if (adminIndex === -1) {
+      return res.status(404).json({ error: "Akun admin tidak ditemukan." });
+    }
+
+    data.admins.splice(adminIndex, 1);
+    saveDatabase(data);
+    res.json({ success: true, message: "Akun admin berhasil dihapus." });
   });
 
   // GET home page content

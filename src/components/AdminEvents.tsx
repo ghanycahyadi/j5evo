@@ -1,16 +1,18 @@
-import React from "react";
-import { Calendar, Pencil, Trash2, X, PlusCircle, CheckCircle2 } from "lucide-react";
-import { CommunityEvent } from "../types";
+import React, { useState } from "react";
+import { Calendar, Pencil, Trash2, X, PlusCircle, CheckCircle2, Share2, Copy } from "lucide-react";
+import { CommunityEvent, Member, EventRegistration } from "../types";
 
 interface AdminEventsProps {
   events: CommunityEvent[];
+  members: Member[];
+  registrations: EventRegistration[];
   newEvent: {
     title: string;
     description: string;
     date: string;
     time: string;
     location: string;
-    capacity: number;
+    slots: number;
     image: string;
   };
   setNewEvent: React.Dispatch<React.SetStateAction<any>>;
@@ -28,6 +30,8 @@ interface AdminEventsProps {
 
 export default function AdminEvents({
   events,
+  members,
+  registrations,
   newEvent,
   setNewEvent,
   loading,
@@ -41,6 +45,63 @@ export default function AdminEvents({
   startEditingEvent,
   compressImage,
 }: AdminEventsProps) {
+  const [shareCopied, setShareCopied] = useState(false);
+
+  const generateShareMessage = (evtId: string, form: any) => {
+    const eventTitle = form.title || "Kegiatan J5 EVO";
+    const eventDate = form.date || "-";
+    const eventTime = form.time || "-";
+    const eventLocation = form.location || "-";
+    const eventDesc = form.description || "";
+    
+    const curRegs = registrations.filter((r) => r.eventId === evtId);
+    const totalPaxSum = curRegs.reduce((acc, r) => acc + (r.pax || 1), 0);
+    
+    let participantText = "";
+    if (curRegs.length === 0) {
+      participantText = "_(Belum ada peserta yang mendaftar)_";
+    } else {
+      participantText = curRegs.map((reg, idx) => {
+        const mb = members.find((m) => m.id === reg.memberId);
+        const name = mb ? mb.name.toUpperCase() : "Anggota J5 EVO";
+        const plate = mb ? mb.plateNumber.toUpperCase() : "-";
+        const paxCount = reg.pax || 1;
+        return `${idx + 1}. ${name} - ${plate} (${paxCount} PAX)`;
+      }).join("\n");
+    }
+
+    return `📢 *INFORMASI KEGIATAN KOMUNITAS J5 EVO* 📢
+
+*${eventTitle.toUpperCase()}*
+
+📅 *Tanggal:* ${eventDate}
+🕒 *Waktu:* ${eventTime}
+📍 *Lokasi:* ${eventLocation}
+
+📝 *Agenda & Keterangan:*
+${eventDesc}
+
+---
+👥 *Daftar Peserta Terdaftar (${curRegs.length} Mobil / ${totalPaxSum} Pax):*
+${participantText}
+
+---
+Ayo rekan-rekan J5 EVO segera bergabung dan daftarkan diri Anda di aplikasi web J5 EVO! 🚗💨`;
+  };
+
+  const handleShareToWhatsApp = (evtId: string, form: any) => {
+    const message = generateShareMessage(evtId, form);
+    const waUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(message)}`;
+    window.open(waUrl, "_blank");
+  };
+
+  const handleCopyToClipboard = (evtId: string, form: any) => {
+    const message = generateShareMessage(evtId, form);
+    navigator.clipboard.writeText(message);
+    setShareCopied(true);
+    setTimeout(() => setShareCopied(false), 2000);
+  };
+
   return (
     <div className="space-y-6 font-sans text-xs">
       {/* 1. Kelola & Daftar Kegiatan Komunitas Card */}
@@ -179,8 +240,8 @@ export default function AdminEvents({
                     <input
                       type="number"
                       required
-                      value={editEventForm.capacity || 100}
-                      onChange={(e) => setEditEventForm({ ...editEventForm, capacity: parseInt(e.target.value) || 0 })}
+                      value={editEventForm.slots || 100}
+                      onChange={(e) => setEditEventForm({ ...editEventForm, slots: parseInt(e.target.value) || 0 })}
                       className="w-full bg-zinc-50 border border-zinc-250 rounded-lg p-2.5 focus:outline-none focus:border-teal-500 text-xs font-semibold text-zinc-900"
                     />
                   </div>
@@ -196,6 +257,44 @@ export default function AdminEvents({
                       <option value="completed">SELESAI (Completed)</option>
                     </select>
                   </div>
+                </div>
+
+                {/* Cover Banner Image Edit */}
+                <div className="space-y-1 border border-zinc-200 bg-zinc-50 p-4 rounded-2xl shadow-3xs">
+                  <label className="text-zinc-[700] font-bold block mb-1">Cover Event Image J5</label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={async (e: any) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        try {
+                          const reader = new FileReader();
+                          const promise = new Promise<string>((res) => {
+                            reader.onload = () => res(reader.result as string);
+                          });
+                          reader.readAsDataURL(file);
+                          const b64 = await promise;
+                          const compressed = await compressImage(b64);
+                          setEditEventForm({ ...editEventForm, image: compressed });
+                        } catch (err) {
+                          console.error("Cover image loading failed in editor:", err);
+                        }
+                      }
+                    }}
+                    className="w-full border border-dashed border-zinc-250 bg-white p-2.5 rounded-lg focus:outline-none cursor-pointer hover:border-teal-500 text-[10px] font-semibold text-zinc-500"
+                  />
+                  {editEventForm.image && (
+                    <div className="mt-2.5 relative w-36 aspect-video rounded-xl border border-zinc-200 overflow-hidden shadow-3xs">
+                      <img
+                        src={editEventForm.image}
+                        alt="Event Cover Preview"
+                        className="w-full h-full object-cover"
+                        referrerPolicy="no-referrer"
+                      />
+                      <span className="absolute bottom-1 right-1 px-1.5 py-0.5 bg-zinc-950/75 text-white text-[8px] rounded font-mono font-bold uppercase select-none">Cover Aktif</span>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -272,6 +371,74 @@ export default function AdminEvents({
                   </div>
                 </div>
               </div>
+            </div>
+
+            {/* Daftar Peserta Terdaftar di Kegiatan Ini (Admin View) */}
+            <div className="border-t border-zinc-150 pt-4.5 space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-gradient-to-r from-teal-50/40 to-emerald-50/30 p-3 rounded-2xl border border-teal-100/40">
+                <div>
+                  <span className="font-bold text-[10px] text-zinc-750 font-mono tracking-wider uppercase block">
+                    DAFTAR PESERTA YANG MENDAFTAR ({registrations.filter((r) => r.eventId === editingEventId).length})
+                  </span>
+                  <p className="text-[9px] text-[#005c56] font-mono mt-0.5 font-bold">
+                    ID: {editingEventId} • Total Pax: {registrations.filter((r) => r.eventId === editingEventId).reduce((acc, r) => acc + (r.pax || 1), 0)}
+                  </p>
+                </div>
+                <div className="flex flex-wrap items-center gap-1.5 sm:justify-end">
+                  <button
+                    type="button"
+                    onClick={() => handleCopyToClipboard(editingEventId!, editEventForm)}
+                    className="px-2.5 py-1.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 hover:text-zinc-900 border border-zinc-250 rounded-lg text-[9px] font-bold transition flex items-center gap-1 cursor-pointer"
+                  >
+                    <Copy className="w-3 h-3 text-zinc-500" />
+                    {shareCopied ? "Tersalin! ✅" : "Salin Info"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleShareToWhatsApp(editingEventId!, editEventForm)}
+                    className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-500 rounded-lg text-[9px] font-bold transition flex items-center gap-1 cursor-pointer shadow-3xs"
+                  >
+                    <Share2 className="w-3 h-3 text-white" />
+                    Bagikan Ke WA Group
+                  </button>
+                </div>
+              </div>
+              {registrations.filter((r) => r.eventId === editingEventId).length === 0 ? (
+                <p className="text-zinc-400 text-[10px] italic font-sans font-semibold">
+                  Belum ada peserta terdaftar untuk kegiatan ini.
+                </p>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-56 overflow-y-auto bg-zinc-50 border border-zinc-200/70 p-3 rounded-2xl">
+                  {registrations
+                    .filter((r) => r.eventId === editingEventId)
+                    .map((reg, idx) => {
+                      const m = members.find((mb) => mb.id === reg.memberId);
+                      return (
+                        <div
+                          key={reg.id || idx}
+                          className="flex justify-between items-center text-2xs p-2.5 rounded-xl bg-white border border-zinc-200 shadow-3xs"
+                        >
+                          <div className="space-y-0.5 truncate leading-tight">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="font-extrabold text-zinc-805 uppercase block truncate max-w-[120px]">
+                                {m ? m.name : "Anggota J5 EVO"}
+                              </span>
+                              <span className="text-[8px] font-mono font-bold text-amber-850 bg-amber-50 px-1 py-0.2 rounded border border-amber-200/50 uppercase select-none shrink-0">
+                                {reg.pax ? `${reg.pax} PAX` : "1 PAX"}
+                              </span>
+                            </div>
+                            <span className="text-[9px] text-zinc-450 font-sans block truncate">
+                              📞 {m ? m.phone : "-"}
+                            </span>
+                          </div>
+                          <span className="font-mono text-[10px] font-black text-[#005c56] bg-teal-50 px-2 py-0.5 rounded border border-teal-100 uppercase shrink-0">
+                            {m ? m.plateNumber.toUpperCase() : "-"}
+                          </span>
+                        </div>
+                      );
+                    })}
+                </div>
+              )}
             </div>
 
             <div className="flex justify-end gap-3 border-t border-zinc-150 pt-4">
@@ -365,8 +532,8 @@ export default function AdminEvents({
                 type="number"
                 required
                 min={2}
-                value={newEvent.capacity || ""}
-                onChange={(e) => setNewEvent({ ...newEvent, capacity: parseInt(e.target.value) || 0 })}
+                value={newEvent.slots || ""}
+                onChange={(e) => setNewEvent({ ...newEvent, slots: parseInt(e.target.value) || 0 })}
                 className="w-full bg-zinc-50 text-zinc-900 border border-zinc-250 rounded-lg p-2.5 focus:outline-none focus:border-teal-555 focus:bg-white text-xs font-semibold"
               />
             </div>
