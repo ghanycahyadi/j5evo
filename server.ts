@@ -8,6 +8,7 @@ import path from "path";
 import fs from "fs";
 import { createServer as createViteServer } from "vite";
 import * as XLSX from "xlsx";
+import nodemailer from "nodemailer";
 
 import { Member, CommunityEvent, EventRegistration, DashboardStats, FAQ } from "./src/types";
 import { INITIAL_MEMBERS, INITIAL_EVENTS, INITIAL_REGISTRATIONS, INITIAL_FAQS, CAR_PHOTOS } from "./src/utils";
@@ -568,36 +569,114 @@ async function startServer() {
     });
   });
 
+  // Helper to send real SMTP PIN Reset Email using NodeMailer
+  const sendPinResetEmail = async (to: string, name: string, pin: string, plateNumber: string) => {
+    const host = process.env.SMTP_HOST;
+    const portStr = process.env.SMTP_PORT;
+    const user = process.env.SMTP_USER;
+    const pass = process.env.SMTP_PASS;
+    const secure = process.env.SMTP_SECURE === "true";
+
+    if (!host || !user || !pass) {
+      console.warn("SMTP settings are not configured in system environment variables (SMTP_HOST, SMTP_USER, SMTP_PASS).");
+      return { success: false, error: "SMTP credentials not configured" };
+    }
+
+    const port = parseInt(portStr || "465", 10);
+
+    try {
+      const transporter = nodemailer.createTransport({
+        host,
+        port,
+        secure, // true for 465, false for other ports (like 587 or 25)
+        auth: {
+          user,
+          pass,
+        },
+        tls: {
+          // Do not fail on invalid certs
+          rejectUnauthorized: false
+        }
+      });
+
+      const mailOptions = {
+        from: `"J5 EVO Indonesia" <${user}>`,
+        to,
+        subject: "Reset PIN Komunitas J5 EVO Indonesia",
+        html: `
+          <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 25px; border: 1px solid #e2e8f0; border-radius: 16px; background-color: #ffffff; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);">
+            <div style="text-align: center; margin-bottom: 20px;">
+              <h2 style="color: #0d9488; font-weight: 800; letter-spacing: 0.05em; margin: 0; font-size: 24px;">J5 EVO INDONESIA</h2>
+              <p style="color: #64748b; font-size: 11px; text-transform: uppercase; margin: 4px 0 0 0; letter-spacing: 0.1em; font-weight: 700;">Official Member PIN Reset</p>
+            </div>
+            
+            <div style="border-top: 1px solid #f1f5f9; padding-top: 20px;">
+              <p style="font-size: 14px; color: #334155; line-height: 1.6; margin: 0 0 16px 0;">Halo Rekan <strong>${name}</strong>,</p>
+              <p style="font-size: 14px; color: #475569; line-height: 1.6; margin: 0 0 24px 0;">Kami menerima permintaan untuk mengirimkan kembali PIN keanggotaan terdaftar Anda untuk Plat nomor kendaraan berikut:</p>
+              
+              <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; margin: 0 0 24px 0; text-align: center;">
+                <p style="margin: 0 0 6px 0; font-size: 11px; color: #64748b; text-transform: uppercase; font-weight: 700; letter-spacing: 0.05em;">Plat Nomor Kendaraan</p>
+                <p style="margin: 0 0 16px 0; font-size: 20px; color: #0f172a; font-weight: 850; font-family: monospace; letter-spacing: 1px;">${plateNumber}</p>
+                
+                <p style="margin: 0 0 6px 0; font-size: 11px; color: #64748b; text-transform: uppercase; font-weight: 700; letter-spacing: 0.05em;">PIN Keanggotaan Anda</p>
+                <p style="margin: 0; font-size: 32px; color: #0d9488; font-weight: 900; letter-spacing: 6px; font-family: monospace;">${pin}</p>
+              </div>
+              
+              <p style="font-size: 13px; color: #475569; line-height: 1.6; margin: 0 0 16px 0;">Gunakan kode PIN rahasia di atas dalam formulir masuk login / pendaftaran event J5 EVO Indonesia di portal utama.</p>
+              <p style="font-size: 12px; color: #ef4444; font-weight: 600; margin: 0; background-color: #fef2f2; padding: 10px; border-radius: 8px; border: 1px solid #fee2e2;">Demi keamanan berkendara dan integritas pendaftaran, mohon jangan pernah menyebarkan kode PIN ini kepada siapa pun murni demi keamanan.</p>
+            </div>
+            
+            <div style="margin-top: 32px; border-top: 1px solid #f1f5f9; padding-top: 16px; text-align: center;">
+              <p style="font-size: 11px; color: #94a3b8; line-height: 1.6; margin: 0;">
+                Email ini dikirim secara otomatis oleh Server J5 EVO Indonesia.<br/>
+                Jika Anda merasa tidak melakukan pendaftaran atau permintaan ini, silakan abaikan pesan ini.<br/>
+                &copy; 2026 J5 EVO Indonesia.
+              </p>
+            </div>
+          </div>
+        `
+      };
+
+      const info = await transporter.sendMail(mailOptions);
+      console.log("Email sent successfully via NodeMailer. ID:", info.messageId);
+      return { success: true };
+    } catch (e: any) {
+      console.error("Nodemailer SMTP delivery error:", e);
+      return { success: false, error: e.message || String(e) };
+    }
+  };
+
   // POST reset PIN for member
-  app.post("/api/members/reset-pin", (req, res) => {
-    const { identity } = req.body; // plateNumber or email
+  app.post("/api/members/reset-pin", async (req, res) => {
+    const { identity } = req.body; // email only now
     
     if (!identity) {
-      return res.status(400).json({ error: "Masukkan Nomor Plat atau Alamat Email Anda!" });
+      return res.status(400).json({ error: "Alamat Email Terdaftar wajib diisi!" });
     }
 
     const data = loadDatabase();
     
-    // Find member
-    const searchVal = identity.toUpperCase().replace(/\s+/g, "");
-    const member = data.members.find((m) => {
-      const dbPlate = m.plateNumber.toUpperCase().replace(/\s+/g, "");
-      const dbEmail = m.email.toUpperCase().trim();
-      return dbPlate === searchVal || dbEmail === identity.toUpperCase().trim();
-    });
+    // Find member by email only
+    const searchEmail = identity.trim().toLowerCase();
+    const member = data.members.find((m) => m.email.trim().toLowerCase() === searchEmail);
 
     if (!member) {
-      return res.status(404).json({ error: "Akun Anggota tidak ditemukan. Pastikan data yang dimasukkan benar!" });
+      return res.status(404).json({ error: "Email Anggota tidak ditemukan. Pastikan alamat email tersebut terdaftar!" });
     }
+
+    // Attempt real email send
+    const mailResult = await sendPinResetEmail(member.email, member.name, member.pin, member.plateNumber);
 
     res.json({
       success: true,
-      message: `Permintaan reset PIN diterima. Kode PIN Anda telah dikirimkan ke email terdaftar: ${member.email}`,
-      simulatedEmailDelivery: {
-        to: member.email,
-        subject: "Reset PIN Komunitas J5 EVO Indonesia",
-        body: `Halo ${member.name}, PIN keamanan Anda untuk masuk dan mendaftar kegiatan adalah: ${member.pin}. Amankan pin Anda dan jangan sebarkan kepada siapa pun.`
-      }
+      message: mailResult.success 
+        ? `Kode PIN Anda telah dikirimkan ke email terdaftar Anda: ${member.email}`
+        : `Permintaan reset PIN diterima. Namun gagal mengirim email. Error: ${mailResult.error || "Gagal menghubungi server mail (SMTP)"}`,
+      smtpSent: mailResult.success,
+      smtpError: mailResult.error || null,
+      email: member.email,
+      name: member.name,
+      plateNumber: member.plateNumber
     });
   });
 

@@ -1189,7 +1189,7 @@ export default function App() {
   const handlePinResetSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!pinResetIdentity.trim()) {
-      showFeedback("Masukkan Plat Nomor atau Email Anda!", true);
+      showFeedback("Masukkan Alamat Email Terdaftar Anda!", true);
       return;
     }
 
@@ -1209,7 +1209,7 @@ export default function App() {
       }
 
       setPinResetSuccessData(data);
-      showFeedback(data.message);
+      showFeedback("Permintaan reset PIN berhasil! Detail rahasia dikirim lewat email.");
     } catch (err) {
       showFeedback("Terjadi kesalahan jaringan rute API reset PIN.", true);
     } finally {
@@ -1888,7 +1888,7 @@ export default function App() {
       
       {/* Floating System Notification */}
       {feedbackMessage && (
-        <div id="system-toast" className={`fixed bottom-6 right-6 z-50 max-w-md p-4 rounded-xl shadow-xl transition-all duration-300 flex items-start gap-3 border ${
+        <div id="system-toast" className={`fixed bottom-6 right-6 z-[9999] max-w-md p-4 rounded-xl shadow-xl transition-all duration-300 flex items-start gap-3 border ${
           feedbackMessage.isError 
             ? "bg-red-50 border-red-200 text-red-900" 
             : "bg-teal-50 border-teal-200 text-teal-900"
@@ -3232,7 +3232,6 @@ export default function App() {
                                 <button
                                   type="button"
                                   onClick={() => {
-                                    setPinResetIdentity(joinForm.plateNumber);
                                     setPinResetOpen(true);
                                   }}
                                   className="text-[10px] text-teal-700 hover:text-teal-900 font-semibold cursor-pointer underline hover:no-underline"
@@ -3670,9 +3669,6 @@ export default function App() {
                                   <button
                                     type="button"
                                     onClick={() => {
-                                      if (lookupResult) {
-                                        setPinResetIdentity(lookupResult.member.email || lookupResult.member.plateNumber);
-                                      }
                                       setPinResetOpen(true);
                                     }}
                                     className="text-[10px] text-teal-700 font-bold hover:underline cursor-pointer"
@@ -6643,7 +6639,6 @@ export default function App() {
                           <button
                             type="button"
                             onClick={() => {
-                              setPinResetIdentity(joinForm.plateNumber);
                               setPinResetOpen(true);
                             }}
                             className="text-[9px] text-[#005c56] hover:underline font-bold cursor-pointer"
@@ -6801,15 +6796,15 @@ export default function App() {
             {!pinResetSuccessData ? (
               <form onSubmit={handlePinResetSubmit} className="space-y-4">
                 <p className="text-xs text-zinc-600 leading-relaxed font-sans">
-                  Kehilangan kode keamanan PIN 6 Digit Anda? Masukkan alamat email aktif Anda yang terdaftar atau Nomor Plat J5 EVO terdaftar Anda. Sistem akan mencari kecocokan akun Anda dan mengirimkan ulang detail PIN tersebut.
+                  Kehilangan kode keamanan PIN 6 Digit Anda? Masukkan alamat email aktif Anda yang terdaftar pada sistem. Sistem akan mencari kecocokan akun Anda dan mengirimkan PIN baru/lama Anda langsung ke email tersebut demi keamanan Anda.
                 </p>
 
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-zinc-750 block uppercase tracking-wider">Identias Registrasi (Plat Nomor / Email) *</label>
+                  <label className="text-[10px] font-bold text-zinc-750 block uppercase tracking-wider">Alamat Email Terdaftar *</label>
                   <input
-                    type="text"
+                    type="email"
                     required
-                    placeholder="Contoh: B 555 EVO atau nama@email.com"
+                    placeholder="Contoh: nama@email.com"
                     value={pinResetIdentity}
                     onChange={(e) => setPinResetIdentity(e.target.value)}
                     className="w-full bg-zinc-50 text-zinc-900 border border-zinc-250 rounded-xl p-3 focus:outline-none focus:border-teal-500 font-sans text-xs font-semibold"
@@ -6838,28 +6833,16 @@ export default function App() {
               </form>
             ) : (
               <div className="space-y-4 animate-fadeIn">
-                <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-2xl text-emerald-950 font-sans text-xs flex items-start gap-2.5">
-                  <span className="text-lg">📧</span>
-                  <div>
-                    <span className="font-extrabold block">Email Simulator Terkirim!</span>
-                    <span className="text-[11px] text-emerald-850 mt-0.5 block leading-relaxed">
-                      Sistem kami berhasil menyimulasikan pengiriman sandi rahasia PIN Anda ke alamat email: <strong className="underline text-emerald-950">{pinResetSuccessData.email}</strong>.
+                <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl text-emerald-950 font-sans text-xs flex items-start gap-2.5">
+                  <span className="text-xl">📧</span>
+                  <div className="space-y-1">
+                    <span className="font-extrabold block text-sm">PIN Telah Terkirim!</span>
+                    <span className="text-[11.5px] text-emerald-850 block leading-relaxed font-medium">
+                      Detail PIN keanggotaan rahasia Anda telah berhasil dikirimkan ke alamat email terdaftar: <strong className="underline text-emerald-950 font-bold">{pinResetSuccessData.email}</strong>.
                     </span>
-                  </div>
-                </div>
-
-                <div className="border border-zinc-200 rounded-2xl bg-zinc-50 p-4 space-y-2.5 font-mono">
-                  <div className="flex justify-between items-center text-[10px] border-b border-zinc-200 pb-1.5 text-zinc-500">
-                    <span>FROM: jaecoo_j5_evo_admin</span>
-                    <span>TODAY UTC</span>
-                  </div>
-                  <div className="text-[11px] text-zinc-800 space-y-1">
-                    <p className="font-extrabold font-sans">Halo, {pinResetSuccessData.name || "Member"}!</p>
-                    <p className="font-sans leading-relaxed text-zinc-600 font-medium">Berikut adalah PIN 6 digit keanggotaan terdaftar Anda untuk Plat nomor <strong className="font-mono text-zinc-900">{pinResetSuccessData.plateNumber}</strong>:</p>
-                    <div className="bg-white border border-zinc-200/80 rounded-xl p-3 text-center my-2 select-text">
-                      <span className="text-2xl font-black text-[#005c56] tracking-[0.25em]">{pinResetSuccessData.pin}</span>
-                      <span className="text-[9px] text-zinc-455 block font-sans font-bold mt-1 uppercase">PIN RAHASIA JADI JANGAN BAGIKAN</span>
-                    </div>
+                    <span className="text-[11px] text-zinc-600 block leading-relaxed pt-1.5 border-t border-emerald-200/50">
+                      Demi menjaga keamanan data and privasi keanggotaan, kode PIN Anda sengaja disembunyikan dari antarmuka ini dan hanya dikirimkan secara langsung ke kotak surat elektronik Anda. Silakan periksa folder <strong>Kotak Masuk (Inbox)</strong>, <strong>Spam/Junk</strong>, atau tab <strong>Promosi</strong> Anda.
+                    </span>
                   </div>
                 </div>
 
@@ -6871,7 +6854,7 @@ export default function App() {
                       setPinResetSuccessData(null);
                       setPinResetIdentity("");
                     }}
-                    className="py-2.5 px-5 bg-zinc-900 hover:bg-zinc-800 text-white text-xs font-black rounded-xl transition cursor-pointer uppercase"
+                    className="py-2.5 px-5 bg-zinc-900 hover:bg-zinc-800 text-white text-xs font-black rounded-xl transition cursor-pointer uppercase w-full sm:w-auto"
                   >
                     Tutup Bantuan
                   </button>
