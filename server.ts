@@ -9,12 +9,43 @@ import fs from "fs";
 import { createServer as createViteServer } from "vite";
 import * as XLSX from "xlsx";
 import nodemailer from "nodemailer";
+import dotenv from "dotenv";
+
+// Initialize environment variables from .env file
+dotenv.config();
 
 import { Member, CommunityEvent, EventRegistration, DashboardStats, FAQ } from "./src/types";
 import { INITIAL_MEMBERS, INITIAL_EVENTS, INITIAL_REGISTRATIONS, INITIAL_FAQS, CAR_PHOTOS } from "./src/utils";
 
 const PORT = 3000;
-const DB_FILE = path.join(process.cwd(), "db.json");
+
+// Resolve DB_FILE based on potential relative paths
+const getDbFilePath = (): string => {
+  const rootPath = process.cwd();
+  const appDir = __dirname;
+  const projectRootFromDist = path.join(__dirname, "..");
+  
+  const candidatePaths = [
+    path.join(rootPath, "db.json"),
+    path.join(projectRootFromDist, "db.json"),
+    path.join(appDir, "db.json")
+  ];
+  
+  // Find the first one that exists
+  for (const p of candidatePaths) {
+    if (fs.existsSync(p)) {
+      return p;
+    }
+  }
+  // Default fallback if none exists yet
+  return path.join(rootPath, "db.json");
+};
+
+const DB_FILE = getDbFilePath();
+const DB_BACKUP_FILE = DB_FILE + ".bak";
+
+console.log(`[Database] Active Database file path: ${DB_FILE}`);
+console.log(`[Database] Active Database backup path: ${DB_BACKUP_FILE}`);
 
 const DEFAULT_SOCIALS = {
   instagram: { name: "Instagram", url: "https://www.instagram.com/j5evo.id", handle: "@j5evo.id", show: true },
@@ -61,8 +92,19 @@ interface DatabaseSchema {
   homeContent?: any;
 }
 
-// Helper to load/save mock database
+// Helper to load/save mock database with atomic writes and backup recovery
 function loadDatabase(): DatabaseSchema {
+  // If the DB file does not exist, look for a backup first
+  if (!fs.existsSync(DB_FILE) && fs.existsSync(DB_BACKUP_FILE)) {
+    try {
+      console.log(`[Backup] DB_FILE missing, but DB_BACKUP_FILE found. Restoring from backup...`);
+      fs.copyFileSync(DB_BACKUP_FILE, DB_FILE);
+    } catch (err) {
+      console.error(`[Backup] Failed to copy backup to main DB file:`, err);
+    }
+  }
+
+  // If still not exist, initialize seed data
   if (!fs.existsSync(DB_FILE)) {
     const initialData: DatabaseSchema = {
       members: INITIAL_MEMBERS.map(m => {
@@ -86,30 +128,32 @@ function loadDatabase(): DatabaseSchema {
       admins: [{ id: "admin_default", username: "admin", password: "j5evopas" }],
       homeContent: DEFAULT_HOME_CONTENT
     };
-    fs.writeFileSync(DB_FILE, JSON.stringify(initialData, null, 2), "utf8");
+    try {
+      fs.writeFileSync(DB_FILE, JSON.stringify(initialData, null, 2), "utf8");
+    } catch (writeErr) {
+      console.error(`[Database] Failed to write initial db.json:`, writeErr);
+    }
     return initialData;
   }
+
+  let raw = "";
   try {
-    const raw = fs.readFileSync(DB_FILE, "utf8");
+    raw = fs.readFileSync(DB_FILE, "utf8");
+    // Handle empty file as error to trigger backup load
+    if (!raw || raw.trim() === "") {
+      throw new Error("db.json file is empty");
+    }
     const parsed = JSON.parse(raw);
-    if (!parsed.faqs) {
-      parsed.faqs = INITIAL_FAQS;
-    }
-    if (!parsed.socialMediaConfig) {
-      parsed.socialMediaConfig = DEFAULT_SOCIALS;
-    }
-    if (!parsed.regionals) {
-      parsed.regionals = DEFAULT_REGIONALS;
-    }
-    if (!parsed.sponsors) {
-      parsed.sponsors = DEFAULT_SPONSORS;
-    }
+    
+    // Fill defaults
+    if (!parsed.faqs) parsed.faqs = INITIAL_FAQS;
+    if (!parsed.socialMediaConfig) parsed.socialMediaConfig = DEFAULT_SOCIALS;
+    if (!parsed.regionals) parsed.regionals = DEFAULT_REGIONALS;
+    if (!parsed.sponsors) parsed.sponsors = DEFAULT_SPONSORS;
     if (!parsed.admins) {
       parsed.admins = [{ id: "admin_default", username: "admin", password: "j5evopas" }];
     }
-    if (!parsed.homeContent) {
-      parsed.homeContent = DEFAULT_HOME_CONTENT;
-    }
+    if (!parsed.homeContent) parsed.homeContent = DEFAULT_HOME_CONTENT;
     if (parsed.members) {
       parsed.members = parsed.members.map((m: any) => {
         let memberReg = m.regional;
@@ -129,7 +173,26 @@ function loadDatabase(): DatabaseSchema {
     }
     return parsed;
   } catch (error) {
-    console.error("Failed to parse db.json, resetting to seeds:", error);
+    console.error(`[Database Rescue] Failed to parse active db.json. Checking backups... Error:`, error);
+    
+    // Try to load from backup
+    if (fs.existsSync(DB_BACKUP_FILE)) {
+      try {
+        console.log(`[Database Rescue] Recovering database from system backup: ${DB_BACKUP_FILE}`);
+        const backupRaw = fs.readFileSync(DB_BACKUP_FILE, "utf8");
+        const backupParsed = JSON.parse(backupRaw);
+        
+        // Solid recovery: write it back to clean the active corrupted db.json
+        fs.writeFileSync(DB_FILE, backupRaw, "utf8");
+        console.log(`[Database Rescue] Success! Database fully restored from backup.`);
+        return backupParsed;
+      } catch (backupErr) {
+        console.error(`[Database Rescue] Backup file was also unreadable or corrupted:`, backupErr);
+      }
+    }
+
+    // Absolutely worst case fallback to seed data
+    console.warn(`[Database Rescue] Crucial warnings: No backup available or backup is corrupt. Resetting to initial mock schema seeds.`);
     const initialData: DatabaseSchema = {
       members: INITIAL_MEMBERS.map(m => {
         let memberReg = "J5 EVO - DKI JAKARTA";
@@ -147,13 +210,43 @@ function loadDatabase(): DatabaseSchema {
       admins: [{ id: "admin_default", username: "admin", password: "j5evopas" }],
       homeContent: DEFAULT_HOME_CONTENT
     };
-    fs.writeFileSync(DB_FILE, JSON.stringify(initialData, null, 2), "utf8");
+
+    try {
+      fs.writeFileSync(DB_FILE, JSON.stringify(initialData, null, 2), "utf8");
+    } catch (saveError) {
+      console.error(`[Database] Failed to write fallback db.json:`, saveError);
+    }
     return initialData;
   }
 }
 
+// Atomic database persistence helper
 function saveDatabase(data: DatabaseSchema) {
-  fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2), "utf8");
+  const tmpFile = DB_FILE + ".tmp";
+  try {
+    // 1. Create a backup of the current DB file before writing the new one (if it exists)
+    if (fs.existsSync(DB_FILE)) {
+      try {
+        fs.copyFileSync(DB_FILE, DB_BACKUP_FILE);
+      } catch (backupError) {
+        console.warn(`[Backup] Warning: Failed to copy backup of database:`, backupError);
+      }
+    }
+    
+    // 2. Write to a temporary file first (atomic write)
+    fs.writeFileSync(tmpFile, JSON.stringify(data, null, 2), "utf8");
+    
+    // 3. Atomically rename/replace tmps over to active DB_FILE
+    fs.renameSync(tmpFile, DB_FILE);
+  } catch (error) {
+    console.error(`[Database Save Fail] Critical error executing atomic save:`, error);
+    // Cleanup temporary file if it was created
+    if (fs.existsSync(tmpFile)) {
+      try {
+        fs.unlinkSync(tmpFile);
+      } catch (_) {}
+    }
+  }
 }
 
 async function startServer() {
@@ -176,10 +269,65 @@ async function startServer() {
     res.json({ status: "ok", time: new Date() });
   });
 
-  // GET all members
+  // GET all members / paginated members
   app.get("/api/members", (req, res) => {
     const data = loadDatabase();
-    res.json(data.members);
+    
+    const search = (req.query.search as string || "").trim().toLowerCase();
+    const regional = (req.query.regional as string || "").trim().toLowerCase();
+    const page = req.query.page ? parseInt(req.query.page as string) : null;
+    const limit = req.query.limit ? parseInt(req.query.limit as string) : null;
+    const excludePhotos = req.query.exclude_photos === "true";
+    const all = req.query.all === "true" || req.query.limit === "all";
+
+    let filtered = [...data.members];
+    
+    // Regional filter
+    if (regional) {
+      filtered = filtered.filter(m => (m.regional || "").trim().toLowerCase() === regional);
+    }
+    
+    // Search filter
+    if (search) {
+      filtered = filtered.filter(m => 
+        (m.name || "").toLowerCase().includes(search) ||
+        (m.id || "").toLowerCase().includes(search) ||
+        (m.plateNumber || "").toLowerCase().includes(search) ||
+        (m.phone || "").toLowerCase().includes(search) ||
+        (m.regional || "").toLowerCase().includes(search) ||
+        (m.email || "").toLowerCase().includes(search) ||
+        (m.address || "").toLowerCase().includes(search)
+      );
+    }
+
+    // Exclude heavy photos if requested
+    if (excludePhotos) {
+      filtered = filtered.map(m => {
+        const { carPhoto, ownerPhoto, ...rest } = m;
+        return rest as Member;
+      });
+    }
+
+    // If 'all' is requested, return the raw list directly (backward-compatible Array response)
+    if (all) {
+      return res.json(filtered);
+    }
+
+    // Default to paginated if page/limit is specified OR by default (as requested by user)
+    const activePage = page || 1;
+    const activeLimit = limit || 10;
+    
+    const startIndex = (activePage - 1) * activeLimit;
+    const endIndex = startIndex + activeLimit;
+    const paginatedItems = filtered.slice(startIndex, endIndex);
+
+    res.json({
+      members: paginatedItems,
+      total: filtered.length,
+      page: activePage,
+      totalPages: Math.ceil(filtered.length / activeLimit),
+      limit: activeLimit
+    });
   });
 
   // POST register a new member (form submission)
@@ -960,7 +1108,30 @@ async function startServer() {
   // GET all sponsors
   app.get("/api/sponsors", (req, res) => {
     const data = loadDatabase();
-    res.json(data.sponsors || DEFAULT_SPONSORS);
+    let sponsorsList = data.sponsors || DEFAULT_SPONSORS;
+    
+    const excludePhotos = req.query.exclude_photos === "true";
+    if (excludePhotos) {
+      sponsorsList = sponsorsList.map((s: any) => {
+        const products = (s.products || []).map((p: any) => {
+          const { photos, ...rest } = p;
+          return { ...rest, photos: [] };
+        });
+        return { ...s, products };
+      });
+    }
+    res.json(sponsorsList);
+  });
+
+  // GET single sponsor details including product photos
+  app.get("/api/sponsors/:id", (req, res) => {
+    const data = loadDatabase();
+    const sponsorsList = data.sponsors || DEFAULT_SPONSORS;
+    const sponsor = sponsorsList.find((s: any) => s.id === req.params.id);
+    if (!sponsor) {
+      return res.status(404).json({ error: "Sponsor tidak ditemukan" });
+    }
+    res.json(sponsor);
   });
 
   // POST create a sponsor

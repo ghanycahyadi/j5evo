@@ -410,6 +410,8 @@ export default function App() {
   const [regionals, setRegionals] = useState<string[]>([]);
   const [sponsors, setSponsors] = useState<any[]>([]);
   const [selectedSponsorId, setSelectedSponsorId] = useState<string | null>(null);
+  const [selectedSponsorDetails, setSelectedSponsorDetails] = useState<any>(null);
+  const [loadingSponsorDetails, setLoadingSponsorDetails] = useState(false);
   const [selectedProductPhoto, setSelectedProductPhoto] = useState<string | null>(null);
   const [lightboxPhotos, setLightboxPhotos] = useState<string[]>([]);
   const [lightboxIndex, setLightboxIndex] = useState<number>(0);
@@ -451,6 +453,34 @@ export default function App() {
       }
     }
   }, [currentUser, sponsors]);
+
+  // Fetch detailed sponsor (including product photos) on selection
+  useEffect(() => {
+    if (selectedSponsorId) {
+      // Set initial status from the lightweight list so page layouts mount instantly
+      const cached = sponsors.find(s => s.id === selectedSponsorId);
+      setSelectedSponsorDetails(cached || null);
+      
+      const fetchFullSponsor = async () => {
+        try {
+          setLoadingSponsorDetails(true);
+          const res = await fetch(`/api/sponsors/${selectedSponsorId}`);
+          if (res.ok) {
+            const data = await res.json();
+            setSelectedSponsorDetails(data);
+          }
+        } catch (err) {
+          console.error("Gagal mengambil rincian foto sponsor:", err);
+        } finally {
+          setLoadingSponsorDetails(false);
+        }
+      };
+      
+      fetchFullSponsor();
+    } else {
+      setSelectedSponsorDetails(null);
+    }
+  }, [selectedSponsorId, sponsors]);
 
   const [tempProduct, setTempProduct] = useState({
     name: "",
@@ -540,14 +570,14 @@ export default function App() {
     try {
       setLoading(true);
       const [mRes, eRes, rRes, sRes, fRes, socRes, regRes, spRes, hcRes] = await Promise.all([
-        fetch("/api/members").then((r) => r.json()),
+        fetch("/api/members?all=true&exclude_photos=true").then((r) => r.json()),
         fetch("/api/events").then((r) => r.json()),
         fetch("/api/registrations").then((r) => r.json()),
         fetch("/api/stats").then((r) => r.json()),
         fetch("/api/faqs").then((r) => r.json()),
         fetch("/api/socials").then((r) => r.json()).catch(() => null),
         fetch("/api/regionals").then((r) => r.json()).catch(() => []),
-        fetch("/api/sponsors").then((r) => r.json()).catch(() => []),
+        fetch(currentUser ? "/api/sponsors" : "/api/sponsors?exclude_photos=true").then((r) => r.json()).catch(() => []),
         fetch("/api/home-content").then((r) => r.json()).catch(() => null)
       ]);
 
@@ -4268,7 +4298,7 @@ export default function App() {
               }
 
               // Otherwise, we are displaying the detailed view of ActiveSponsor
-              const activeSponsor = sponsors.find(s => s.id === selectedSponsorId);
+              const activeSponsor = selectedSponsorDetails || sponsors.find(s => s.id === selectedSponsorId);
               if (!activeSponsor) {
                 // Graceful auto reset
                 setSelectedSponsorId(null);
@@ -4389,6 +4419,13 @@ export default function App() {
                         )}
                       </div>
                     </div>
+
+                    {loadingSponsorDetails && (
+                      <div className="flex items-center justify-center py-5 gap-2.5 bg-teal-500/5 border border-teal-500/10 rounded-2xl animate-pulse">
+                        <div className="w-4 h-4 border-2 border-teal-600 border-t-transparent rounded-full animate-spin"></div>
+                        <span className="text-[10px] font-mono font-bold text-teal-800 uppercase tracking-widest">Silakan tunggu, menyinkronkan foto katalog tambahan...</span>
+                      </div>
+                    )}
 
                     {/* Catalog Store list or empty block */}
                     {filteredProducts.length === 0 ? (

@@ -27,6 +27,41 @@ export default function AdminMembers({
 }: AdminMembersProps) {
   const [searchQuery, setSearchQuery] = React.useState("");
 
+  // Paginated server-side member states
+  const [localMembers, setLocalMembers] = React.useState<Member[]>([]);
+  const [currentPage, setCurrentPage] = React.useState(1);
+  const [totalPages, setTotalPages] = React.useState(1);
+  const [totalMembers, setTotalMembers] = React.useState(0);
+  const [localLoading, setLocalLoading] = React.useState(false);
+
+  const fetchLocalMembers = React.useCallback(async (page: number, search: string) => {
+    try {
+      setLocalLoading(true);
+      const url = `/api/members?page=${page}&limit=10&search=${encodeURIComponent(search)}`;
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data && Array.isArray(data.members)) {
+        setLocalMembers(data.members);
+        setCurrentPage(data.page || 1);
+        setTotalPages(data.totalPages || 1);
+        setTotalMembers(data.total || 0);
+      }
+    } catch (err) {
+      console.error("Gagal mengambil data paginasi member:", err);
+    } finally {
+      setLocalLoading(false);
+    }
+  }, []);
+
+  // Sync to database updates and paging
+  React.useEffect(() => {
+    const delayDebounceFn = setTimeout(() => {
+      fetchLocalMembers(currentPage, searchQuery);
+    }, currentPage === 1 ? 250 : 0);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [currentPage, searchQuery, members, fetchLocalMembers]);
+
   // Helper to check if a birthDate string is today
   const isBirthdayToday = (birthDateStr: string) => {
     if (!birthDateStr) return false;
@@ -120,20 +155,6 @@ export default function AdminMembers({
     setEditMemberForm({ ...editMemberForm, plateNumber: merged });
   };
 
-  const filteredMembers = members.filter((m) => {
-    const q = searchQuery.toLowerCase().trim();
-    if (!q) return true;
-    return (
-      m.name.toLowerCase().includes(q) ||
-      m.id.toLowerCase().includes(q) ||
-      m.plateNumber.toLowerCase().includes(q) ||
-      m.phone.toLowerCase().includes(q) ||
-      (m.regional && m.regional.toLowerCase().includes(q)) ||
-      (m.email && m.email.toLowerCase().includes(q)) ||
-      (m.address && m.address.toLowerCase().includes(q))
-    );
-  });
-
   return (
     <div className="space-y-6 font-sans text-xs">
       {/* 🎂 SECTION: MEMBER BERULANG TAHUN HARI INI */}
@@ -192,11 +213,18 @@ export default function AdminMembers({
       </div>
 
       {/* Master Member list inside administrative workspace with Delete member action */}
-      <div className="bg-white p-6 rounded-3xl border border-zinc-200 shadow-sm space-y-4 text-left">
+      <div className="bg-white p-6 rounded-3xl border border-zinc-200 shadow-sm space-y-4 text-left relative overflow-hidden">
+        {localLoading && (
+          <div className="absolute inset-0 bg-white/70 backdrop-blur-xs z-30 flex items-center justify-center gap-2">
+            <div className="w-5 h-5 border-2 border-teal-600 border-t-transparent rounded-full animate-spin"></div>
+            <span className="text-2xs font-mono font-bold text-teal-700 uppercase tracking-widest">Menyinkronkan...</span>
+          </div>
+        )}
+
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <h4 className="font-sans font-bold text-base text-zinc-900">Daftar Member Komunitas Terdaftar</h4>
           <span className="px-2.5 py-0.5 bg-teal-50 border border-teal-200 text-[#005c56] text-[10px] rounded font-mono font-bold self-start sm:self-auto">
-            {searchQuery.trim() ? `${filteredMembers.length} dari ${members.length}` : members.length} Member Terverifikasi
+            {searchQuery.trim() ? `Ditemukan ${totalMembers} member` : `${totalMembers} Member Terdaftar`}
           </span>
         </div>
 
@@ -206,8 +234,11 @@ export default function AdminMembers({
             type="text"
             placeholder="Cari berdasarkan nama, plat kendaraan, ID, HP/WA, regional, email, atau alamat..."
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-zinc-50 border border-zinc-200 rounded-xl py-2 px-3 pl-9 pr-14 focus:outline-none focus:border-teal-500 focus:bg-white text-xs font-semibold"
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              setCurrentPage(1);
+            }}
+            className="w-full bg-zinc-50 border border-zinc-200 rounded-xl py-2 px-3 pl-9 pr-14 focus:outline-none focus:border-[#005c56] focus:bg-white text-xs font-semibold"
           />
           <div className="absolute left-3 top-2.5 text-zinc-400">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -216,21 +247,24 @@ export default function AdminMembers({
           </div>
           {searchQuery && (
             <button
-              onClick={() => setSearchQuery("")}
-              className="absolute right-2 top-1.5 text-[9px] bg-zinc-200 hover:bg-zinc-300 transition text-zinc-700 px-2 py-0.5 rounded-md font-bold"
+              onClick={() => {
+                setSearchQuery("");
+                setCurrentPage(1);
+              }}
+              className="absolute right-2 top-1.5 text-[9px] bg-zinc-200 hover:bg-zinc-300 transition text-zinc-700 px-2 py-0.5 rounded-md font-bold cursor-pointer"
             >
               Hapus
             </button>
           )}
         </div>
 
-        {filteredMembers.length === 0 ? (
+        {localMembers.length === 0 ? (
           <p className="text-xs text-zinc-500 text-center py-6 font-medium">
             {searchQuery.trim() ? "Hasil pencarian tidak ditemukan." : "Belum ada database anggota terdaftar."}
           </p>
         ) : (
           <div className="space-y-3 max-h-[500px] overflow-y-auto pr-1">
-            {filteredMembers.map((m) => (
+            {localMembers.map((m) => (
               <div
                 key={m.id}
                 className="p-3 rounded-xl bg-zinc-50 border border-zinc-200 flex flex-col md:flex-row md:items-center justify-between gap-4 text-xs"
@@ -279,6 +313,54 @@ export default function AdminMembers({
                 </div>
               </div>
             ))}
+          </div>
+        )}
+
+        {/* Pagination Action Controls */}
+        {totalPages > 1 && (
+          <div className="pt-4 border-t border-zinc-150 flex flex-col sm:flex-row items-center justify-between gap-3 text-2xs text-zinc-550">
+            <span className="font-sans font-medium text-zinc-500">
+              Menampilkan halaman <strong>{currentPage}</strong> dari <strong>{totalPages}</strong> (Total <strong>{totalMembers}</strong> member)
+            </span>
+            <div className="flex items-center gap-1">
+              <button
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                className="px-2.5 py-1.5 rounded-lg border border-zinc-200 text-zinc-700 hover:bg-zinc-50 active:bg-zinc-100 transition disabled:opacity-40 disabled:hover:bg-transparent font-medium cursor-pointer"
+              >
+                Sebelumnya
+              </button>
+              
+              {/* Intelligent page numbers generation */}
+              {Array.from({ length: totalPages }, (_, i) => i + 1)
+                .filter(p => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 1)
+                .map((p, idx, arr) => {
+                  const showEllipsisBefore = idx > 0 && p - arr[idx - 1] > 1;
+                  return (
+                    <React.Fragment key={p}>
+                      {showEllipsisBefore && <span className="px-1.5 text-zinc-400">...</span>}
+                      <button
+                        onClick={() => setCurrentPage(p)}
+                        className={`w-7 h-7 rounded-lg transition flex items-center justify-center font-bold font-mono text-[11px] cursor-pointer ${
+                          currentPage === p
+                            ? "bg-[#005c56] text-white shadow-xs"
+                            : "border border-zinc-200 text-zinc-700 hover:bg-zinc-55 hover:border-zinc-300"
+                        }`}
+                      >
+                        {p}
+                      </button>
+                    </React.Fragment>
+                  );
+                })}
+
+              <button
+                disabled={currentPage === totalPages}
+                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                className="px-2.5 py-1.5 rounded-lg border border-zinc-200 text-zinc-700 hover:bg-zinc-50 active:bg-zinc-100 transition disabled:opacity-40 disabled:hover:bg-transparent font-medium cursor-pointer"
+              >
+                Selanjutnya
+              </button>
+            </div>
           </div>
         )}
       </div>
