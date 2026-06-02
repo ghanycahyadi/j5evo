@@ -699,7 +699,7 @@ export default function App() {
       try {
         const reader = new FileReader();
         reader.onloadend = async () => {
-          const compressed = await compressImage(reader.result as string, 900, 900, 0.7);
+          const compressed = await compressImage(reader.result as string, 400, 400, 0.72);
           setSelfEditForm({ ...selfEditForm, ownerPhoto: compressed });
         };
         reader.readAsDataURL(file);
@@ -2960,7 +2960,7 @@ export default function App() {
                         const reader = new FileReader();
                         reader.onloadend = async () => {
                           try {
-                            const compressed = await compressImage(reader.result as string);
+                            const compressed = await compressImage(reader.result as string, 400, 400, 0.72);
                             setRegForm((prev) => ({ ...prev, ownerPhoto: compressed }));
                           } catch (err) {
                             setRegForm((prev) => ({ ...prev, ownerPhoto: reader.result as string }));
@@ -2994,7 +2994,7 @@ export default function App() {
                           const reader = new FileReader();
                           reader.onloadend = async () => {
                             try {
-                              const compressed = await compressImage(reader.result as string);
+                              const compressed = await compressImage(reader.result as string, 400, 400, 0.72);
                               setRegForm((prev) => ({ ...prev, ownerPhoto: compressed }));
                             } catch (err) {
                               setRegForm((prev) => ({ ...prev, ownerPhoto: reader.result as string }));
