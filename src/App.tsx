@@ -2954,19 +2954,25 @@ export default function App() {
 
                 {/* Card Field 5: No Rangka */}
                 <div id="field-chassis" className="bg-white p-6 rounded-2xl border border-zinc-200 shadow-xs space-y-3">
-                  <label className="text-base font-bold text-zinc-900 block">
-                    No Rangka Kendaraan (Chassis Number) <span className="text-red-500 font-bold">*</span>
-                  </label>
+                  <div className="flex justify-between items-center">
+                    <label className="text-base font-bold text-zinc-900 block">
+                      No Rangka Kendaraan (Chassis Number) <span className="text-red-500 font-bold">*</span>
+                    </label>
+                    <span className={`text-[11px] font-mono font-bold ${(regForm.chassisNumber || "").length === 17 ? 'text-emerald-600' : 'text-rose-500'}`}>
+                      {(regForm.chassisNumber || "").length}/17 Karakter
+                    </span>
+                  </div>
                   <p className="text-xs text-zinc-500 -mt-1 leading-relaxed">
                     Dapat dilihat dari STNK Anda contoh 'MF7HD27B8SJ......'
                   </p>
                   <input
                     type="text"
                     required
+                    maxLength={17}
                     placeholder="MF7HD27B8SJ******"
                     value={regForm.chassisNumber}
-                    onChange={(e) => setRegForm({ ...regForm, chassisNumber: e.target.value })}
-                    className="w-full bg-zinc-50/50 text-zinc-900 border-b-2 border-zinc-200 focus:border-teal-500 py-2 px-3 focus:outline-none transition uppercase font-mono text-sm rounded-md"
+                    onChange={(e) => setRegForm({ ...regForm, chassisNumber: e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "") })}
+                    className="w-full bg-zinc-50/50 text-zinc-900 border-b-2 border-zinc-200 focus:border-teal-500 py-2 px-3 focus:outline-none transition uppercase font-mono text-sm rounded-md font-bold tracking-wider"
                   />
                 </div>
 
