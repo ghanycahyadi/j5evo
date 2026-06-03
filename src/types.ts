@@ -20,6 +20,7 @@ export interface Member {
   pin: string;
   membershipTier?: "GOLD" | "SILVER";
   birthDate?: string; // Tanggal lahir
+  hasOwnerPhoto?: boolean;
 }
 
 export interface CommunityEvent {

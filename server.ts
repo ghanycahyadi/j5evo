@@ -6,6 +6,7 @@
 import express from "express";
 import path from "path";
 import fs from "fs";
+import { fileURLToPath } from "url";
 import { createServer as createViteServer } from "vite";
 import * as XLSX from "xlsx";
 import nodemailer from "nodemailer";
@@ -22,8 +23,18 @@ const PORT = 3000;
 // Resolve DB_FILE based on potential relative paths
 const getDbFilePath = (): string => {
   const rootPath = process.cwd();
-  const appDir = __dirname;
-  const projectRootFromDist = path.join(__dirname, "..");
+  
+  // Safe ESM / CommonJS __dirname derivation
+  let appDir = rootPath;
+  if (typeof __dirname !== "undefined") {
+    appDir = __dirname;
+  } else {
+    try {
+      appDir = path.dirname(fileURLToPath(import.meta.url));
+    } catch (_) {}
+  }
+  
+  const projectRootFromDist = path.join(appDir, "..");
   
   const candidatePaths = [
     path.join(rootPath, "db.json"),
@@ -303,8 +314,18 @@ async function startServer() {
     // Exclude heavy photos if requested
     if (excludePhotos) {
       filtered = filtered.map(m => {
-        const { carPhoto, ownerPhoto, ...rest } = m;
-        return rest as Member;
+        const { carPhoto, ...rest } = m;
+        const op = m.ownerPhoto || "";
+        const isDefaultOrPlaceholder = !op || op.trim() === "" || op === "/logo.png" || 
+          op.includes("unsplash.com/photo-1534528741775") ||
+          op.includes("unsplash.com/photo-1507003211169") ||
+          op.includes("unsplash.com/photo-1500648767791") ||
+          op.includes("unsplash.com/photo-1494790108377");
+        return {
+          ...rest,
+          ownerPhoto: m.ownerPhoto,
+          hasOwnerPhoto: !isDefaultOrPlaceholder
+        } as any;
       });
     }
 
@@ -337,6 +358,17 @@ async function startServer() {
     // Simple validation
     if (!name || !phone || !address || !plateNumber || !chassisNumber || !regional || !email || !pin) {
       return res.status(400).json({ error: "Kolom Nama, No Hp, Alamat, Regional, Plat Nomor, No Rangka, Alamat Email Aktif, dan PIN 6 Digit wajib diisi!" });
+    }
+
+    // Owner Photo is mandatory
+    if (!ownerPhoto || typeof ownerPhoto !== "string" || ownerPhoto.trim() === "") {
+      return res.status(400).json({ error: "Foto Profil Pemilik Kendaraan wajib diunggah/mandatory!" });
+    }
+
+    // Chassis Number length checking: must be exactly 17 characters
+    const sanitizedChassis = (chassisNumber || "").trim().replace(/\s+/g, "");
+    if (sanitizedChassis.length !== 17) {
+      return res.status(400).json({ error: "Nomor Rangka Kendaraan (Chassis Number) harus terdiri dari tepat 17 karakter!" });
     }
 
     if (!/^\d{6}$/.test(pin)) {
@@ -485,10 +517,21 @@ async function startServer() {
     if (address !== undefined) member.address = address;
     if (regional !== undefined) member.regional = regional;
     if (plateNumber !== undefined) member.plateNumber = plateNumber.toUpperCase();
-    if (chassisNumber !== undefined) member.chassisNumber = chassisNumber.toUpperCase();
+    if (chassisNumber !== undefined) {
+      const sanitizedChassis = chassisNumber.trim().replace(/\s+/g, "");
+      if (sanitizedChassis.length !== 17) {
+        return res.status(400).json({ error: "Nomor Rangka Kendaraan (Chassis Number) harus terdiri dari tepat 17 karakter!" });
+      }
+      member.chassisNumber = sanitizedChassis.toUpperCase();
+    }
     if (email !== undefined) member.email = email;
     if (birthDate !== undefined) member.birthDate = birthDate;
-    if (ownerPhoto !== undefined) member.ownerPhoto = ownerPhoto;
+    if (ownerPhoto !== undefined) {
+      if (!ownerPhoto || typeof ownerPhoto !== "string" || ownerPhoto.trim() === "") {
+        return res.status(400).json({ error: "Foto Profil Pemilik Kendaraan wajib diunggah/mandatory dan tidak boleh kosong!" });
+      }
+      member.ownerPhoto = ownerPhoto;
+    }
     if (membershipTier !== undefined) {
       member.membershipTier = membershipTier; // 'GOLD' | 'SILVER'
     }
@@ -714,6 +757,66 @@ async function startServer() {
       message: `Terima kasih ${member.name}, Anda berhasil mendaftar untuk: ${eventDetails.title}`,
       registration: newRegistration,
       member,
+    });
+  });
+
+  // POST cancel/unregister from an event
+  app.post("/api/events/:id/unregister", (req, res) => {
+    const eventId = req.params.id;
+    const { plateNumber, pin } = req.body;
+
+    if (!plateNumber || !pin) {
+      return res.status(400).json({ error: "Masukkan Nomor Plat Kendaraan dan PIN 6 Digit Anda!" });
+    }
+
+    const data = loadDatabase();
+
+    // Find event
+    const eventDetails = data.events.find((e) => e.id === eventId);
+    if (!eventDetails) {
+      return res.status(404).json({ error: "Kegiatan tidak ditemukan." });
+    }
+
+    // Find member by plateNumber
+    const searchPlate = (plateNumber || "").toUpperCase().replace(/\s+/g, "");
+    const member = data.members.find((m) => {
+      const dbPlate = m.plateNumber.toUpperCase().replace(/\s+/g, "");
+      return dbPlate === searchPlate;
+    });
+
+    if (!member) {
+      return res.status(404).json({ 
+        error: "Nomor plat kendaraan belum terdaftar dalam sistem. Silakan daftarkan diri terlebih dahulu!" 
+      });
+    }
+
+    // Verify PIN matches
+    if (member.pin !== pin) {
+      return res.status(401).json({ error: "PIN yang Anda masukkan salah!" });
+    }
+
+    // Find registration to cancel
+    const regIndex = data.registrations.findIndex(
+      (r) => r.memberId === member.id && r.eventId === eventId
+    );
+
+    if (regIndex === -1) {
+      return res.status(400).json({ error: "Anda belum terdaftar untuk berpartisipasi dalam kegiatan ini!" });
+    }
+
+    // Check if the event registration is already finalized/attended
+    const existingReg = data.registrations[regIndex];
+    if (existingReg.status === "Attended") {
+      return res.status(400).json({ error: "Keikutsertaan tidak dapat dibatalkan karena Anda sudah melakukan absensi kehadiran di lokasi (Attended)!" });
+    }
+
+    // Remove registration
+    data.registrations.splice(regIndex, 1);
+    saveDatabase(data);
+
+    res.status(200).json({
+      success: true,
+      message: `Keikutsertaan Anda (${member.name}) untuk kegiatan: ${eventDetails.title} berhasil dibatalkan.`,
     });
   });
 

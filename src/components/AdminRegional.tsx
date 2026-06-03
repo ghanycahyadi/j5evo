@@ -235,7 +235,7 @@ export default function AdminRegional({
                     <div key={m.id} className="flex items-center justify-between gap-3 p-3 bg-white hover:bg-zinc-50/80 rounded-xl transition-all duration-150 border border-zinc-200 shadow-2xs">
                       <div className="flex items-center gap-3">
                         <img
-                          src={m.ownerPhoto || m.carPhoto || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80"}
+                          src={m.ownerPhoto || m.carPhoto || "/logo.png"}
                           alt={m.name}
                           className="w-10 h-12 object-cover rounded-xl border border-zinc-200 shrink-0 shadow-2xs"
                           referrerPolicy="no-referrer"

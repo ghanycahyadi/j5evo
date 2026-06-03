@@ -748,6 +748,11 @@ export default function App() {
     e.preventDefault();
     if (!lookupResult) return;
 
+    if (!selfEditForm.ownerPhoto || selfEditForm.ownerPhoto.trim() === "") {
+      showFeedback("Foto Profil Pemilik Kendaraan wajib diunggah (mandatory)!", true);
+      return;
+    }
+
     if (!selfEditForm.pin || !/^\d{6}$/.test(selfEditForm.pin)) {
       showFeedback("PIN Baru harus tepat terdiri dari 6 digit angka!", true);
       return;
@@ -1154,6 +1159,19 @@ export default function App() {
       return;
     }
 
+    // Owner Photo Validation (Mandatory)
+    if (!regForm.ownerPhoto || regForm.ownerPhoto.trim() === "") {
+      showFeedback("Foto Profil Pemilik Kendaraan wajib diunggah (mandatory)!", true);
+      return;
+    }
+
+    // Chassis/Vin validation (exactly 17 characters)
+    const sanitizedChassis = (regForm.chassisNumber || "").trim().replace(/\s+/g, "");
+    if (sanitizedChassis.length !== 17) {
+      showFeedback("Nomor Rangka Kendaraan (Chassis Number) harus terdiri dari tepat 17 karakter!", true);
+      return;
+    }
+
     // Email validation (Mandatory)
     if (!regForm.email) {
       showFeedback("Alamat Email Aktif wajib diisi untuk keamanan akun Anda!", true);
@@ -1362,6 +1380,49 @@ export default function App() {
       fetchData(); // reload statistics and lists
     } catch (err) {
       showFeedback("Eror saat registrasi keterlibatan kegiatan.", true);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Member cancels event registration
+  const handleUnregisterFromEvent = async (eventId: string, plateNo: string, pinCode: string) => {
+    if (!plateNo || !pinCode) {
+      showFeedback("Masukkan Nomor Plat Kendaraan dan PIN 6 Digit Anda untuk membatalkan!", true);
+      return;
+    }
+
+    if (!/^\d{6}$/.test(pinCode)) {
+      showFeedback("PIN Keamanan harus terdiri dari tepat 6 digit angka!", true);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const res = await fetch(`/api/events/${eventId}/unregister`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ plateNumber: plateNo, pin: pinCode })
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        showFeedback(data.error || "Gagal membatalkan keikutsertaan.", true);
+        return;
+      }
+
+      showFeedback(data.message || "Keikutsertaan berhasil dibatalkan!");
+      setEventJoiningId(null);
+      setJoinForm({ plateNumber: "", pin: "", pax: 1 });
+      
+      // If we are looking at profile lookup, re-retrieve after a short delay
+      setTimeout(() => {
+        handleLookup();
+      }, 500);
+
+      fetchData(); // reload statistics and lists
+    } catch (err) {
+      showFeedback("Eror saat memproses pembatalan kegiatan.", true);
     } finally {
       setLoading(false);
     }
@@ -1823,6 +1884,19 @@ export default function App() {
 
     if (!editMemberForm.name || !editMemberForm.phone || !editMemberForm.address || !editMemberForm.plateNumber || !editMemberForm.chassisNumber || !editMemberForm.regional) {
       showFeedback("Mohon isi semua kolom wajib (nama, hp, alamat, regional, no plat, no rangka)!", true);
+      return;
+    }
+
+    // Owner Photo Validation (Mandatory)
+    if (!editMemberForm.ownerPhoto || editMemberForm.ownerPhoto.trim() === "") {
+      showFeedback("Foto Profil Pemilik Kendaraan wajib diunggah (mandatory)!", true);
+      return;
+    }
+
+    // Chassis Number length checking: must be exactly 17 characters
+    const sanitizedChassis = (editMemberForm.chassisNumber || "").trim().replace(/\s+/g, "");
+    if (sanitizedChassis.length !== 17) {
+      showFeedback("Nomor Rangka Kendaraan (Chassis Number) harus terdiri dari tepat 17 karakter!", true);
       return;
     }
 
@@ -2652,7 +2726,7 @@ export default function App() {
                     </p>
                     <div className="flex gap-4 items-center">
                       <img
-                        src={lastRegisteredMember.ownerPhoto || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80"}
+                        src={lastRegisteredMember.ownerPhoto || "/logo.png"}
                         alt="Foto Profil Pemilik"
                         className="w-16 h-20 object-cover rounded-xl border border-zinc-200 shadow-xs"
                       />
@@ -2933,7 +3007,7 @@ export default function App() {
                 {/* Card Field: Foto Profil Pemilik Kendaraan (Drag-and-Drop / Click) */}
                 <div id="field-owner-photo" className="bg-white p-6 rounded-2xl border border-zinc-200 shadow-xs space-y-3">
                   <label className="text-base font-bold text-zinc-900 block">
-                    Foto Profil Pemilik Kendaraan <span className="text-zinc-500 font-normal">(Opsional)</span>
+                    Foto Profil Pemilik Kendaraan <span className="text-red-500 font-bold">* (Wajib / Mandatory)</span>
                   </label>
                   <p className="text-xs text-zinc-500 -mt-1 leading-relaxed font-sans">
                     Unggah foto diri Anda sebagai pemilik untuk disematkan langsung pada Kartu Anggota Komunitas. Mendukung tarik-lepas (drag-and-drop) atau klik untuk memilih file dari komputer/HP.
@@ -3297,13 +3371,23 @@ export default function App() {
                               />
                             </div>
 
-                            <button
-                              type="submit"
-                              disabled={loading}
-                              className="w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-lg transition shadow-xs cursor-pointer h-[34px]"
-                            >
-                              {loading ? "Memproses..." : "Konfirmasi & Daftar"}
-                            </button>
+                            <div className="flex flex-col gap-1 sm:col-span-1">
+                              <button
+                                type="submit"
+                                disabled={loading}
+                                className="w-full py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-lg transition shadow-xs cursor-pointer text-center"
+                              >
+                                {loading ? "Memproses..." : "Konfirmasi & Daftar"}
+                              </button>
+                              <button
+                                type="button"
+                                disabled={loading}
+                                onClick={() => handleUnregisterFromEvent(evt.id, joinForm.plateNumber, joinForm.pin)}
+                                className="w-full py-1 bg-red-50 hover:bg-red-100 text-red-650 font-bold text-[10px] rounded-lg transition border border-red-250 cursor-pointer text-center"
+                              >
+                                Batalkan Gabung
+                              </button>
+                            </div>
 
                             {(() => {
                               const dupeMatched = getAlreadyRegisteredMember(evt.id);
@@ -3481,7 +3565,7 @@ export default function App() {
                             {/* High fidelity pine-green border frame around photo */}
                             <div className="relative aspect-[3/4] w-full rounded-[24px] overflow-hidden border-[3.2px] border-[#005c56] bg-zinc-100 shadow-[0_8px_25px_rgba(0,0,0,0.08)]">
                               <img
-                                src={lookupResult.member.ownerPhoto || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80"}
+                                src={lookupResult.member.ownerPhoto || "/logo.png"}
                                 alt="Foto Pemilik"
                                 className="w-full h-full object-cover"
                                 referrerPolicy="no-referrer"
@@ -3829,11 +3913,11 @@ export default function App() {
                             <form onSubmit={handleSaveSelfEdit} className="space-y-4 text-2xs">
                               {/* Photo Upload with Live Real Preview */}
                               <div className="p-4 border border-teal-100 rounded-2xl bg-teal-50/25 space-y-2">
-                                <label className="text-zinc-700 font-bold block uppercase tracking-wider">Foto Profil Baru (Opsional)</label>
+                                <label className="text-zinc-700 font-bold block uppercase tracking-wider">Foto Profil Baru (Wajib / Mandatory)</label>
                                 <div className="flex items-center gap-4">
                                   <div className="w-16 h-16 rounded-full border-2 border-[#005c56] bg-zinc-100 overflow-hidden shrink-0">
                                     <img
-                                      src={selfEditForm.ownerPhoto || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80"}
+                                      src={selfEditForm.ownerPhoto || "/logo.png"}
                                       alt="Preview"
                                       className="w-full h-full object-cover"
                                       referrerPolicy="no-referrer"
@@ -3857,7 +3941,7 @@ export default function App() {
                                 <input
                                   type="text"
                                   required
-                                  value={selfEditForm.name}
+                                  value={selfEditForm.name || ""}
                                   onChange={(e) => setSelfEditForm({ ...selfEditForm, name: e.target.value })}
                                   className="w-full bg-zinc-50 text-zinc-900 border border-zinc-250 rounded-xl p-3 focus:outline-none focus:border-teal-500 font-semibold"
                                   placeholder="Nama pemilik kendaraan"
@@ -3877,7 +3961,7 @@ export default function App() {
                                     inputMode="numeric"
                                     maxLength={6}
                                     required
-                                    value={selfEditForm.pin}
+                                    value={selfEditForm.pin || ""}
                                     onChange={(e) => setSelfEditForm({ ...selfEditForm, pin: e.target.value.replace(/[^0-9]/g, "").slice(0, 6) })}
                                     className="w-full bg-zinc-50 text-zinc-900 border border-zinc-250 rounded-xl p-3 focus:outline-none focus:border-teal-500 font-semibold text-center tracking-widest"
                                     placeholder="******"
@@ -3888,7 +3972,7 @@ export default function App() {
                                   <input
                                     type="email"
                                     required
-                                    value={selfEditForm.email}
+                                    value={selfEditForm.email || ""}
                                     onChange={(e) => setSelfEditForm({ ...selfEditForm, email: e.target.value })}
                                     className="w-full bg-zinc-50 text-zinc-900 border border-zinc-250 rounded-xl p-3 focus:outline-none focus:border-teal-500 font-semibold text-xs"
                                     placeholder="contoh@domain.com"
@@ -3906,7 +3990,7 @@ export default function App() {
                                       type="text"
                                       required
                                       maxLength={2}
-                                      value={selfEditForm.p1}
+                                      value={selfEditForm.p1 || ""}
                                       placeholder="B"
                                       onChange={(e) => setSelfEditForm({ ...selfEditForm, p1: e.target.value.toUpperCase().replace(/[^A-Z]/g, "") })}
                                       className="w-full bg-white text-zinc-900 border border-zinc-250 rounded-xl p-3 focus:outline-none focus:border-teal-500 font-extrabold text-center uppercase"
@@ -3918,7 +4002,7 @@ export default function App() {
                                       type="text"
                                       required
                                       maxLength={4}
-                                      value={selfEditForm.p2}
+                                      value={selfEditForm.p2 || ""}
                                       placeholder="1234"
                                       onChange={(e) => setSelfEditForm({ ...selfEditForm, p2: e.target.value.replace(/[^0-9]/g, "") })}
                                       className="w-full bg-white text-zinc-900 border border-zinc-250 rounded-xl p-3 focus:outline-none focus:border-teal-500 font-extrabold text-center"
@@ -3930,7 +4014,7 @@ export default function App() {
                                       type="text"
                                       required
                                       maxLength={3}
-                                      value={selfEditForm.p3}
+                                      value={selfEditForm.p3 || ""}
                                       placeholder="EVO"
                                       onChange={(e) => setSelfEditForm({ ...selfEditForm, p3: e.target.value.toUpperCase().replace(/[^A-Z]/g, "") })}
                                       className="w-full bg-white text-zinc-900 border border-zinc-250 rounded-xl p-3 focus:outline-none focus:border-teal-500 font-extrabold text-center uppercase"
@@ -3944,7 +4028,7 @@ export default function App() {
                                 <label className="text-zinc-700 font-bold block uppercase tracking-wider">Tanggal Lahir (Opsional)</label>
                                 <input
                                   type="date"
-                                  value={selfEditForm.birthDate}
+                                  value={selfEditForm.birthDate || ""}
                                   onChange={(e) => setSelfEditForm({ ...selfEditForm, birthDate: e.target.value })}
                                   className="w-full bg-zinc-50 text-zinc-900 border border-zinc-250 rounded-xl p-3 focus:outline-none focus:border-teal-500 font-semibold"
                                 />
@@ -3955,7 +4039,7 @@ export default function App() {
                                 <label className="text-zinc-700 font-bold block uppercase tracking-wider">Regional Komunitas *</label>
                                 <select
                                   required
-                                  value={selfEditForm.regional}
+                                  value={selfEditForm.regional || ""}
                                   onChange={(e) => setSelfEditForm({ ...selfEditForm, regional: e.target.value })}
                                   className="w-full bg-zinc-50 text-zinc-900 border border-zinc-250 rounded-xl p-3 focus:outline-none focus:border-teal-500 font-semibold text-xs grayscale-[30%]"
                                 >
@@ -3979,7 +4063,7 @@ export default function App() {
                                 <textarea
                                   required
                                   rows={2}
-                                  value={selfEditForm.address}
+                                  value={selfEditForm.address || ""}
                                   onChange={(e) => setSelfEditForm({ ...selfEditForm, address: e.target.value })}
                                   className="w-full bg-zinc-50 text-zinc-900 border border-zinc-250 rounded-xl p-3 focus:outline-none focus:border-teal-500 font-semibold leading-relaxed text-xs"
                                   placeholder="Kantor atau alamat domisili lengkap pengiriman official kit."
@@ -4074,6 +4158,24 @@ export default function App() {
                             <span className="block text-[9px] text-zinc-400 font-mono mt-1">
                               Kehadiran: {new Date(hist.registeredAt).toLocaleDateString("id-ID")}
                             </span>
+                            {hist.status === "Registered" && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const pin = window.prompt("Masukkan PIN 6 Digit Anda untuk membatalkan keikutsertaan kegiatan ini:");
+                                  if (pin !== null) {
+                                    if (pin.trim() === "") {
+                                      showFeedback("PIN wajib diisi untuk konfirmasi pembatalan!", true);
+                                    } else {
+                                      handleUnregisterFromEvent(hist.eventId, lookupResult.member.plateNumber, pin);
+                                    }
+                                  }
+                                }}
+                                className="inline-block mt-2 text-[9px] text-red-650 hover:text-red-800 font-extrabold uppercase border border-red-200 bg-red-50 hover:bg-red-100 px-2 py-1 rounded-lg transition duration-150 cursor-pointer text-center"
+                              >
+                                Batalkan Gabung
+                              </button>
+                            )}
                           </div>
                         </div>
                       ))}
@@ -5928,7 +6030,7 @@ export default function App() {
                         >
                           <div className="flex gap-3 items-center">
                             <img
-                              src={m.ownerPhoto || m.carPhoto || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80"}
+                              src={m.ownerPhoto || m.carPhoto || "/logo.png"}
                               alt={m.name}
                               className="w-10 h-12 object-cover rounded border border-zinc-200 shrink-0 shadow-xs"
                               referrerPolicy="no-referrer"
@@ -6047,8 +6149,9 @@ export default function App() {
                           <input
                             type="text"
                             required
+                            maxLength={17}
                             value={editMemberForm.chassisNumber || ""}
-                            onChange={(e) => setEditMemberForm({ ...editMemberForm, chassisNumber: e.target.value.toUpperCase() })}
+                            onChange={(e) => setEditMemberForm({ ...editMemberForm, chassisNumber: e.target.value.toUpperCase().replace(/\s+/g, "") })}
                             className="w-full bg-white text-zinc-900 border border-zinc-250 rounded-lg p-2.5 focus:outline-none focus:border-teal-555 text-xs font-mono font-bold"
                           />
                         </div>
@@ -6688,14 +6791,25 @@ export default function App() {
                         />
                       </div>
 
-                      <button
-                        type="submit"
-                        disabled={loading}
-                        className="w-full sm:col-span-3 py-3 bg-[#005c56] hover:bg-[#004843] text-white font-extrabold text-xs rounded-xl shadow-md transition uppercase tracking-wider cursor-pointer flex items-center justify-center gap-2 mt-2"
-                      >
-                        <CheckCircle2 className="w-4 h-4" strokeWidth={2.5} />
-                        {loading ? "Menyimpan Partisipasi..." : "Daftar Kegiatan Sekarang"}
-                      </button>
+                      <div className="w-full sm:col-span-3 flex flex-col sm:flex-row gap-2 mt-2">
+                        <button
+                          type="submit"
+                          disabled={loading}
+                          className="flex-1 py-3 bg-[#005c56] hover:bg-[#004843] text-white font-extrabold text-xs rounded-xl shadow-md transition uppercase tracking-wider cursor-pointer flex items-center justify-center gap-2"
+                        >
+                          <CheckCircle2 className="w-4 h-4" strokeWidth={2.5} />
+                          {loading ? "Menyimpan..." : "Daftar Kegiatan Sekarang"}
+                        </button>
+                        <button
+                          type="button"
+                          disabled={loading}
+                          onClick={() => handleUnregisterFromEvent(selectedEvent.id, joinForm.plateNumber, joinForm.pin)}
+                          className="flex-1 py-3 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 font-extrabold text-xs rounded-xl transition uppercase tracking-wider cursor-pointer flex items-center justify-center gap-2"
+                        >
+                          <X className="w-4 h-4" strokeWidth={2.5} />
+                          Batalkan Gabung Kegiatan
+                        </button>
+                      </div>
 
                       {(() => {
                         const dupeMatched = getAlreadyRegisteredMember(selectedEvent.id);

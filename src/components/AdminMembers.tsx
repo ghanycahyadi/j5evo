@@ -1,5 +1,5 @@
 import React from "react";
-import { Users, Pencil, Trash2, Cake, Gift } from "lucide-react";
+import { Users, Pencil, Trash2, Cake, Gift, AlertTriangle, Copy, Send, Check, ShieldAlert } from "lucide-react";
 import { Member } from "../types";
 
 interface AdminMembersProps {
@@ -26,6 +26,7 @@ export default function AdminMembers({
   handleEditMemberSubmit,
 }: AdminMembersProps) {
   const [searchQuery, setSearchQuery] = React.useState("");
+  const [copiedWarning, setCopiedWarning] = React.useState(false);
 
   // Paginated server-side member states
   const [localMembers, setLocalMembers] = React.useState<Member[]>([]);
@@ -183,7 +184,7 @@ export default function AdminMembers({
                 <div key={m.id} className="bg-white/90 backdrop-blur-xs p-3 rounded-2xl border border-pink-100 flex items-center justify-between gap-3 shadow-2xs">
                   <div className="flex items-center gap-2.5 min-w-0">
                     <img
-                      src={m.ownerPhoto || m.carPhoto || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80"}
+                      src={m.ownerPhoto || m.carPhoto || "/logo.png"}
                       alt={m.name}
                       className="w-10 h-10 object-cover rounded-xl border border-pink-100 shadow-2xs shrink-0"
                       referrerPolicy="no-referrer"
@@ -211,6 +212,214 @@ export default function AdminMembers({
           </div>
         )}
       </div>
+
+      {/* 📢 DYNAMIC DRAFT WA WARNING & INCOMPLETE MEMBERS CLASSIFIER */}
+      {(() => {
+        const incompleteList = members.map(m => {
+          const op = m.ownerPhoto || "";
+          const isPhotoMissing = m.hasOwnerPhoto !== undefined
+            ? !m.hasOwnerPhoto
+            : (!op || op.trim() === "" || op === "/logo.png" || 
+               op.includes("unsplash.com/photo-1534528741775") ||
+               op.includes("unsplash.com/photo-1507003211169") ||
+               op.includes("unsplash.com/photo-1500648767791") ||
+               op.includes("unsplash.com/photo-1494790108377"));
+          const cleanChassis = (m.chassisNumber || "").trim().replace(/\s+/g, "");
+          const isChassisInvalid = cleanChassis.length !== 17;
+          
+          const reasons: string[] = [];
+          if (isPhotoMissing) reasons.push("Tidak Melampirkan Foto");
+          if (isChassisInvalid) {
+            const charCount = cleanChassis.length;
+            reasons.push(charCount === 0 ? "No Rangka Kosong" : `No Rangka Invalid (${charCount} digit)`);
+          }
+
+          return {
+            ...m,
+            isPhotoMissing,
+            isChassisInvalid,
+            reasons
+          };
+        }).filter(m => m.isPhotoMissing || m.isChassisInvalid);
+
+        // Group incomplete list by regional
+        const groupedByRegional: { [reg: string]: typeof incompleteList } = {};
+        incompleteList.forEach(m => {
+          const reg = (m.regional || "J5 EVO - DKI JAKARTA").toUpperCase();
+          if (!groupedByRegional[reg]) {
+            groupedByRegional[reg] = [];
+          }
+          groupedByRegional[reg].push(m);
+        });
+
+        const buildWaText = () => {
+          let listText = "";
+          const regionals = Object.keys(groupedByRegional).sort();
+          
+          if (regionals.length === 0) {
+            listText = "*(Tidak ada member dengan data tidak lengkap)*";
+          } else {
+            listText = regionals.map(reg => {
+              const membersText = groupedByRegional[reg].map(m => {
+                const statusStr = m.reasons.join(" & ");
+                return `   - *${m.name}* (${statusStr})`;
+              }).join("\n");
+              return `*${reg}*\n${membersText}`;
+            }).join("\n\n");
+          }
+
+          return `*⚠️ PENGUMUMAN PENTING & VERIFIKASI MEMBER J5 EVO INDONESIA ⚠️*
+
+Yth. Rekan-rekan Member J5 EVO (Electric Vehicle Owner) Indonesia,
+
+Dalam rangka pemeliharaan database keanggotaan nasional yang valid, tertib, dan akuntabel, kami mengimbau rekan-rekan di bawah ini untuk segera melakukan pembaruan data profiling mandiri pada website resmi J5 EVO.
+
+Berikut adalah daftar member dengan rincian kekurangan data:
+
+${listText}
+
+*⚠️ TINDAKAN SEGERA DIWAJIBKAN:*
+Harap segera masuk ke menu *Pencarian Member -> Edit Profil Mandiri* di aplikasi web resmi J5 EVO untuk mengunggah Foto Profil asli Anda dan mencantumkan 17 digit Nomor Rangka (Chassis) yang valid sesuai STNK.
+
+*Bagi member yang tidak melakukan pembaruan atau melengkapi data, dengan sangat menyesal keanggotaan Anda akan di-nonaktifkan sementara dari keanggotaan resmi J5 EVO.*
+
+Terima kasih atas kerja sama dan pengertiannya demi kerapihan dan keabsahan database komunitas kita bersama.
+
+Salam kepengurusan,
+*Admin J5 EVO Indonesia*`;
+        };
+
+        const warningMsg = buildWaText();
+
+        const copyToClipboard = () => {
+          navigator.clipboard.writeText(warningMsg);
+          setCopiedWarning(true);
+          setTimeout(() => setCopiedWarning(false), 2000);
+        };
+
+        const shareToWa = () => {
+          const waUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(warningMsg)}`;
+          window.open(waUrl, "_blank");
+        };
+
+        return (
+          <div className="bg-white p-6 rounded-3xl border border-zinc-200 shadow-sm space-y-6 text-left">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-zinc-100 pb-4">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 bg-amber-50 rounded-xl text-amber-600">
+                  <ShieldAlert className="w-5 h-5 text-amber-600 animate-pulse" />
+                </div>
+                <div>
+                  <h4 className="font-sans font-extrabold text-base text-zinc-900">
+                    📢 Verifikasi Data Anggota Inkomplit &amp; Generator Peringatan WA
+                  </h4>
+                  <p className="text-[10px] text-zinc-500 font-medium">
+                    Saring otomatis berkas member yang tidak melampirkan foto profil asli atau nomor rangka tidak valid (bukan 17 digit).
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 self-start md:self-auto">
+                <span className="px-2.5 py-1 bg-amber-50 border border-amber-200 text-amber-800 text-[10px] font-bold rounded-lg font-mono">
+                  {incompleteList.length} Member Inkomplit
+                </span>
+              </div>
+            </div>
+
+            {incompleteList.length === 0 ? (
+              <div className="bg-emerald-50 border border-emerald-100 p-6 rounded-2xl text-center space-y-1">
+                <p className="text-emerald-800 font-extrabold text-sm">🎉 Luar Biasa! Semua Member 100% Lengkap &amp; Valid</p>
+                <p className="text-[10.5px] text-emerald-600 font-medium">Tidak mendeteksi adanya member yang tidak melampirkan foto atau memiliki nomor rangka tidak valid.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                
+                {/* INCOMPLETE MEMBERS LIST */}
+                <div className="space-y-3">
+                  <p className="text-xs font-bold text-zinc-800 uppercase tracking-wider font-sans">
+                    Daftar Anggota Bermasalah ({incompleteList.length}):
+                  </p>
+                  <div className="space-y-2.5 max-h-[380px] overflow-y-auto pr-1">
+                    {incompleteList.map((m) => (
+                      <div key={m.id} className="p-3 bg-zinc-50 border border-zinc-200 rounded-2xl flex items-center justify-between gap-3 text-xs">
+                        <div className="flex items-center gap-2.5 min-w-0 font-sans">
+                          <img
+                            src={m.ownerPhoto || m.carPhoto || "/logo.png"}
+                            alt={m.name}
+                            className="w-10 h-10 object-cover rounded-xl border border-zinc-250 shadow-2xs shrink-0"
+                            referrerPolicy="no-referrer"
+                          />
+                          <div className="min-w-0">
+                            <p className="font-bold text-zinc-950 truncate">{m.name}</p>
+                            <p className="text-[9px] text-zinc-400 font-mono truncate">{m.regional}</p>
+                            <p className="text-[9px] text-teal-700 font-semibold font-mono truncate">Plat: {m.plateNumber}</p>
+                          </div>
+                        </div>
+
+                        {/* Badges reasons */}
+                        <div className="text-right flex flex-col gap-1 shrink-0 font-sans">
+                          {m.isPhotoMissing && (
+                            <span className="px-2 py-0.5 bg-red-50 border border-red-100 text-red-700 text-[8.5px] rounded font-bold">
+                              Tidak Ada Foto
+                            </span>
+                          )}
+                          {m.isChassisInvalid && (
+                            <span className="px-2 py-0.5 bg-rose-50 border border-rose-100 text-rose-700 text-[8.5px] rounded font-mono font-bold">
+                              No Rangka Invalid
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* WA MSG PREVIEW & TRIGGER */}
+                <div className="space-y-3 flex flex-col">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-bold text-zinc-800 uppercase tracking-wider font-sans">
+                      Live Teks Pengumuman WA:
+                    </p>
+                    <span className="text-[9px] text-zinc-400 font-semibold">Teks akan disalin terformat</span>
+                  </div>
+
+                  <div className="flex-1 min-h-[220px] max-h-[280px] overflow-y-auto bg-zinc-950 text-zinc-300 p-4 rounded-2xl text-[10px] font-mono leading-relaxed select-all whitespace-pre-wrap border border-zinc-800 shadow-inner">
+                    {warningMsg}
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row gap-2.5 pt-2 font-sans">
+                    <button
+                      type="button"
+                      onClick={copyToClipboard}
+                      className="flex-1 py-3 px-4 bg-zinc-100 hover:bg-zinc-200 border border-zinc-300 text-zinc-800 font-extrabold rounded-xl transition flex items-center justify-center gap-2 shadow-2xs text-xs cursor-pointer"
+                    >
+                      {copiedWarning ? (
+                        <>
+                          <Check className="w-4 h-4 text-emerald-600 animate-pulse" strokeWidth={3} />
+                          <span className="text-emerald-700">Teks Berhasil Disalin!</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-4 h-4" />
+                          <span>Salin Teks Peringatan</span>
+                        </>
+                      )}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={shareToWa}
+                      className="flex-1 py-3 px-4 bg-emerald-600 hover:bg-emerald-700 border border-emerald-700 text-white font-extrabold rounded-xl transition flex items-center justify-center gap-2 shadow-sm text-xs cursor-pointer"
+                    >
+                      <Send className="w-4 h-4" />
+                      <span>Kirim ke Group WA</span>
+                    </button>
+                  </div>
+                </div>
+
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* Master Member list inside administrative workspace with Delete member action */}
       <div className="bg-white p-6 rounded-3xl border border-zinc-200 shadow-sm space-y-4 text-left relative overflow-hidden">
@@ -271,7 +480,7 @@ export default function AdminMembers({
               >
                 <div className="flex gap-3 items-center">
                   <img
-                    src={m.ownerPhoto || m.carPhoto || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80"}
+                    src={m.ownerPhoto || m.carPhoto || "/logo.png"}
                     alt={m.name}
                     className="w-10 h-12 object-cover rounded border border-zinc-200 shrink-0 shadow-xs"
                     referrerPolicy="no-referrer"
@@ -460,8 +669,9 @@ export default function AdminMembers({
                 <input
                   type="text"
                   required
+                  maxLength={17}
                   value={editMemberForm.chassisNumber || ""}
-                  onChange={(e) => setEditMemberForm({ ...editMemberForm, chassisNumber: e.target.value.toUpperCase() })}
+                  onChange={(e) => setEditMemberForm({ ...editMemberForm, chassisNumber: e.target.value.toUpperCase().replace(/\s+/g, "") })}
                   className="w-full bg-white text-zinc-900 border border-zinc-250 rounded-lg p-2.5 focus:outline-none focus:border-teal-555 text-xs font-mono font-bold"
                 />
               </div>

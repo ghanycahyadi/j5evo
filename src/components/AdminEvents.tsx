@@ -480,7 +480,7 @@ Ayo rekan-rekan J5 EVO segera bergabung dan daftarkan diri Anda di aplikasi web 
               type="text"
               required
               placeholder="Contoh: J5 Evo x Jaecoo Gathering"
-              value={newEvent.title}
+              value={newEvent.title || ""}
               onChange={(e) => setNewEvent({ ...newEvent, title: e.target.value })}
               className="w-full bg-zinc-50 text-zinc-900 border border-zinc-250 rounded-lg p-2.5 focus:outline-none focus:border-teal-500 focus:bg-white text-xs font-semibold"
             />
@@ -493,7 +493,7 @@ Ayo rekan-rekan J5 EVO segera bergabung dan daftarkan diri Anda di aplikasi web 
               <input
                 type="date"
                 required
-                value={newEvent.date}
+                value={newEvent.date || ""}
                 onChange={(e) => setNewEvent({ ...newEvent, date: e.target.value })}
                 className="w-full bg-zinc-50 text-zinc-900 border border-zinc-250 rounded-lg p-2.5 focus:outline-none focus:border-teal-555 focus:bg-white text-xs font-semibold"
               />
@@ -505,7 +505,7 @@ Ayo rekan-rekan J5 EVO segera bergabung dan daftarkan diri Anda di aplikasi web 
                 type="text"
                 required
                 placeholder="e.g. 08:00 - 15:00 WIB"
-                value={newEvent.time}
+                value={newEvent.time || ""}
                 onChange={(e) => setNewEvent({ ...newEvent, time: e.target.value })}
                 className="w-full bg-zinc-50 text-zinc-900 border border-zinc-250 rounded-lg p-2.5 focus:outline-none focus:border-teal-555 focus:bg-white text-xs font-semibold"
               />
@@ -520,7 +520,7 @@ Ayo rekan-rekan J5 EVO segera bergabung dan daftarkan diri Anda di aplikasi web 
                 type="text"
                 required
                 placeholder="e.g. Melasti Beach, Kuta Selatan, Bali"
-                value={newEvent.location}
+                value={newEvent.location || ""}
                 onChange={(e) => setNewEvent({ ...newEvent, location: e.target.value })}
                 className="w-full bg-zinc-50 text-zinc-900 border border-zinc-250 rounded-lg p-2.5 focus:outline-none focus:border-teal-555 focus:bg-white text-xs font-semibold"
               />
@@ -581,7 +581,7 @@ Ayo rekan-rekan J5 EVO segera bergabung dan daftarkan diri Anda di aplikasi web 
               required
               rows={3}
               placeholder="Uraikan rincian rute touring, perlengkapan wajib, syarat dan agenda lengkap agar member paham..."
-              value={newEvent.description}
+              value={newEvent.description || ""}
               onChange={(e) => setNewEvent({ ...newEvent, description: e.target.value })}
               className="w-full bg-zinc-50 text-zinc-900 border border-zinc-250 rounded-lg p-2.5 focus:outline-none focus:border-teal-555 focus:bg-white text-xs font-semibold leading-relaxed"
             />
