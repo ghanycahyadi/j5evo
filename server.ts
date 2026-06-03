@@ -386,6 +386,13 @@ async function startServer() {
       return res.status(400).json({ error: `Nomor Plat kendaraan ${plateNumber} sudah terdaftar!` });
     }
 
+    const duplicateChassis = data.members.find(
+      (m) => m.chassisNumber.toUpperCase().replace(/\s+/g, "") === sanitizedChassis.toUpperCase()
+    );
+    if (duplicateChassis) {
+      return res.status(400).json({ error: `Nomor Rangka (Chassis) ${chassisNumber.toUpperCase()} sudah terdaftar!` });
+    }
+
     const duplicateEmail = data.members.find(
       (m) => m.email.toLowerCase().trim() === email.toLowerCase().trim()
     );
@@ -516,15 +523,38 @@ async function startServer() {
     if (phone !== undefined) member.phone = phone;
     if (address !== undefined) member.address = address;
     if (regional !== undefined) member.regional = regional;
-    if (plateNumber !== undefined) member.plateNumber = plateNumber.toUpperCase();
+    if (plateNumber !== undefined) {
+      const normalizedPlate = plateNumber.toUpperCase().replace(/\s+/g, "");
+      const duplicatePlate = data.members.find(
+        (m) => m.id !== memberId && m.plateNumber.toUpperCase().replace(/\s+/g, "") === normalizedPlate
+      );
+      if (duplicatePlate) {
+        return res.status(400).json({ error: `Nomor Plat kendaraan ${plateNumber} sudah terdaftar!` });
+      }
+      member.plateNumber = plateNumber.toUpperCase();
+    }
     if (chassisNumber !== undefined) {
       const sanitizedChassis = chassisNumber.trim().replace(/\s+/g, "");
       if (sanitizedChassis.length !== 17) {
         return res.status(400).json({ error: "Nomor Rangka Kendaraan (Chassis Number) harus terdiri dari tepat 17 karakter!" });
       }
+      const duplicateChassis = data.members.find(
+        (m) => m.id !== memberId && m.chassisNumber.toUpperCase().replace(/\s+/g, "") === sanitizedChassis.toUpperCase()
+      );
+      if (duplicateChassis) {
+        return res.status(400).json({ error: `Nomor Rangka (Chassis) ${chassisNumber.toUpperCase()} sudah terdaftar!` });
+      }
       member.chassisNumber = sanitizedChassis.toUpperCase();
     }
-    if (email !== undefined) member.email = email;
+    if (email !== undefined) {
+      const duplicateEmail = data.members.find(
+        (m) => m.id !== memberId && m.email.toLowerCase().trim() === email.toLowerCase().trim()
+      );
+      if (duplicateEmail) {
+        return res.status(400).json({ error: `Alamat email ${email} sudah terdaftar!` });
+      }
+      member.email = email;
+    }
     if (birthDate !== undefined) member.birthDate = birthDate;
     if (ownerPhoto !== undefined) {
       if (!ownerPhoto || typeof ownerPhoto !== "string" || ownerPhoto.trim() === "") {
