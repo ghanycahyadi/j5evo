@@ -288,7 +288,8 @@ export default function App() {
     p2: "",
     p3: "",
     ownerPhoto: "",
-    pin: ""
+    pin: "",
+    chassisNumber: ""
   });
 
   // FAQ implementation state variables
@@ -737,7 +738,8 @@ export default function App() {
         p2: part2,
         p3: part3,
         ownerPhoto: lookupResult.member.ownerPhoto || "",
-        pin: lookupResult.member.pin || ""
+        pin: lookupResult.member.pin || "",
+        chassisNumber: lookupResult.member.chassisNumber || ""
       });
     } else {
       setVerificationError("PIN 6 Digit yang Anda masukkan salah.");
@@ -765,6 +767,13 @@ export default function App() {
       return;
     }
 
+    // Chassis Number (exactly 17 chars) validation
+    const cleanChassis = (selfEditForm.chassisNumber || "").trim().toUpperCase().replace(/\s+/g, "");
+    if (cleanChassis.length !== 17) {
+      showFeedback(`Nomor Rangka (Chassis) harus tepat terdiri dari 17 karakter! (Massa/Panjang saat ini: ${cleanChassis.length} karakter)`, true);
+      return;
+    }
+
     // Plate validation
     const p1Clean = selfEditForm.p1.toUpperCase().replace(/[^A-Z]/g, "");
     const p2Clean = selfEditForm.p2.replace(/[^0-9]/g, "");
@@ -786,7 +795,8 @@ export default function App() {
       birthDate: selfEditForm.birthDate,
       ownerPhoto: selfEditForm.ownerPhoto,
       pin: selfEditForm.pin,
-      plateNumber: mergedPlate
+      plateNumber: mergedPlate,
+      chassisNumber: cleanChassis
     };
 
     try {
@@ -4032,6 +4042,26 @@ export default function App() {
                                   onChange={(e) => setSelfEditForm({ ...selfEditForm, birthDate: e.target.value })}
                                   className="w-full bg-zinc-50 text-zinc-900 border border-zinc-250 rounded-xl p-3 focus:outline-none focus:border-teal-500 font-semibold"
                                 />
+                              </div>
+
+                              {/* Nomor Rangka (Chassis Number) */}
+                              <div className="space-y-1">
+                                <div className="flex justify-between items-center">
+                                  <label className="text-zinc-700 font-bold block uppercase tracking-wider">Nomor Rangka (Chassis 17 Digit) *</label>
+                                  <span className={`text-[10px] font-mono font-bold ${(selfEditForm.chassisNumber || "").length === 17 ? 'text-emerald-600' : 'text-rose-500'}`}>
+                                    {(selfEditForm.chassisNumber || "").length}/17 Karakter
+                                  </span>
+                                </div>
+                                <input
+                                  type="text"
+                                  required
+                                  maxLength={17}
+                                  value={selfEditForm.chassisNumber || ""}
+                                  onChange={(e) => setSelfEditForm({ ...selfEditForm, chassisNumber: e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "") })}
+                                  className="w-full bg-zinc-50 text-zinc-900 border border-zinc-250 rounded-xl p-3 focus:outline-none focus:border-teal-500 font-mono font-bold uppercase tracking-wider"
+                                  placeholder="MASUKKAN 17 DIGIT NOMOR RANGKA"
+                                />
+                                <p className="text-[9px] text-zinc-400">Harap masukkan 17 digit Nomor Rangka (Chassis) kendaraan Anda secara akurat sesuai STNK.</p>
                               </div>
 
                               {/* Regional Dropdown Selection */}
