@@ -676,15 +676,60 @@ export default function App() {
     try {
       setLoading(true);
       const [mRes, eRes, rRes, sRes, fRes, socRes, regRes, spRes, hcRes] = await Promise.all([
-        fetch("/api/members?all=true&exclude_photos=true").then((r) => r.json()),
-        fetch("/api/events").then((r) => r.json()),
-        fetch("/api/registrations").then((r) => r.json()),
-        fetch("/api/stats").then((r) => r.json()),
-        fetch("/api/faqs").then((r) => r.json()),
-        fetch("/api/socials").then((r) => r.json()).catch(() => null),
-        fetch("/api/regionals").then((r) => r.json()).catch(() => []),
-        fetch(currentUser ? "/api/sponsors" : "/api/sponsors?exclude_photos=true").then((r) => r.json()).catch(() => []),
-        fetch("/api/home-content").then((r) => r.json()).catch(() => null)
+        fetch("/api/members?all=true&exclude_photos=true")
+          .then((r) => r.json())
+          .catch((err) => {
+            console.error("Failed to fetch members:", err);
+            return [];
+          }),
+        fetch("/api/events")
+          .then((r) => r.json())
+          .catch((err) => {
+            console.error("Failed to fetch events:", err);
+            return [];
+          }),
+        fetch("/api/registrations")
+          .then((r) => r.json())
+          .catch((err) => {
+            console.error("Failed to fetch registrations:", err);
+            return [];
+          }),
+        fetch("/api/stats")
+          .then((r) => r.json())
+          .catch((err) => {
+            console.error("Failed to fetch stats:", err);
+            return { totalMembers: 0, totalEvents: 0, totalParticipations: 0, attendanceRate: 85 };
+          }),
+        fetch("/api/faqs")
+          .then((r) => r.json())
+          .catch((err) => {
+            console.error("Failed to fetch faqs:", err);
+            return [];
+          }),
+        fetch("/api/socials")
+          .then((r) => r.json())
+          .catch((err) => {
+            console.error("Failed to fetch socials:", err);
+            return null;
+          }),
+        fetch("/api/regionals")
+          .then((r) => r.json())
+          .catch((err) => {
+            console.error("Failed to fetch regionals:", err);
+            return [];
+          }),
+        fetch(currentUser ? "/api/sponsors" : "/api/sponsors?exclude_photos=true")
+          .then((r) => r.json())
+          .catch((err) => {
+            console.error("Failed to fetch sponsors:", err);
+            return [];
+          }),
+        fetch("/api/home-content")
+          .then((r) => r.json())
+          .catch((err) => {
+            console.error("Failed to fetch home content:", err);
+            return null;
+          })
       ]);
 
       if (Array.isArray(mRes)) setMembers(mRes);

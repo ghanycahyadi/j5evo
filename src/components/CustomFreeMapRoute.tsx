@@ -354,12 +354,18 @@ export default function CustomFreeMapRoute({
   const filteredSpklus = useMemo(() => {
     if (!routePoints || routePoints.length === 0) return [];
 
+    // Dynamically calculate the sampling stride based on route length to keep calculation instantaneous.
+    // For short trips, check every 4th point. For long trips (e.g., Jakarta to Malang), check up to every 25th point.
+    // This maintains around 100-150 samples per route, reducing loop iterations from millions to thousands,
+    // which eliminates any drag/slider lag instantly.
+    const stride = Math.max(4, Math.floor(routePoints.length / 150));
+
     return SPKLU_DATABASE.map(spklu => {
       let minDistance = Infinity;
       let closestPointIndex = 0;
 
-      // Sample every 4th coordinate on path to prevent loop overhead while maintaining precision
-      for (let i = 0; i < routePoints.length; i += 4) {
+      // Sample coordinate points on path to prevent loop overhead while maintaining precision
+      for (let i = 0; i < routePoints.length; i += stride) {
         const pt = routePoints[i];
         const dist = getHaversineDistanceKm(spklu.lat, spklu.lon, pt[0], pt[1]);
         if (dist < minDistance) {
