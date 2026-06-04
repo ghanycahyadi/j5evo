@@ -42,32 +42,67 @@ interface SpkluDbItem {
 }
 
 const SPKLU_DATABASE: SpkluDbItem[] = [
-  // West Java - Bandung
-  { id: "spklu_uid_jabar", name: "SPKLU PLN UID Jabar Asia Afrika", location: "Jl. Asia Afrika No.63, Bandung", lat: -6.9195, lon: 107.6135, type: "Ultra-Fast DC", capacity: "120 kW", note: "Lokasi premium di jantung kota Bandung, sangat dekat dengan Alun-alun." },
-  { id: "spklu_gd_sate", name: "SPKLU PLN Gedung Sate", location: "Kawasan Parkir Gedung Sate, Bandung", lat: -6.9025, lon: 107.6186, type: "Fast DC", capacity: "60 kW", note: "Fasilitas pengisian strategis di pusat pemerintahan Provinsi Jawa Barat." },
-  { id: "spklu_distribusi_bdg", name: "SPKLU PLN Distribusi Bandung", location: "Jl. Soekarno-Hatta No.436, Bandung", lat: -6.9385, lon: 107.6254, type: "Fast DC", capacity: "50 kW", note: "Andalan wilayah Bandung Selatan." },
-  
-  // Cipularang & Purbaleunyi Highways
-  { id: "spklu_km72a", name: "SPKLU Rest Area KM 72A Cipularang", location: "Tol Cipularang KM 72A (Arah Bandung)", lat: -6.6025, lon: 107.4475, type: "Ultra-Fast DC", capacity: "120 kW", note: "Sangat bersahabat, rest area pertama setelah Tol Cikampek." },
-  { id: "spklu_km88a", name: "SPKLU Rest Area KM 88A Cipularang", location: "Tol Cipularang KM 88A (Arah Bandung)", lat: -6.6575, lon: 107.4525, type: "Ultra-Fast DC", capacity: "120 kW", note: "Fasilitas lengkap dengan area makan luas, andalan tanjakan Cipularang." },
-  { id: "spklu_km88b", name: "SPKLU Rest Area KM 88B Cipularang", location: "Tol Cipularang KM 88B (Arah Jakarta)", lat: -6.6558, lon: 107.4510, type: "Fast DC", capacity: "50 kW", note: "Krusial untuk arus balik kendaraan menuju Jakarta Barat." },
-  { id: "spklu_km97b", name: "SPKLU Rest Area KM 97B Cipularang", location: "Tol Cipularang KM 97B (Arah Jakarta)", lat: -6.6345, lon: 107.4215, type: "Ultra-Fast DC", capacity: "120 kW", note: "Pemberhentian favorit teratas sebelum mengarungi kemancetan Jabodetabek." },
-  { id: "spklu_km147a", name: "SPKLU Rest Area KM 147A Purbaleunyi", location: "Tol Purbaleunyi KM 147A (Arah Bandung)", lat: -6.9535, lon: 107.7282, type: "Fast DC", capacity: "50 kW", note: "Lokasi isi daya pamungkas sebelum keluar Cileunyi menuju Priangan Timur." },
-  { id: "spklu_km149b", name: "SPKLU Rest Area KM 149B Purbaleunyi", location: "Tol Purbaleunyi KM 149B (Arah Cileunyi/Jakarta)", lat: -6.9515, lon: 107.7121, type: "Fast DC", capacity: "50 kW", note: "Stasiun pendukung bagi warga Bandung Timur." },
+  // ==========================================
+  // SUMATRA (Trans-Sumatra Highway & Capitals)
+  // ==========================================
+  { id: "spklu_aceh_up3", name: "SPKLU PLN UP3 Banda Aceh", location: "Jl. Teuku Umar No.53, Banda Aceh", lat: 5.54829, lon: 95.32375, type: "Fast DC", capacity: "50 kW", note: "Stasiun pengisian paling ujung barat penutup jalur rute Trans-Sumatera." },
+  { id: "spklu_medan_uid", name: "SPKLU PLN UID Sumatera Utara", location: "Jl. Yos Sudarso No.284, Medan", lat: 3.5952, lon: 98.6722, type: "Ultra-Fast DC", capacity: "100 kW", note: "Hub pengisian daya ultra cepat utama di kota Medan dan sekitarnya." },
+  { id: "spklu_tebing_tinggi", name: "SPKLU PLN ULP Tebing Tinggi", location: "Jl. Sudirman, Tebing Tinggi, Sumut", lat: 3.3283, lon: 99.1625, type: "Fast DC", capacity: "50 kW", note: "Titik penting pertigaan menuju Danau Toba dan Asahan." },
+  { id: "spklu_parapat_toba", name: "SPKLU PLN ULP Parapat Danau Toba", location: "Jl. Sisingamangaraja, Parapat, Simalungun", lat: 2.6845, lon: 98.9296, type: "Fast DC", capacity: "50 kW", note: "Sangat strategis bagi wisatawan yang membawa EV mengelilingi Danau Toba indah." },
+  { id: "spklu_rantau_prapat", name: "SPKLU PLN UP3 Rantau Prapat", location: "Jl. Ahmad Yani No.14, Rantau Prapat", lat: 2.0975, lon: 99.8272, type: "Fast DC", capacity: "50 kW", note: "Stasiun penghubung lintas timur perbatasan Sumatera Utara dan Riau." },
+  { id: "spklu_up3_dumai", name: "SPKLU PLN UP3 Dumai", location: "Jl. Jend. Sudirman, Dumai, Riau", lat: 1.6675, lon: 101.4423, type: "Fast DC", capacity: "50 kW", note: "Layanan isi daya andalan kawasan industri pelabuhan Dumai." },
+  { id: "spklu_up3_pekanbaru", name: "SPKLU PLN UP3 Pekanbaru", location: "Jl. Setia Maharaja No.10, Pekanbaru, Riau", lat: 0.4965, lon: 101.4552, type: "Fast DC", capacity: "50 kW", note: "Titik tolak utama pengisian daya di ibu kota Provinsi Riau." },
+  { id: "spklu_rengat", name: "SPKLU PLN ULP Rengat", location: "Jl. Lintas Timur Sumatera, Rengat, Riau", lat: -0.3654, lon: 102.5124, type: "Fast DC", capacity: "50 kW", note: "Pemberhentian isi daya penting di pertengahan jalur Riau-Jambi." },
+  { id: "spklu_up3_jambi", name: "SPKLU PLN UP3 Jambi", location: "Jl. Sri Soedewi Masjchun Sofwan, Kota Jambi", lat: -1.6115, lon: 103.5854, type: "Fast DC", capacity: "50 kW", note: "Stasiun pusat kota Jambi yang vital di koridor tengah Trans-Sumatera." },
+  { id: "spklu_up3_padang", name: "SPKLU PLN UP3 Padang", location: "Jl. S. Parman No.21, Padang, Sumbar", lat: -0.9471, lon: 100.4172, type: "Fast DC", capacity: "50 kW", note: "Stasiun andalan pantai barat Sumatera Barat sebelum melintasi pemandangan indah." },
+  { id: "spklu_bukittinggi", name: "SPKLU PLN ULP Bukittinggi", location: "Jl. Jend. Sudirman No.2 Bukit Tinggi", lat: -0.3054, lon: 100.3692, type: "Fast DC", capacity: "30 kW", note: "Sangat sejuk di dataran tinggi, pas sembari makan Nasi Kapau." },
+  { id: "spklu_bengkulu_up3", name: "SPKLU PLN UP3 Bengkulu", location: "Jl. Jend. Basuki Rahmat, Kota Bengkulu", lat: -3.8004, lon: 102.2655, type: "Fast DC", capacity: "50 kW", note: "Andalan utama provinsi Bengkulu di pesisir barat daya." },
+  { id: "spklu_up3_palembang", name: "SPKLU PLN UP3 Palembang Kapten Rivai", location: "Jl. Kapten A. Rivai No.37, Palembang", lat: -2.9854, lon: 104.7512, type: "Ultra-Fast DC", capacity: "120 kW", note: "Andalan utama di Kota Empek-Empek sebelum memasuki jalan Tol Trans-Sumatera." },
+  { id: "spklu_km311a_terpeka", name: "SPKLU Rest Area KM 311A Tol Terpeka", location: "Tol Terbanggi Besar - Kayu Agung KM 311A", lat: -4.0125, lon: 105.1524, type: "Ultra-Fast DC", capacity: "120 kW", note: "Fasilitas daya ultra-cepat di rest area utama Tol fungsional Terpeka." },
+  { id: "spklu_km215a_terpeka", name: "SPKLU Rest Area KM 215A Tol Terpeka", location: "Tol Terbanggi Besar - Kayu Agung KM 215A", lat: -4.4854, lon: 105.2125, type: "Fast DC", capacity: "60 kW", note: "Pemberhentian krusial bagi pengendara dari arah Palembang menuju Lampung." },
+  { id: "spklu_km172a_terpeka", name: "SPKLU Rest Area KM 172A Tol Terpeka", location: "Tol Terbanggi Besar - Kayu Agung KM 172A", lat: -4.6854, lon: 105.2412, type: "Ultra-Fast DC", capacity: "120 kW", note: "Sangat direkomendasikan untuk top-up cepat penyeimbang baterai LFP." },
+  { id: "spklu_km116a_bakter", name: "SPKLU Rest Area KM 116A Tol Bakter", location: "Tol Bakauheni - Terbanggi Besar KM 116A", lat: -5.0125, lon: 105.2854, type: "Ultra-Fast DC", capacity: "120 kW", note: "Stasiun pengisian raya berlatar lanskap perbukitan Lampung Tengah." },
+  { id: "spklu_km87a_bakter", name: "SPKLU Rest Area KM 87A Tol Bakter", location: "Tol Bakauheni - Terbanggi Besar KM 87A", lat: -5.2012, lon: 105.3512, type: "Fast DC", capacity: "60 kW", note: "Stasiun pengisian cepat pendukung perjalanan lintas Lampung." },
+  { id: "spklu_uid_lampung", name: "SPKLU PLN UID Lampung", location: "Jl. Zainal Abidin Pagar Alam, Bandar Lampung", lat: -5.3854, lon: 105.2512, type: "Ultra-Fast DC", capacity: "100 kW", note: "Kantor induk PLN Lampung, jaminan keandalan pengisian daya di Kota Tapis Berseri." },
+  { id: "spklu_km49a_bakter", name: "SPKLU Rest Area KM 49A Tol Bakter", location: "Tol Bakauheni - Terbanggi Besar KM 49A", lat: -5.4512, lon: 105.5125, type: "Fast DC", capacity: "50 kW", note: "Stasiun pengisian cadangan di koridor gerbang selatan Lampung." },
+  { id: "spklu_km20a_bakter", name: "SPKLU Rest Area KM 20A Tol Bakter", location: "Tol Bakauheni - Terbanggi Besar KM 20A", lat: -5.6812, lon: 105.6512, type: "Fast DC", capacity: "50 kW", note: "Rest area terdekat dari dermaga penyeberangan Bakauheni." },
+  { id: "spklu_bakauheni", name: "SPKLU Pelabuhan Bakauheni", location: "Kawasan Parkir VIP Menara Siger, Bakauheni", lat: -5.8712, lon: 105.7512, type: "Ultra-Fast DC", capacity: "120 kW", note: "Isi daya sejenak sembari menunggu jadwal masuk kapal feri penyeberangan Merak." },
+  { id: "spklu_bangka_up3", name: "SPKLU PLN UP3 Bangka", location: "Jl. Jend. Sudirman No.249, Pangkal Pinang", lat: -2.1312, lon: 106.1124, type: "Fast DC", capacity: "50 kW", note: "Satu-satunya stasiun pengisian cepat andalan di pulau Bangka Belitung." },
 
-  // Garut - Tasik - Banjar - Pangandaran
-  { id: "spklu_up3_garut", name: "SPKLU PLN UP3 Garut", location: "Jl. Cimanuk No.303, Garut", lat: -7.2155, lon: 107.9015, type: "Fast DC", capacity: "50 kW", note: "Terbaik untuk menstabilkan daya sebelum menyeberang kawasan berbukit Cikajang." },
-  { id: "spklu_up3_tasik", name: "SPKLU PLN UP3 Tasikmalaya", location: "Jl. Mayor S.L. Tobing No.10, Tasikmalaya", lat: -7.3235, lon: 108.2198, type: "Fast DC", capacity: "50 kW", note: "Lokasi persinggahan favorit di koridor jalur selatan Jawa Barat." },
-  { id: "spklu_up3_ciamis", name: "SPKLU PLN UP3 Ciamis", location: "Jl. Jend. Sudirman No.142, Ciamis", lat: -7.3284, lon: 108.3512, type: "AC Charge", capacity: "22 kW", note: "Pengisian tipe sedang yang nyaman di dekat Alun-alun Ciamis." },
-  { id: "spklu_ulp_banjar", name: "SPKLU PLN ULP Banjar", location: "Jl. Silat No.12, Banjar", lat: -7.3695, lon: 108.5368, type: "Fast DC", capacity: "50 kW", note: "Gerbang penting Priangan sebelum melaju lurus ke jalan raya Pangandaran." },
-  { id: "spklu_pangandaran", name: "SPKLU PLN Pangandaran Parigi", location: "Jl. Raya Parigi, Pangandaran (Parigi)", lat: -7.7011, lon: 108.4905, type: "Fast DC", capacity: "30 kW", note: "Titik utama isi daya andalan para wisatawan pantai Pangandaran dan Green Canyon." },
-
-  // Jakarta Hubs
+  // ==========================================
+  // JABODETABEK & BANTEN (Gerbang Jawa Utama)
+  // ==========================================
+  { id: "spklu_merak", name: "SPKLU Pelabuhan Merak Executive", location: "Dermaga Eksekutif Sosoro Pelabuhan Merak, Cilegon", lat: -5.9324, lon: 105.9924, type: "Ultra-Fast DC", capacity: "120 kW", note: "Pemberhentian pertama setibanya di pulau Jawa sebelum meluncur ke Jakarta." },
+  { id: "spklu_km68a_merak", name: "SPKLU Rest Area KM 68A Tol Tangerang-Merak", location: "Tol Jakarta-Merak KM 68A", lat: -6.1524, lon: 106.1824, type: "Fast DC", capacity: "60 kW", note: "Rest area andalan para pelintas pelabuhan Merak." },
+  { id: "spklu_km43a_merak", name: "SPKLU Rest Area KM 43A Tol Tangerang-Merak", location: "Tol Jakarta-Merak KM 43A", lat: -6.1954, lon: 106.4124, type: "Fast DC", capacity: "50 kW", note: "Lokasi strategis di koridor padat Tangerang-Cilegon Barat." },
+  { id: "spklu_bintaro_xchange", name: "SPKLU Bintaro Jaya Xchange Mall", location: "Bintaro Jaya Sektor VII, Tangerang Selatan", lat: -6.2842, lon: 106.7268, type: "Fast DC", capacity: "50 kW", note: "Dapatkan kenyamanan top-up seraya rekreasi keluarga di mal megah Tangsel." },
   { id: "spklu_gambir", name: "SPKLU PLN Pusat Gambir", location: "Jl. M.I. Ridwan Rais No.1, Jakarta Pusat", lat: -6.1754, lon: 106.8272, type: "Ultra-Fast DC", capacity: "200 kW", note: "Pusat SPKLU Ibu Kota dengan mesin daya tinggi ganda." },
   { id: "spklu_sency", name: "SPKLU Mall Senayan City", location: "Kawasan Parkir B2 Mall Sency, Jakarta", lat: -6.2274, lon: 106.7974, type: "Fast DC", capacity: "50 kW", note: "Dapatkan layanan eksklusif sembari rekreasi belanja." },
   { id: "spklu_jakarta_raya", name: "SPKLU PLN UID Jakarta Raya", location: "Jl. Gambir Raya, Jakarta Pusat", lat: -6.1824, lon: 106.8322, type: "Ultra-Fast DC", capacity: "120 kW", note: "Fasilitas daya tinggi andalan mobilitas metro." },
+  { id: "spklu_kelapa_gading", name: "SPKLU Summarecon Mall Kelapa Gading", location: "Kawasan Parkir MKG 3, Kelapa Gading", lat: -6.1575, lon: 106.9085, type: "Fast DC", capacity: "50 kW", note: "Kenyamanan isi daya premium di utara kota Jakarta." },
+  { id: "spklu_pik_central", name: "SPKLU Central Market PIK", location: "Kawasan PIK 2, Penjaringan, Jakarta Utara", lat: -6.1124, lon: 106.7345, type: "Fast DC", capacity: "50 kW", note: "Pengisian bergaya modern di destinasi terpanas pesisir Jakarta." },
+  { id: "spklu_up3_bogor", name: "SPKLU PLN UP3 Bogor Pajajaran", location: "Jl. Pajajaran No.2, Kota Bogor", lat: -6.5982, lon: 106.7995, type: "Fast DC", capacity: "50 kW", note: "Berlokasi strategis di pusat kota Bogor yang sejuk." },
+  { id: "spklu_up3_sukabumi", name: "SPKLU PLN UP3 Sukabumi", location: "Jl. Bhayangkara No.10, Sukabumi", lat: -6.9184, lon: 106.9265, type: "Fast DC", capacity: "50 kW", note: "Andalan utama di jalur arteri sejuk Sukabumi-Pelabuhan Ratu." },
+  { id: "spklu_up3_cianjur", name: "SPKLU PLN UP3 Cianjur", location: "Jl. Dr. Muwardi No.101, Cianjur", lat: -6.8224, lon: 107.1395, type: "Fast DC", capacity: "50 kW", note: "Garis pertahanan krusial sebelum mendaki tanjakan Puncak Pass." },
 
-  // Tol Cikampek & Tol Cipali
+  // ==========================================
+  // WEST JAVA & BANDUNG AREA
+  // ==========================================
+  { id: "spklu_uid_jabar", name: "SPKLU PLN UID Jabar Asia Afrika", location: "Jl. Asia Afrika No.63, Bandung", lat: -6.9195, lon: 107.6135, type: "Ultra-Fast DC", capacity: "120 kW", note: "Lokasi premium di jantung kota Bandung, sangat dekat dengan Alun-alun." },
+  { id: "spklu_gd_sate", name: "SPKLU PLN Gedung Sate", location: "Kawasan Parkir Gedung Sate, Bandung", lat: -6.9025, lon: 107.6186, type: "Fast DC", capacity: "60 kW", note: "Fasilitas pengisian strategis di pusat pemerintahan Provinsi Jawa Barat." },
+  { id: "spklu_distribusi_bdg", name: "SPKLU PLN Distribusi Bandung", location: "Jl. Soekarno-Hatta No.436, Bandung", lat: -6.9385, lon: 107.6254, type: "Fast DC", capacity: "50 kW", note: "Andalan wilayah Bandung Selatan." },
+  { id: "spklu_up3_purwakarta", name: "SPKLU PLN UP3 Purwakarta", location: "Jl. Jend. Sudirman, Purwakarta", lat: -6.5562, lon: 107.4432, type: "Fast DC", capacity: "50 kW", note: "Melayani rute purbaleunyi arah non-tol atau alternatif Sadang." },
+  { id: "spklu_km72a", name: "SPKLU Rest Area KM 72A Cipularang", location: "Tol Cipularang KM 72A (Arah Bandung)", lat: -6.6025, lon: 107.4475, type: "Ultra-Fast DC", capacity: "120 kW", note: "Sangat bersahabat, rest area pertama setelah Tol Cikampek." },
+  { id: "spklu_km88a", name: "SPKLU Rest Area KM 88A Cipularang", location: "Tol Cipularang KM 88A (Arah Bandung)", lat: -6.6575, lon: 107.4525, type: "Ultra-Fast DC", capacity: "120 kW", note: "Fasilitas lengkap dengan area makan luas, andalan tanjakan Cipularang." },
+  { id: "spklu_km88b", name: "SPKLU Rest Area KM 88B Cipularang", location: "Tol Cipularang KM 88B (Arah Jakarta)", lat: -6.6558, lon: 107.4510, type: "Fast DC", capacity: "50 kW", note: "Krusial untuk arus balik kendaraan menuju Jakarta Barat." },
+  { id: "spklu_km97b", name: "SPKLU Rest Area KM 97B Cipularang", location: "Tol Cipularang KM 97B (Arah Jakarta)", lat: -6.6345, lon: 107.4215, type: "Ultra-Fast DC", capacity: "120 kW", note: "Pemberhentian favorit teratas sebelum mengarungi kemacetan Jabodetabek." },
+  { id: "spklu_km147a", name: "SPKLU Rest Area KM 147A Purbaleunyi", location: "Tol Purbaleunyi KM 147A (Arah Bandung)", lat: -6.9535, lon: 107.7282, type: "Fast DC", capacity: "50 kW", note: "Lokasi isi daya pamungkas sebelum keluar Cileunyi menuju Priangan Timur." },
+  { id: "spklu_km149b", name: "SPKLU Rest Area KM 149B Purbaleunyi", location: "Tol Purbaleunyi KM 149B (Arah Cileunyi/Jakarta)", lat: -6.9515, lon: 107.7121, type: "Fast DC", capacity: "50 kW", note: "Stasiun pendukung bagi warga Bandung Timur." },
+  { id: "spklu_up3_garut", name: "SPKLU PLN UP3 Garut", location: "Jl. Cimanuk No.303, Garut", lat: -7.2155, lon: 107.9015, type: "Fast DC", capacity: "50 kW", note: "Terbaik untuk menstabilkan daya sebelum menyeberang kawasan berbukit Cikajang." },
+  { id: "spklu_up3_tasik", name: "SPKLU PLN UP3 Tasikmalaya", location: "Jl. Mayor S.L. Tobing No.10, Tasikmalaya", lat: -7.3235, lon: 108.2198, type: "Fast DC", capacity: "50 kW", note: "Lokasi persinggahan favorit di koridor jalur selatan Jawa Barat." },
+  { id: "spklu_up3_ciamis", name: "SPKLU PLN UP3 Ciamis", location: "Jl. Jend. Sudirman No.142, Ciamis", lat: -7.3284, lon: 108.3512, type: "AC Charge", capacity: "22 kW", note: "Pengisian tipe sedang yang nyaman di dekat Alun-alun Ciamis." },
+  { id: "spklu_ulp_banjar", name: "SPKLU PLN ULP Banjar", location: "Jl. Siliwangi No.12, Banjar", lat: -7.3695, lon: 108.5368, type: "Fast DC", capacity: "50 kW", note: "Gerbang penting Priangan sebelum melaju lurus ke jalan raya Pangandaran." },
+  { id: "spklu_pangandaran", name: "SPKLU PLN Pangandaran Parigi", location: "Jl. Raya Parigi, Pangandaran (Parigi)", lat: -7.7011, lon: 108.4905, type: "Fast DC", capacity: "30 kW", note: "Titik utama isi daya andalan para wisatawan pantai Pangandaran dan Green Canyon." },
   { id: "spklu_km57a", name: "SPKLU Rest Area KM 57A Cikampek", location: "Tol Jakarta - Cikampek KM 57A", lat: -6.3685, lon: 107.2915, type: "Fast DC", capacity: "60 kW", note: "Stasiun andalan kelistrikan LFP sebelum berpisah jalan Tol Cipali." },
   { id: "spklu_km62b", name: "SPKLU Rest Area KM 62B Cikampek", location: "Tol Cikampek - Jakarta KM 62B", lat: -6.3512, lon: 107.2754, type: "Fast DC", capacity: "50 kW", note: "Kunci cadangan energi arus balik tol utama Trans-Jawa." },
   { id: "spklu_km102a", name: "SPKLU Rest Area KM 102A Cipali", location: "Tol Cipali KM 102A (Arah Timur)", lat: -6.4421, lon: 107.7511, type: "Ultra-Fast DC", capacity: "200 kW", note: "Kapasitas daya raksasa, menghemat waktu isi baterai cuma 15 menit." },
@@ -76,19 +111,98 @@ const SPKLU_DATABASE: SpkluDbItem[] = [
   { id: "spklu_km164b", name: "SPKLU Rest Area KM 164B Cipali", location: "Tol Cipali KM 164B (Arah Jakarta)", lat: -6.6725, lon: 108.2235, type: "Fast DC", capacity: "50 kW", note: "Dukungan penuh daya baterai sebelum percabangan Tol Purbaleunyi." },
   { id: "spklu_up3_cirebon", name: "SPKLU PLN UP3 Cirebon", location: "Jl. Siliwangi No.36, Cirebon", lat: -6.7025, lon: 108.5512, type: "Fast DC", capacity: "50 kW", note: "Strategis untuk rute melintasi pesisir utara." },
 
-  // Trans-Java (Central & East)
+  // ==========================================
+  // CENTRAL JAVA & DIY YOGYAKARTA
+  // ==========================================
   { id: "spklu_km207a", name: "SPKLU Rest Area KM 207A Kanci", location: "Tol Palikanci KM 207A Cirebon", lat: -6.7454, lon: 108.6212, type: "Fast DC", capacity: "50 kW", note: "Menyejukkan baterai sejenak untuk persiapan masuk Jawa Tengah." },
   { id: "spklu_km228a", name: "SPKLU Rest Area KM 228A Pejagan", location: "Tol Pejagan KM 228A (Arah Solo)", lat: -6.8321, lon: 108.7754, type: "Ultra-Fast DC", capacity: "120 kW", note: "Stasiun berdaya andalan di perbatasan Jawa Barat & Jawa Tengah." },
+  { id: "spklu_km229b_pejagan", name: "SPKLU Rest Area KM 229B Pejagan", location: "Tol Pejagan - Pemalang KM 229B", lat: -6.8345, lon: 108.7612, type: "Fast DC", capacity: "50 kW", note: "Rest area andalan arah barat pulau Jawa di pesisir Brebes." },
+  { id: "spklu_up3_tegal", name: "SPKLU PLN UP3 Tegal", location: "Jl. Jend. Sudirman No.24, Tegal", lat: -6.8675, lon: 109.1375, type: "Fast DC", capacity: "50 kW", note: "Melayani wilayah pesisir kuliner sate tegal kemuring." },
+  { id: "spklu_up3_pekalongan", name: "SPKLU PLN UP3 Pekalongan", location: "Jl. Jend. Sudirman No.5, Pekalongan", lat: -6.8894, lon: 109.6712, type: "Fast DC", capacity: "50 kW", note: "Pemberhentian isi daya penting di tengah kota Batik legendaris." },
+  { id: "spklu_km338a_pemalang", name: "SPKLU Rest Area KM 338A Pemalang", location: "Tol Pemalang-Batang KM 338A", lat: -6.9125, lon: 109.6124, type: "Fast DC", capacity: "50 kW", note: "Strategis sebelum melaju bebas ke kabupaten Batang." },
   { id: "spklu_km379a", name: "SPKLU Rest Area KM 379A Batang", location: "Tol Batang - Semarang KM 379A", lat: -6.9691, lon: 109.9542, type: "Ultra-Fast DC", capacity: "120 kW", note: "Halaman parkir SPKLU ekstra lega & asri terlindungi pepohonan." },
   { id: "spklu_km389b", name: "SPKLU Rest Area KM 389B Batang", location: "Tol Batang - Semarang KM 389B", lat: -6.9654, lon: 109.9321, type: "Ultra-Fast DC", capacity: "120 kW", note: "Cocok untuk top-up sembari santap malam pecel." },
+  { id: "spklu_semarang_uid", name: "SPKLU PLN UID JATENG DIY Pemuda", location: "Jl. Pemuda No.93, Semarang", lat: -6.9812, lon: 110.4132, type: "Ultra-Fast DC", capacity: "100 kW", note: "Pusat komando kelistrikan Jateng-DIY, andalan andrawina." },
+  { id: "spklu_semarang_krapyak", name: "SPKLU PLN Rayon Krapyak", location: "Jl. Jend. Sudirman No.342, Semarang", lat: -6.9924, lon: 110.3612, type: "Fast DC", capacity: "50 kW", note: "Sangat bersahabat, dekat gerbang keluar tol barat Semarang." },
+  { id: "spklu_up3_kudus", name: "SPKLU PLN UP3 Kudus", location: "Jl. Jend. Sudirman No.60, Kudus", lat: -6.8112, lon: 110.8415, type: "Fast DC", capacity: "50 kW", note: "Andalan utama di jalur utara Muria penghubung Kudus-Pati-Jepara." },
+  { id: "spklu_ulp_pati", name: "SPKLU PLN ULP Pati Berkah", location: "Jl. Pemuda No.28, Pati", lat: -6.7534, lon: 111.0315, type: "AC Charge", capacity: "22 kW", note: "Stasiun pengisian santai di dekat Alun-alun Bumi Mina Tani." },
+  { id: "spklu_salatiga_ulp", name: "SPKLU PLN ULP Salatiga", location: "Jl. Moh. Yamin, Salatiga", lat: -7.3304, lon: 110.5012, type: "Fast DC", capacity: "50 kW", note: "Sangat sejuk di kaki gunung Merbabu, melayani kawasan Salatiga asri." },
   { id: "spklu_km429a", name: "SPKLU Rest Area KM 429A Solo", location: "Tol Semarang - Solo KM 429A", lat: -7.1415, lon: 110.4325, type: "Fast DC", capacity: "60 kW", note: "Terletak di ketinggian sejuk dengan tempat ibadah arsitektur indah." },
+  { id: "spklu_km456a_solo", name: "SPKLU Pendopo Rest Area KM 456A", location: "Tol Semarang - Solo KM 456A", lat: -7.2612, lon: 110.5425, type: "Ultra-Fast DC", capacity: "120 kW", note: "Rest area termegah berbentuk jembatan penghubung dengan aneka fasilitas premium." },
+  { id: "spklu_up3_surakarta", name: "SPKLU PLN UP3 Surakarta Slamet Riyadi", location: "Jl. Slamet Riyadi No.468, Solo", lat: -7.5684, lon: 110.8215, type: "Fast DC", capacity: "50 kW", note: "Andalan pusat kota budaya Solo dekat dengan pusat perbelanjaan dan kuliner." },
+  { id: "spklu_up3_yogyakarta", name: "SPKLU PLN UP3 Yogyakarta Mangkubumi", location: "Jl. Mangkubumi No.12, Yogyakarta", lat: -7.7834, lon: 110.3662, type: "Fast DC", capacity: "50 kW", note: "Hanya selangkah dari Tugu Yogyakarta dan destinasi wisata Malioboro." },
+  { id: "spklu_sleman_ulp", name: "SPKLU PLN ULP Sleman", location: "Jl. Magelang KM 10, Sleman, DIY", lat: -7.7124, lon: 110.3615, type: "Fast DC", capacity: "50 kW", note: "Stasiun pengisian utama kawasan utara Yogyakarta, andalan rute Magelang." },
+  { id: "spklu_yia_airport", name: "SPKLU Yogyakarta International Airport", location: "Area Parkir Kedatangan YIA, Kulon Progo", lat: -7.9024, lon: 110.0612, type: "Fast DC", capacity: "50 kW", note: "Dukungan energi vital di gerbang utama bandara intl Kulon Progo." },
+  { id: "spklu_gunungkidul", name: "SPKLU PLN ULP Wonosari Gunungkidul", location: "Jl. Brigjen Katamso, Wonosari, DIY", lat: -7.9654, lon: 110.6012, type: "Fast DC", capacity: "30 kW", note: "Andalan para penjelajah gua, perbukitan karst, dan pantai eksotis selatan." },
+  { id: "spklu_purworejo_ulp", name: "SPKLU PLN ULP Purworejo", location: "Jl. Jend. Sudirman, Purworejo", lat: -7.7125, lon: 110.0125, type: "AC Charge", capacity: "22 kW", note: "Stasiun pengisian daya medium pendukung jalur selat Daendels." },
+  { id: "spklu_up3_purwokerto", name: "SPKLU PLN UP3 Purwokerto", location: "Jl. Jend. Sudirman, Purwokerto", lat: -7.4244, lon: 109.2312, type: "Fast DC", capacity: "50 kW", note: "Koridor utama dataran tinggi barat Jawa Tengah, dekat wisata Baturraden." },
+  { id: "spklu_up3_cilacap", name: "SPKLU PLN UP3 Cilacap", location: "Jl. Jend. Sutoyo No.21, Cilacap", lat: -7.7215, lon: 109.0125, type: "Fast DC", capacity: "50 kW", note: "Menyediakan layanan pengisian daya andalan kota industri pesisir selatan." },
+
+  // ==========================================
+  // EAST JAVA AREA
+  // ==========================================
   { id: "spklu_km519a", name: "SPKLU Rest Area KM 519A Ngawi", location: "Tol Solo - Ngawi KM 519A", lat: -7.4112, lon: 111.1215, type: "Ultra-Fast DC", capacity: "120 kW", note: "Stasiun krusial di pusat sabuk penyeberangan Jawa Timur." },
+  { id: "spklu_km519b_ngawi", name: "SPKLU Rest Area KM 519B Ngawi", location: "Tol Solo - Ngawi KM 519B", lat: -7.4102, lon: 111.1201, type: "Fast DC", capacity: "50 kW", note: "Rest area andalan para pelintas arus balik Jawa Timur menuju barat." },
+  { id: "spklu_ngawi_ulp", name: "SPKLU PLN ULP Ngawi", location: "Jl. Jend. Basuki Rahmat No.40, Ngawi", lat: -7.4045, lon: 111.4425, type: "Fast DC", capacity: "50 kW", note: "Kantor pelayanan handal di gerbang masuk barat propinsi Jatim." },
   { id: "spklu_km575a", name: "SPKLU Rest Area KM 575A Ngawi", location: "Tol Solo - Ngawi KM 575A", lat: -7.4252, lon: 111.3524, type: "Ultra-Fast DC", capacity: "120 kW", note: "Fasilitas lengkap dengan food court nyaman di kawasan Ngawi." },
   { id: "spklu_km626a", name: "SPKLU Rest Area KM 626A Madiun", location: "Tol Ngawi - Kertosono KM 626A", lat: -7.5312, lon: 111.6432, type: "Fast DC", capacity: "60 kW", note: "Pemberhentian sejuk di perbatasan Madiun, andalan pengisian daya Jawa Timur Tengah." },
+  { id: "spklu_up3_madiun", name: "SPKLU PLN UP3 Madiun", location: "Jl. Jend. Sudirman No.62, Madiun", lat: -7.6321, lon: 111.5215, type: "Fast DC", capacity: "50 kW", note: "Andalan pelancong kota Pendekar Madiun, dekat pusat kuliner Pecel Madiun." },
+  { id: "spklu_up3_kediri", name: "SPKLU PLN UP3 Kediri", location: "Jl. Jend. Basuki Rahmat No.2, Kediri", lat: -7.8124, lon: 112.0124, type: "Fast DC", capacity: "50 kW", note: "Andalan utama di koridor sub-residen Kediri, Tulungagung, Ponorogo." },
+  { id: "spklu_jombang_ulp", name: "SPKLU PLN ULP Jombang", location: "Jl. KH. Wahid Hasyim No.2, Jombang", lat: -7.5451, lon: 112.2312, type: "Fast DC", capacity: "50 kW", note: "Titik tolak strategis di jalur tengah non-tol bypass Mojokerto-Kertosono." },
   { id: "spklu_km725a", name: "SPKLU Rest Area KM 725A Mojokerto", location: "Tol Mojokerto - Surabaya KM 725A", lat: -7.3421, lon: 112.5115, type: "Ultra-Fast DC", capacity: "120 kW", note: "Lokasi strategis sebelum memasuki wilayah metropolitan Surabaya dan percabangan Malang." },
+  { id: "spklu_surabaya_uid", name: "SPKLU PLN UID JATIM Gubeng", location: "Jl. Embong Trengguli No.19, Surabaya", lat: -7.2694, lon: 112.7482, type: "Ultra-Fast DC", capacity: "120 kW", note: "Kantor pusat pelayanan kelistrikan Jawa Timur, performa andalan." },
+  { id: "spklu_surabaya_pemuda", name: "SPKLU PLN Unit P3 Surabaya", location: "Jl. Pemuda No.20, Surabaya", lat: -7.2654, lon: 112.7425, type: "Fast DC", capacity: "50 kW", note: "Mudah dijangkau di kawasan perkantoran pusat kota Surabaya." },
+  { id: "spklu_juanda_airport", name: "SPKLU Bandara Juanda International", location: "Area Parkir Terminal 1 Juanda, Sidoarjo", lat: -7.3784, lon: 112.7885, type: "Fast DC", capacity: "50 kW", note: "Membantu transisi perjalanan EV para penjemput bandara." },
   { id: "spklu_km84a", name: "SPKLU Rest Area KM 84A Pandaan", location: "Tol Gempol - Pandaan KM 84A (Arah Malang)", lat: -7.6685, lon: 112.6912, type: "Fast DC", capacity: "50 kW", note: "Rest area terakhir yang sangat sejuk, sangat pas untuk top-up sebelum mendaki ke Malang." },
-  { id: "spklu_up3_malang", name: "SPKLU PLN UP3 Malang", location: "Jl. Jend. Basic Rahmat No.100, Klojen, Malang", lat: -7.9782, lon: 112.6285, type: "Fast DC", capacity: "50 kW", note: "Stasiun pusat isi daya di tengah Kota Malang, dekat kawasan Alun-Alun." },
-  { id: "spklu_ketapang", name: "SPKLU ASDP Ketapang Banyuwangi", location: "Pelabuhan Ketapang, Banyuwangi", lat: -8.1342, lon: 114.3942, type: "Ultra-Fast DC", capacity: "120 kW", note: "Isi hingga 85% untuk jaminan penyeberangan laut feri aman menuju Pulau Bali." }
+  { id: "spklu_up3_malang", name: "SPKLU PLN UP3 Malang", location: "Jl. Jend. Basuki Rahmat No.100, Klojen, Malang", lat: -7.9782, lon: 112.6285, type: "Fast DC", capacity: "50 kW", note: "Stasiun pusat isi daya di tengah Kota Malang, dekat kawasan Alun-Alun." },
+  { id: "spklu_batu_klubbunga", name: "SPKLU Hotel Klub Bunga Batu", location: "Jl. Kartika No.1, Kota Wisata Batu", lat: -7.8812, lon: 112.5254, type: "Fast DC", capacity: "50 kW", note: "Top-up nyaman sembari menikmati panorama dingin pegunungan kota Batu." },
+  { id: "spklu_up3_jember", name: "SPKLU PLN UP3 Jember", location: "Jl. Jend. Gajah Mada No.4, Jember", lat: -8.1724, lon: 113.7012, type: "Fast DC", capacity: "50 kW", note: "Hub pengisian penting terakhir di ujung timur selatan Jawa Timur." },
+  { id: "spklu_ketapang", name: "SPKLU ASDP Ketapang Banyuwangi", location: "Pelabuhan Ketapang, Banyuwangi", lat: -8.1342, lon: 114.3942, type: "Ultra-Fast DC", capacity: "120 kW", note: "Isi hingga 85% untuk jaminan penyeberangan laut feri aman menuju Pulau Bali." },
+  { id: "spklu_banyuwangi_city", name: "SPKLU PLN UP3 Banyuwangi", location: "Jl. Jend. A. Yani No.14, Banyuwangi", lat: -8.2132, lon: 114.3685, type: "Fast DC", capacity: "50 kW", note: "Mendukung kelistrikan kota Gandrung andalan ujung timur pulau Jawa." },
+
+  // ==========================================
+  // BALI & NUSA TENGGARA
+  // ==========================================
+  { id: "spklu_gilimanuk", name: "SPKLU Pelabuhan Gilimanuk", location: "Area Parkir Dermaga ASDP, Jembrana", lat: -8.1632, lon: 114.4372, type: "Fast DC", capacity: "50 kW", note: "Dukungan daya instan terpenting begitu roda EV mendarat di Pulau Dewata." },
+  { id: "spklu_negara_ulp", name: "SPKLU PLN ULP Negara", location: "Jl. Jend. Sudirman, Negara, Jembrana", lat: -8.3562, lon: 114.6224, type: "Fast DC", capacity: "50 kW", note: "Pemberhentian seimbang di koridor panjang sirkuit barat Bali." },
+  { id: "spklu_tabanan_ulp", name: "SPKLU PLN ULP Tabanan", location: "Jl. Jend. Sudirman, Tabanan", lat: -8.5372, lon: 115.1245, type: "Fast DC", capacity: "50 kW", note: "Krusial sebagai penyeimbang daya sebelum kemacetan Badung & Denpasar." },
+  { id: "spklu_denpasar_uid", name: "SPKLU PLN UID Bali Sudirman", location: "Jl. Jend. Sudirman No.20, Denpasar", lat: -8.6654, lon: 115.2185, type: "Ultra-Fast DC", capacity: "120 kW", note: "Kantor induk PLN Bali, jaminan keandalan pengisian daya berkecepatan tinggi." },
+  { id: "spklu_denpasar_hayamwuruk", name: "SPKLU PLN Hub Hayam Wuruk", location: "Jl. Hayam Wuruk No.112, Denpasar", lat: -8.6542, lon: 115.2415, type: "Fast DC", capacity: "50 kW", note: "Lokasi komersial tengah kota, melayani rute timur Sanur." },
+  { id: "spklu_kuta_central", name: "SPKLU Kuta Central Parking", location: "Kawasan Parkir Central Kuta, Badung", lat: -8.7235, lon: 115.1785, type: "Fast DC", capacity: "50 kW", note: "Di pusat keriuhan turis mancanegara, andalan taksi listrik Bali." },
+  { id: "spklu_nusadua_itdc", name: "SPKLU ITDC Nusa Dua Ex-G20", location: "Kawasan Kompleks ITDC, Nusa Dua", lat: -8.8021, lon: 115.2284, type: "Ultra-Fast DC", capacity: "150 kW", note: "Warisan infrastruktur KTT G20 premium dengan stasiun pengisian multi-baterai super cepat." },
+  { id: "spklu_gianyar_ubud", name: "SPKLU PLN ULP Ubud Gianyar", location: "Jl. Raya Ubud, Ubud, Gianyar", lat: -8.5085, lon: 115.2624, type: "Fast DC", capacity: "50 kW", note: "Mendukung daya EV anda sembari berwisata seni budaya terkemuka di Ubud." },
+  { id: "spklu_singaraja_up3", name: "SPKLU PLN UP3 Bali Utara", location: "Jl. Jend. A. Yani, Singaraja, Buleleng", lat: -8.1124, lon: 115.0885, type: "Fast DC", capacity: "50 kW", note: "Hub andalan satu-satunya di pesisir utara eksotisme Lovina." },
+  { id: "spklu_mataram_ntb", name: "SPKLU PLN UIW NTB Mataram", location: "Jl. Langko No.25, Mataram, Lombok", lat: -8.5832, lon: 116.1165, type: "Fast DC", capacity: "50 kW", note: "Hub pengisian daya utama di pusat pemerintahan pulau Lombok." },
+  { id: "spklu_mandalika", name: "SPKLU Sirkuit Internasional Mandalika", location: "Kawasan Ekonomi Khusus Mandalika, Lombok", lat: -8.8954, lon: 116.2954, type: "Fast DC", capacity: "50 kW", note: "Di dekat area sirkuit balap dunia MotoGP Mandalika terkemuka." },
+  { id: "spklu_labuan_bajo_vip", name: "SPKLU Pelabuhan Marina Labuan Bajo", location: "Kawasan Pelabuhan VIP Labuan Bajo, Flores", lat: -8.4905, lon: 119.8812, type: "Ultra-Fast DC", capacity: "120 kW", note: "Infrastruktur mutakhir andalan destinas wisata super prioritas Komodo." },
+  { id: "spklu_kupang_ntt", name: "SPKLU PLN UIW NTT Kupang", location: "Jl. Jend. A. Yani No.12, Kupang, Timor", lat: -10.1712, lon: 123.6012, type: "Fast DC", capacity: "50 kW", note: "Stasiun pengisian mandiri andalan utama di pulau Timor, NTT." },
+
+  // ==========================================
+  // KALIMANTAN (Borneo Corridor including IKN)
+  // ==========================================
+  { id: "spklu_ikn_kipp", name: "SPKLU Pusat KIPP IKN Nusantara", location: "Kawasan Inti Pusat Pemerintahan (KIPP) IKN", lat: -0.9615, lon: 116.8375, type: "Ultra-Fast DC", capacity: "150 kW", note: "Stasiun armada listrik futuristik di jantung ibu kota baru Nusantara." },
+  { id: "spklu_balikpapan_uid", name: "SPKLU PLN UID Kaltimra Haryono", location: "Jl. MT. Haryono, Balikpapan", lat: -1.2425, lon: 116.8624, type: "Fast DC", capacity: "50 kW", note: "Hub andalan penghubung kota minyak Balikpapan dan gerbang tol IKN." },
+  { id: "spklu_samarinda_up3", name: "SPKLU PLN UP3 Samarinda", location: "Jl. Gajah Mada, Samarinda, Kaltim", lat: -0.5015, lon: 117.1425, type: "Fast DC", capacity: "50 kW", note: "Melayani ibukota propinsi Kaltim di sepanjang sungai Mahakam." },
+  { id: "spklu_banjarmasin", name: "SPKLU PLN UIW Kalselteng", location: "Jl. Lambung Mangkurat, Banjarmasin", lat: -3.3194, lon: 114.5912, type: "Fast DC", capacity: "50 kW", note: "Hub andalan utama di kota seribu sungai Kalimantan Selatan." },
+  { id: "spklu_palangkaraya", name: "SPKLU PLN UP3 Palangka Raya", location: "Jl. Jend. Ahmad Yani, Palangkaraya", lat: -2.2085, lon: 113.9162, type: "Fast DC", capacity: "50 kW", note: "Titik utama pelayanan pengisian cepat di provinsi Kalimantan Tengah." },
+  { id: "spklu_pontianak_uid", name: "SPKLU PLN UIW Kalbar Khatulistiwa", location: "Jl. Jend. Ahmad Yani, Pontianak", lat: -0.0215, lon: 109.3425, type: "Fast DC", capacity: "50 kW", note: "Isi daya EV anda tepat di garis khayal khatulistiwa bumi." },
+
+  // ==========================================
+  // SULAWESI CORRIDOR
+  // ==========================================
+  { id: "spklu_makassar_hertasning", name: "SPKLU PLN UIW Sulselrabar Hertasning", location: "Jl. Letjen Hertasning, Makassar", lat: -5.1612, lon: 119.4435, type: "Ultra-Fast DC", capacity: "120 kW", note: "Hub utama kelistrikan EV seluruh daratan Sulawesi Selatan." },
+  { id: "spklu_parepare_up3", name: "SPKLU PLN UP3 Parepare", location: "Jl. Jend. Ahmad Yani No.14, Parepare", lat: -4.0125, lon: 119.6254, type: "Fast DC", capacity: "50 kW", note: "Lokasi persinggahan penting rute Makassar - Toraja - Palu." },
+  { id: "spklu_palu_up3", name: "SPKLU PLN UP3 Palu", location: "Jl. Jend. Sudirman, Palu, Sulteng", lat: -0.8912, lon: 119.8712, type: "Fast DC", capacity: "50 kW", note: "Andalan terpercaya di pesisir teluk Palu, Sulawesi Tengah." },
+  { id: "spklu_gorontalo_up3", name: "SPKLU PLN UP3 Gorontalo", location: "Jl. Jend. Ahmad Yani, Gorontalo", lat: 0.5425, lon: 123.0612, type: "Fast DC", capacity: "50 kW", note: "Layanan isi daya utama di serambi Madinah Gorontalo." },
+  { id: "spklu_manado_uid", name: "SPKLU PLN UIW Suluttenggo", location: "Jl. Bethesda No.32, Manado", lat: 1.4824, lon: 124.8415, type: "Fast DC", capacity: "50 kW", note: "Stasiun pengisian andalan warga Kawanua ujung utara Sulawesi." },
+  { id: "spklu_kendari_up3", name: "SPKLU PLN UP3 Kendari", location: "Jl. Jend. Ahmad Yani No.11, Kendari", lat: -3.9785, lon: 122.5284, type: "Fast DC", capacity: "50 kW", note: "Andalan kelistrikan EV di wilayah Sulawesi Tenggara kaya nikel." },
+
+  // ==========================================
+  // MALUKU & PAPUA
+  // ==========================================
+  { id: "spklu_ambon_mmu", name: "SPKLU PLN UIW MMU Ambon", location: "Jl. Jend. Sudirman, Ambon, Maluku", lat: -3.6954, lon: 128.1812, type: "Fast DC", capacity: "50 kW", note: "Stasiun pengisian cepat pertama di jantung kota Ambon Manise." },
+  { id: "spklu_jayapura_papua", name: "SPKLU PLN UIW Papua Papua Barat", location: "Jl. Jend. Ahmad Yani, Jayapura", lat: -2.5354, lon: 140.7012, type: "Fast DC", capacity: "50 kW", note: "Stasiun pengisian andalan kedaulatan timur Nusantara di Jayapura." },
+  { id: "spklu_sorong_up3", name: "SPKLU PLN UP3 Sorong", location: "Jl. Jend. Ahmad Yani, Sorong, Papua Barat", lat: -0.8715, lon: 131.2512, type: "Fast DC", capacity: "50 kW", note: "Melayani rute perkotaan Sorong sebagai gerbang wisata dunia Raja Ampat." }
 ];
 
 interface CustomFreeMapRouteProps {
@@ -1278,60 +1392,74 @@ export default function CustomFreeMapRoute({
                 <span className="text-[9px] font-mono text-emerald-400 font-extrabold">J5 EV SPEC</span>
               </div>
               
-              {/* MOBILE HORIZONTAL SCROLL EXTEND BLEED PATTERN */}
-              <div className="overflow-x-auto -mx-3.5 px-3.5 scrollbar-thin">
-                <div className="flex items-center justify-between relative py-2 min-w-[450px] sm:min-w-full">
-                  {/* Connecting pipeline */}
-                  <div className="absolute left-6 right-6 top-[28px] h-0.5 bg-zinc-800 z-0" />
-                  <div className="absolute left-6 right-6 top-[28px] h-0.5 bg-gradient-to-r from-emerald-500 via-emerald-400 to-cyan-400 z-0" />
-
+              {/* MOBILE FLEXIBLE WRAPPING TIMELINE PATTERN (No Overflow, Goes Downward Safely) */}
+              <div className="w-full">
+                <div className="flex flex-wrap items-start justify-center gap-y-6 gap-x-2 py-2 w-full">
                   {/* Starting check */}
-                  <div className="relative z-10 flex flex-col items-center space-y-1 flex-shrink-0 w-[95px]">
-                    <div className="relative z-20 w-10 h-10 rounded-full bg-[#022c22] border-2 border-emerald-500 flex items-center justify-center text-sm shadow-xl shadow-emerald-950/40">
+                  <div className="relative flex flex-col items-center space-y-1.5 w-[92px] sm:w-[100px] flex-shrink-0">
+                    <div className="relative z-20 w-10 h-10 rounded-full bg-[#022c22] border-2 border-emerald-500 flex items-center justify-center text-sm shadow-xl shadow-emerald-950/40 transform hover:scale-105 transition-all duration-300">
                       📍
                     </div>
-                    <div className="text-center relative z-10 px-1 flex flex-col items-center justify-start w-full">
-                      <span className="text-[8.5px] font-black text-white block uppercase leading-[1.1] text-center" style={{ display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                    <div className="text-center w-full">
+                      <span className="text-[8.5px] font-black text-white block uppercase leading-[1.2] text-center" style={{ display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
                         {originPlace ? originPlace.display_name.split(",")[0].trim() : originInput.split(",")[0].trim() || "Start"}
                       </span>
                       <span className="text-[8px] font-mono text-emerald-400 font-extrabold block mt-0.5">
                         SOC {socAtStart}%
                       </span>
+                      <span className="text-[7.5px] font-mono text-zinc-500 block uppercase font-bold tracking-tight">Mulai</span>
                     </div>
                   </div>
 
                   {/* SPKLU Charging Stops */}
                   {activeTimeline.filter(item => item.type === "spklu" && item.isCharging).map((item) => (
-                    <div key={item.id} className="relative z-10 flex flex-col items-center space-y-1 flex-shrink-0 w-[95px]">
-                      <div className="relative z-20 w-10 h-10 rounded-full bg-[#451a03] border-2 border-amber-500 flex items-center justify-center text-sm shadow-xl shadow-amber-950/40">
-                        🔌
+                    <React.Fragment key={item.id}>
+                      {/* Connecting chevron before this SPKLU */}
+                      <div className="flex items-center justify-center h-10 text-zinc-600 px-0.5" style={{ minWidth: '12px' }}>
+                        <svg className="w-3.5 h-3.5 text-emerald-500/50 animate-pulse flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                        </svg>
                       </div>
-                      <div className="text-center relative z-10 px-1 flex flex-col items-center justify-start w-full">
-                        <span className="text-[8.5px] font-black text-amber-200 block uppercase leading-[1.1] text-center" style={{ display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                          {item.name.replace("SPKLU", "").trim()}
-                        </span>
-                        <span className="text-[8px] font-mono text-emerald-400 block font-black leading-none mt-0.5">
-                          {item.distanceFromStart.toFixed(0)} KM
-                        </span>
-                        <span className="text-[8px] font-mono text-amber-300 block font-bold leading-tight mt-0.5">
-                          {item.socArrival}% ➜ {item.socDeparture}%
-                        </span>
+
+                      <div className="relative flex flex-col items-center space-y-1.5 w-[92px] sm:w-[100px] flex-shrink-0">
+                        <div className="relative z-20 w-10 h-10 rounded-full bg-[#451a03] border-2 border-amber-500 flex items-center justify-center text-sm shadow-xl shadow-amber-950/40 transform hover:scale-105 transition-all duration-300">
+                          🔌
+                        </div>
+                        <div className="text-center w-full">
+                          <span className="text-[8.5px] font-black text-amber-200 block uppercase leading-[1.2] text-center" style={{ display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                            {item.name.replace("SPKLU", "").trim()}
+                          </span>
+                          <span className="text-[8px] font-mono text-emerald-400 block font-black leading-none mt-0.5">
+                            {item.distanceFromStart.toFixed(0)} KM
+                          </span>
+                          <span className="text-[8px] font-mono text-amber-300 block font-bold leading-tight mt-0.5">
+                            {item.socArrival}% ➜ {item.socDeparture}%
+                          </span>
+                        </div>
                       </div>
-                    </div>
+                    </React.Fragment>
                   ))}
 
+                  {/* Connecting chevron before Destination */}
+                  <div className="flex items-center justify-center h-10 text-zinc-600 px-0.5" style={{ minWidth: '12px' }}>
+                    <svg className="w-3.5 h-3.5 text-cyan-500/50 animate-pulse flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                    </svg>
+                  </div>
+
                   {/* Destination */}
-                  <div className="relative z-10 flex flex-col items-center space-y-1 flex-shrink-0 w-[95px]">
-                    <div className="relative z-20 w-10 h-10 rounded-full bg-[#083344] border-2 border-cyan-500 flex items-center justify-center text-sm shadow-xl shadow-cyan-950/40">
+                  <div className="relative flex flex-col items-center space-y-1.5 w-[92px] sm:w-[100px] flex-shrink-0">
+                    <div className="relative z-20 w-10 h-10 rounded-full bg-[#083344] border-2 border-cyan-500 flex items-center justify-center text-sm shadow-xl shadow-cyan-950/40 transform hover:scale-105 transition-all duration-300">
                       🏆
                     </div>
-                    <div className="text-center relative z-10 px-1 flex flex-col items-center justify-start w-full">
-                      <span className="text-[8.5px] font-black text-white block uppercase leading-[1.1] text-center" style={{ display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                    <div className="text-center w-full">
+                      <span className="text-[8.5px] font-black text-white block uppercase leading-[1.2] text-center" style={{ display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
                         {destPlace ? destPlace.display_name.split(",")[0].trim() : destInput.split(",")[0].trim() || "Tujuan"}
                       </span>
                       <span className="text-[8px] font-mono text-cyan-300 font-extrabold block mt-0.5">
                         Tiba: {activeTimeline[activeTimeline.length - 1]?.socArrival}%
                       </span>
+                      <span className="text-[7.5px] font-mono text-zinc-500 block uppercase font-bold tracking-tight">Tujuan</span>
                     </div>
                   </div>
                 </div>
