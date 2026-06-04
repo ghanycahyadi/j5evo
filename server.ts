@@ -350,8 +350,8 @@ async function startServer() {
     // Exclude heavy photos if requested
     if (excludePhotos) {
       filtered = filtered.map(m => {
-        const { carPhoto, ...rest } = m;
-        const op = m.ownerPhoto || "";
+        const { carPhoto, ownerPhoto, ...rest } = m;
+        const op = ownerPhoto || "";
         const isDefaultOrPlaceholder = !op || op.trim() === "" || op === "/logo.png" || 
           op.includes("unsplash.com/photo-1534528741775") ||
           op.includes("unsplash.com/photo-1507003211169") ||
@@ -359,7 +359,6 @@ async function startServer() {
           op.includes("unsplash.com/photo-1494790108377");
         return {
           ...rest,
-          ownerPhoto: m.ownerPhoto,
           hasOwnerPhoto: !isDefaultOrPlaceholder
         } as any;
       });

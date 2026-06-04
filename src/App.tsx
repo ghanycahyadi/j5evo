@@ -602,6 +602,8 @@ export default function App() {
   const [faqCurrentPage, setFaqCurrentPage] = useState(1);
   const [upcomingCurrentPage, setUpcomingCurrentPage] = useState(1);
   const [pastCurrentPage, setPastCurrentPage] = useState(1);
+  const [adminMemberPage, setAdminMemberPage] = useState(1);
+  const [adminMemberSearch, setAdminMemberSearch] = useState("");
 
   // Reset FAQ page when categories or search queries change
   useEffect(() => {
@@ -6575,68 +6577,188 @@ export default function App() {
 
                 {/* Master Member list inside administrative workspace with Delete member action */}
                 <div className="bg-white p-6 rounded-3xl border border-zinc-200 shadow-sm space-y-4">
-                  <div className="flex items-center justify-between">
-                    <h4 className="font-sans font-bold text-base text-zinc-900">Daftar Member Komunitas Terdaftar</h4>
-                    <span className="px-2.5 py-0.5 bg-teal-50 border border-teal-200 text-[#005c56] text-[10px] rounded font-mono font-bold">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-zinc-150">
+                    <div>
+                      <h4 className="font-sans font-bold text-base text-zinc-900">Daftar Member Komunitas Terdaftar</h4>
+                      <p className="text-2xs text-zinc-500 mt-0.5">Kelola semua data anggota komunitas secara ringkas</p>
+                    </div>
+                    <span className="px-2.5 py-0.5 self-start sm:self-auto bg-teal-50 border border-teal-200 text-[#005c56] text-[10px] rounded font-mono font-bold">
                       {members.length} Member Terverifikasi
                     </span>
                   </div>
 
                   {members.length === 0 ? (
                     <p className="text-xs text-zinc-500 text-center py-6 font-medium">Belum ada database anggota terdaftar.</p>
-                  ) : (
-                    <div className="space-y-3 max-h-96 overflow-y-auto pr-1">
-                      {members.map((m) => (
-                        <div
-                          key={m.id}
-                          className="p-3 rounded-xl bg-zinc-50 border border-zinc-200 flex flex-col md:flex-row md:items-center justify-between gap-4 text-xs"
-                        >
-                          <div className="flex gap-3 items-center">
-                            <img
-                              src={m.ownerPhoto || m.carPhoto || "/logo.png"}
-                              alt={m.name}
-                              className="w-10 h-12 object-cover rounded border border-zinc-200 shrink-0 shadow-xs"
-                              referrerPolicy="no-referrer"
-                            />
-                            <div>
-                              <p className="font-bold text-zinc-900 text-sm">{m.name}</p>
-                              <p className="text-[10px] text-zinc-500">
-                                ID: <strong className="text-zinc-800 font-mono text-[11px]">{m.id}</strong> | Plat: <strong className="text-teal-700 font-mono">{m.plateNumber}</strong>
-                              </p>
-                              <p className="text-[9px] text-zinc-400 font-mono">
-                                Chasis: {m.chassisNumber} {m.birthDate ? `| Ultah: ${m.birthDate}` : ""}
-                              </p>
-                            </div>
-                          </div>
+                  ) : (() => {
+                    const filtered = members.filter((m) => {
+                      const q = adminMemberSearch.trim().toLowerCase();
+                      if (!q) return true;
+                      return (
+                        (m.name || "").toLowerCase().includes(q) ||
+                        (m.plateNumber || "").toLowerCase().includes(q) ||
+                        (m.id || "").toLowerCase().includes(q) ||
+                        (m.chassisNumber || "").toLowerCase().includes(q) ||
+                        (m.regional || "").toLowerCase().includes(q)
+                      );
+                    });
 
-                          <div className="flex items-center gap-2 self-end md:self-auto shrink-0">
+                    const limit = 10;
+                    const totalItems = filtered.length;
+                    const pageCount = Math.ceil(totalItems / limit) || 1;
+                    const activePage = Math.max(1, Math.min(adminMemberPage, pageCount));
+                    const startIndex = (activePage - 1) * limit;
+                    const pageItems = filtered.slice(startIndex, startIndex + limit);
+
+                    return (
+                      <div className="space-y-4">
+                        {/* Search Input Bar */}
+                        <div className="relative">
+                          <input
+                            type="text"
+                            placeholder="Cari member berdasarkan Nama, No Plat, ID Member, No Chasis atau Regional..."
+                            value={adminMemberSearch}
+                            onChange={(e) => {
+                              setAdminMemberSearch(e.target.value);
+                              setAdminMemberPage(1); // reset to page 1
+                            }}
+                            className="w-full pl-9 pr-4 py-2 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:border-teal-500 focus:bg-white text-xs font-medium font-sans"
+                          />
+                          <div className="absolute inset-y-0 left-3 flex items-center justify-center text-zinc-400">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            </svg>
+                          </div>
+                          {adminMemberSearch && (
                             <button
                               onClick={() => {
-                                setEditingMemberId(m.id);
-                                setEditMemberForm({ ...m });
-                                setTimeout(() => {
-                                  const el = document.getElementById("edit-member-section-anchor");
-                                  if (el) el.scrollIntoView({ behavior: "smooth" });
-                                }, 50);
+                                setAdminMemberSearch("");
+                                setAdminMemberPage(1);
                               }}
-                              className="p-2 text-teal-650 hover:text-white bg-teal-50 hover:bg-teal-650 border border-teal-100 rounded-lg transition cursor-pointer"
-                              title="Edit Data Member"
+                              className="absolute inset-y-0 right-3 text-2xs text-zinc-400 hover:text-zinc-650 cursor-pointer font-bold"
                             >
-                              <Pencil className="w-4 h-4" />
+                              Batal
                             </button>
-
-                            <button
-                              onClick={() => handleDeleteMember(m.id, m.name)}
-                              className="p-2 text-red-600 hover:text-white bg-red-50 hover:bg-red-600 border border-red-100 rounded-lg transition cursor-pointer"
-                              title="Hapus / Nonaktifkan Member"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
+                          )}
                         </div>
-                      ))}
-                    </div>
-                  )}
+
+                        {totalItems === 0 ? (
+                          <p className="text-xs text-zinc-400 text-center py-6 font-medium font-sans">
+                            Tidak ada member yang cocok dengan pencarian Anda.
+                          </p>
+                        ) : (
+                          <>
+                            <div className="space-y-3 max-h-96 overflow-y-auto pr-1">
+                              {pageItems.map((m) => (
+                                <div
+                                  key={m.id}
+                                  className="p-3 rounded-xl bg-zinc-50 border border-zinc-200 flex flex-col md:flex-row md:items-center justify-between gap-4 text-xs"
+                                >
+                                  <div className="flex gap-3 items-center">
+                                    {m.hasOwnerPhoto ? (
+                                      <div className="w-10 h-12 rounded border border-teal-200 shrink-0 shadow-xs flex items-center justify-center bg-teal-50 text-teal-700 font-extrabold font-mono text-xs uppercase" title="Foto Profil Diunggah">
+                                        {m.name ? m.name.trim().split(/\s+/).map((n: string) => n[0]).slice(0, 2).join("") : "EV"}
+                                      </div>
+                                    ) : (
+                                      <img
+                                        src="/logo.png"
+                                        alt={m.name}
+                                        className="w-10 h-12 object-cover rounded border border-zinc-200 shrink-0 shadow-xs"
+                                        referrerPolicy="no-referrer"
+                                      />
+                                    )}
+                                    <div>
+                                      <p className="font-bold text-zinc-900 text-sm">{m.name}</p>
+                                      <p className="text-[10px] text-zinc-500">
+                                        ID: <strong className="text-zinc-800 font-mono text-[11px]">{m.id}</strong> | Plat: <strong className="text-teal-700 font-mono">{m.plateNumber}</strong>
+                                      </p>
+                                      <p className="text-[9px] text-zinc-400 font-mono">
+                                        Chasis: {m.chassisNumber} {m.birthDate ? `| Ultah: ${m.birthDate}` : ""} {m.regional ? `| ${m.regional}` : ""}
+                                      </p>
+                                    </div>
+                                  </div>
+
+                                  <div className="flex items-center gap-2 self-end md:self-auto shrink-0 flex-row">
+                                    <button
+                                      onClick={async () => {
+                                        try {
+                                          setLoading(true);
+                                          const res = await fetch(`/api/members/${encodeURIComponent(m.id)}`);
+                                          if (res.ok) {
+                                            const fullData = await res.json();
+                                            if (fullData && fullData.member) {
+                                              setEditingMemberId(m.id);
+                                              setEditMemberForm({ ...fullData.member });
+                                              setTimeout(() => {
+                                                const el = document.getElementById("edit-member-section-anchor");
+                                                if (el) el.scrollIntoView({ behavior: "smooth" });
+                                              }, 50);
+                                            } else {
+                                              showFeedback("Gagal memuat profil lengkap member.", true);
+                                            }
+                                          } else {
+                                            showFeedback("Data lengkap member tidak ditemukan.", true);
+                                          }
+                                        } catch (err) {
+                                          showFeedback("Gagal mengambil data lengkap dari server.", true);
+                                        } finally {
+                                          setLoading(false);
+                                        }
+                                      }}
+                                      className="p-2 text-teal-650 hover:text-white bg-teal-50 hover:bg-teal-650 border border-teal-100 rounded-lg transition cursor-pointer"
+                                      title="Edit Data Member"
+                                    >
+                                      <Pencil className="w-4 h-4" />
+                                    </button>
+
+                                    <button
+                                      onClick={() => handleDeleteMember(m.id, m.name)}
+                                      className="p-2 text-red-600 hover:text-white bg-red-50 hover:bg-red-600 border border-red-100 rounded-lg transition cursor-pointer"
+                                      title="Hapus / Nonaktifkan Member"
+                                    >
+                                      <Trash2 className="w-4 h-4" />
+                                    </button>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+
+                            {/* Pagination Controls */}
+                            {pageCount > 1 && (
+                              <div className="flex items-center justify-between border-t border-zinc-150 pt-3 text-xs">
+                                <button
+                                  type="button"
+                                  disabled={activePage === 1}
+                                  onClick={() => setAdminMemberPage(activePage - 1)}
+                                  className={`px-3 py-1.5 rounded-lg border font-bold transition duration-150 cursor-pointer text-2xs ${
+                                    activePage === 1
+                                      ? "bg-zinc-100 border-zinc-200 text-zinc-400 cursor-not-allowed"
+                                      : "bg-white border-zinc-250 text-zinc-700 hover:bg-zinc-50"
+                                  }`}
+                                >
+                                  Sebelumnya
+                                </button>
+                                <span className="text-zinc-500 font-sans font-semibold">
+                                  Halaman <strong>{activePage}</strong> dari <strong>{pageCount}</strong> <span className="text-zinc-400">({totalItems} member ditemukan)</span>
+                                </span>
+                                <button
+                                  type="button"
+                                  disabled={activePage === pageCount}
+                                  onClick={() => setAdminMemberPage(activePage + 1)}
+                                  className={`px-3 py-1.5 rounded-lg border font-bold transition duration-150 cursor-pointer text-2xs ${
+                                    activePage === pageCount
+                                      ? "bg-zinc-100 border-zinc-200 text-zinc-400 cursor-not-allowed"
+                                      : "bg-white border-zinc-250 text-zinc-700 hover:bg-zinc-50"
+                                  }`}
+                                >
+                                  Selanjutnya
+                                </button>
+                              </div>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 {/* INTERACTIVE MEMBER EDITING PANEL (ADMIN ONLY) */}
