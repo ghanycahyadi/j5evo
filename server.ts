@@ -430,6 +430,22 @@ function migrateDatabaseImages() {
           modified = true;
         }
       }
+      if (sp.products && Array.isArray(sp.products)) {
+        sp.products.forEach((p, pIdx) => {
+          if (p.photos && Array.isArray(p.photos)) {
+            p.photos = p.photos.map((photo: any, phIdx: number) => {
+              if (typeof photo === "string" && photo.startsWith("data:image/")) {
+                const result = saveBase64Image(photo, `sponsor_${sp.id || idx}_product_${p.id || pIdx}_photo_${phIdx}`);
+                if (result !== photo) {
+                  modified = true;
+                  return result;
+                }
+              }
+              return photo;
+            });
+          }
+        });
+      }
     });
   }
 
@@ -1465,6 +1481,14 @@ async function startServer() {
     const data = loadDatabase();
     if (!data.sponsors) data.sponsors = [];
     const spId = `sp_${Date.now()}`;
+    const processedProducts = Array.isArray(products)
+      ? products.map((p, pIdx) => {
+          const processedPhotos = Array.isArray(p.photos)
+            ? p.photos.map((photo, phIdx) => saveBase64Image(photo, `sponsor_${spId}_product_${p.id || pIdx}_photo_${phIdx}`))
+            : [];
+          return { ...p, photos: processedPhotos };
+        })
+      : [];
     const newSponsor = {
       id: spId,
       name,
@@ -1473,7 +1497,7 @@ async function startServer() {
       description: description || "",
       username: username || "",
       password: password || "",
-      products: products || []
+      products: processedProducts
     };
     data.sponsors.push(newSponsor);
     saveDatabase(data);
@@ -1496,7 +1520,16 @@ async function startServer() {
       sponsor.logo = saveBase64Image(logo, `sponsor_${req.params.id}_logo`);
     }
     if (description !== undefined) sponsor.description = description;
-    if (products !== undefined) sponsor.products = products;
+    if (products !== undefined) {
+      sponsor.products = Array.isArray(products)
+        ? products.map((p, pIdx) => {
+            const processedPhotos = Array.isArray(p.photos)
+              ? p.photos.map((photo, phIdx) => saveBase64Image(photo, `sponsor_${req.params.id}_product_${p.id || pIdx}_photo_${phIdx}`))
+              : [];
+            return { ...p, photos: processedPhotos };
+          })
+        : [];
+    }
     if (username !== undefined) sponsor.username = username;
     if (password !== undefined) sponsor.password = password;
     
