@@ -296,6 +296,152 @@ function saveDatabase(data: DatabaseSchema) {
   }
 }
 
+// Ensure local uploads folder exists for static files
+const ensureUploadsDir = () => {
+  const uploadsDir = path.join(process.cwd(), "uploads");
+  if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+  }
+};
+
+// Decodes a base64 string, writes it into local filesystem under /uploads/, and returns the file path
+function saveBase64Image(base64Str: string | any, prefix: string): string {
+  if (typeof base64Str !== "string" || !base64Str.startsWith("data:image/")) {
+    return base64Str;
+  }
+
+  try {
+    ensureUploadsDir();
+
+    // Parse base64 header (e.g. data:image/jpeg;base64,xxxx or data:image/png;base64,xxxx)
+    const matches = base64Str.match(/^data:([a-zA-Z0-9]+\/[a-zA-Z0-9-.+]+);base64,(.+)$/);
+    if (!matches || matches.length !== 3) {
+      return base64Str;
+    }
+
+    const mimeType = matches[1];
+    const base64Data = matches[2];
+    
+    // Determine the safe file extension
+    let ext = "jpg";
+    if (mimeType.includes("png")) ext = "png";
+    else if (mimeType.includes("gif")) ext = "gif";
+    else if (mimeType.includes("webp")) ext = "webp";
+    else if (mimeType.includes("svg")) ext = "svg";
+
+    // Sanitize prefix to avoid path traversal issues
+    const safePrefix = prefix.replace(/[^a-zA-Z0-9_-]/g, "_");
+    const filename = `${safePrefix}_${Date.now()}_${Math.floor(Math.random() * 10000)}.${ext}`;
+    const filePath = path.join(process.cwd(), "uploads", filename);
+
+    // Write file to filesystem
+    const buffer = Buffer.from(base64Data, "base64");
+    fs.writeFileSync(filePath, buffer);
+
+    console.log(`[Uploads] Successfully saved base64 image as /uploads/${filename}`);
+    return `/uploads/${filename}`;
+  } catch (err) {
+    console.error(`[Uploads] Failed to save base64 image:`, err);
+    return base64Str; // fallback to original input if failure occurs
+  }
+}
+
+// Background utility to scan database and extract embedded legacy base64 images into physical files
+function migrateDatabaseImages() {
+  console.log(`[Migration] Scanning for legacy base64 images in database...`);
+  const data = loadDatabase();
+  let modified = false;
+
+  // 1. Migrate members
+  if (data.members && Array.isArray(data.members)) {
+    data.members.forEach((m) => {
+      if (m.ownerPhoto && typeof m.ownerPhoto === "string" && m.ownerPhoto.startsWith("data:image/")) {
+        const result = saveBase64Image(m.ownerPhoto, `member_${m.id}_owner`);
+        if (result !== m.ownerPhoto) {
+          m.ownerPhoto = result;
+          modified = true;
+        }
+      }
+      if (m.carPhoto && typeof m.carPhoto === "string" && m.carPhoto.startsWith("data:image/")) {
+        const result = saveBase64Image(m.carPhoto, `member_${m.id}_car`);
+        if (result !== m.carPhoto) {
+          m.carPhoto = result;
+          modified = true;
+        }
+      }
+    });
+  }
+
+  // 2. Migrate events
+  if (data.events && Array.isArray(data.events)) {
+    data.events.forEach((evt) => {
+      if (evt.image && typeof evt.image === "string" && evt.image.startsWith("data:image/")) {
+        const result = saveBase64Image(evt.image, `event_${evt.id}_banner`);
+        if (result !== evt.image) {
+          evt.image = result;
+          modified = true;
+        }
+      }
+      if (evt.galleryImages && Array.isArray(evt.galleryImages)) {
+        evt.galleryImages = evt.galleryImages.map((gImg, idx) => {
+          if (typeof gImg === "string" && gImg.startsWith("data:image/")) {
+            const result = saveBase64Image(gImg, `event_${evt.id}_gallery_${idx}`);
+            if (result !== gImg) {
+              modified = true;
+              return result;
+            }
+          }
+          return gImg;
+        });
+      }
+    });
+  }
+
+  // 3. Migrate slider images or other homeContent images
+  if (data.homeContent) {
+    if (data.homeContent.slides && Array.isArray(data.homeContent.slides)) {
+      data.homeContent.slides = data.homeContent.slides.map((slide, idx) => {
+        if (typeof slide === "string" && slide.startsWith("data:image/")) {
+          const result = saveBase64Image(slide, `home_slide_${idx}`);
+          if (result !== slide) {
+            modified = true;
+            return result;
+          }
+        }
+        return slide;
+      });
+    }
+    if (data.homeContent.emblemLogo && typeof data.homeContent.emblemLogo === "string" && data.homeContent.emblemLogo.startsWith("data:image/")) {
+      const result = saveBase64Image(data.homeContent.emblemLogo, "home_emblem_logo");
+      if (result !== data.homeContent.emblemLogo) {
+        data.homeContent.emblemLogo = result;
+        modified = true;
+      }
+    }
+  }
+
+  // 4. Migrate sponsors
+  if (data.sponsors && Array.isArray(data.sponsors)) {
+    data.sponsors.forEach((sp, idx) => {
+      if (sp.logo && typeof sp.logo === "string" && sp.logo.startsWith("data:image/")) {
+        const result = saveBase64Image(sp.logo, `sponsor_${sp.id || idx}_logo`);
+        if (result !== sp.logo) {
+          sp.logo = result;
+          modified = true;
+        }
+      }
+    });
+  }
+
+  if (modified) {
+    console.log(`[Migration] Legacy base64 images successfully extracted! Porting changes to db.json...`);
+    saveDatabase(data);
+    console.log(`[Migration] db.json updated and dramatically optimized!`);
+  } else {
+    console.log(`[Migration] Scanning complete. No legacy base64 images found or already fully migrated.`);
+  }
+}
+
 async function startServer() {
   const app = express();
   
@@ -306,6 +452,9 @@ async function startServer() {
   // Ensure DB file is initialized
   const db = loadDatabase();
   console.log(`Initialized database with ${db.members.length} members and ${db.events.length} events.`);
+
+  // Execute automatic image extraction migration to physical filesystem under /uploads/
+  migrateDatabaseImages();
 
   // =====================================
   // API ENDPOINTS
@@ -463,8 +612,8 @@ async function startServer() {
       regional,
       plateNumber: plateNumber.toUpperCase(),
       chassisNumber: chassisNumber.toUpperCase(),
-      carPhoto: carPhoto || CAR_PHOTOS.defaultTeal,
-      ownerPhoto: ownerPhoto || "", // Option default handler will fallback to avatar
+      carPhoto: saveBase64Image(carPhoto || CAR_PHOTOS.defaultTeal, `member_${generatedId}_car`),
+      ownerPhoto: saveBase64Image(ownerPhoto || "", `member_${generatedId}_owner`),
       registeredAt: now.toISOString(),
       email: email,
       pin: pin,
@@ -595,7 +744,7 @@ async function startServer() {
       if (!ownerPhoto || typeof ownerPhoto !== "string" || ownerPhoto.trim() === "") {
         return res.status(400).json({ error: "Foto Profil Pemilik Kendaraan wajib diunggah/mandatory dan tidak boleh kosong!" });
       }
-      member.ownerPhoto = ownerPhoto;
+      member.ownerPhoto = saveBase64Image(ownerPhoto, `member_${memberId}_owner`);
     }
     if (membershipTier !== undefined) {
       member.membershipTier = membershipTier; // 'GOLD' | 'SILVER'
@@ -646,13 +795,14 @@ async function startServer() {
     }
 
     const data = loadDatabase();
+    const newEventId = `evt_${Date.now()}`;
     const newEvent: CommunityEvent = {
-      id: `evt_${Date.now()}`,
+      id: newEventId,
       title,
       description: description || "Belum ada deskripsi untuk kegiatan ini.",
       date,
       location,
-      image: image || "https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=800&q=80",
+      image: saveBase64Image(image || "https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=800&q=80", `event_${newEventId}_banner`),
       status: "upcoming", // default to upcoming so registered members can register
       slots: slots ? parseInt(slots) : 30,
       time: time || "09:00 - Selesai",
@@ -682,11 +832,17 @@ async function startServer() {
     if (description !== undefined) event.description = description;
     if (date !== undefined) event.date = date;
     if (location !== undefined) event.location = location;
-    if (image !== undefined) event.image = image;
+    if (image !== undefined) {
+      event.image = saveBase64Image(image, `event_${eventId}_banner`);
+    }
     if (slots !== undefined) event.slots = parseInt(slots);
     if (time !== undefined) event.time = time;
     if (status !== undefined) event.status = status;
-    if (galleryImages !== undefined) event.galleryImages = galleryImages;
+    if (galleryImages !== undefined) {
+      event.galleryImages = Array.isArray(galleryImages)
+        ? galleryImages.map((img, i) => saveBase64Image(img, `event_${eventId}_gallery_${i}`))
+        : [];
+    }
 
     // Synchronize attendance / registrations for this event if passed
     if (Array.isArray(registrations)) {
@@ -1308,11 +1464,12 @@ async function startServer() {
     if (!name) return res.status(400).json({ error: "Nama sponsor wajib diisi" });
     const data = loadDatabase();
     if (!data.sponsors) data.sponsors = [];
+    const spId = `sp_${Date.now()}`;
     const newSponsor = {
-      id: `sp_${Date.now()}`,
+      id: spId,
       name,
       contact: contact || "",
-      logo: logo || "https://images.unsplash.com/photo-1622560480605-d83c853bc5c3?auto=format&fit=crop&w=200&q=80",
+      logo: saveBase64Image(logo || "https://images.unsplash.com/photo-1622560480605-d83c853bc5c3?auto=format&fit=crop&w=200&q=80", `sponsor_${spId}_logo`),
       description: description || "",
       username: username || "",
       password: password || "",
@@ -1335,7 +1492,9 @@ async function startServer() {
     const sponsor = data.sponsors[sponsorIndex];
     if (name !== undefined) sponsor.name = name;
     if (contact !== undefined) sponsor.contact = contact;
-    if (logo !== undefined) sponsor.logo = logo;
+    if (logo !== undefined) {
+      sponsor.logo = saveBase64Image(logo, `sponsor_${req.params.id}_logo`);
+    }
     if (description !== undefined) sponsor.description = description;
     if (products !== undefined) sponsor.products = products;
     if (username !== undefined) sponsor.username = username;
@@ -1514,7 +1673,7 @@ async function startServer() {
     }
     const data = loadDatabase();
     if (!data.homeContent) data.homeContent = { ...DEFAULT_HOME_CONTENT };
-    data.homeContent.slides = slides;
+    data.homeContent.slides = slides.map((slide, idx) => saveBase64Image(slide, `home_slide_${idx}`));
     saveDatabase(data);
     res.json({ success: true, slides: data.homeContent.slides });
   });
@@ -1533,8 +1692,14 @@ async function startServer() {
     if (emblemTitle !== undefined) data.homeContent.emblemTitle = emblemTitle;
     if (emblemDesc !== undefined) data.homeContent.emblemDesc = emblemDesc;
     if (emblemWatermark !== undefined) data.homeContent.emblemWatermark = emblemWatermark;
-    if (emblemLogo !== undefined) data.homeContent.emblemLogo = emblemLogo;
-    if (slides !== undefined) data.homeContent.slides = slides;
+    if (emblemLogo !== undefined) {
+      data.homeContent.emblemLogo = saveBase64Image(emblemLogo, "home_emblem_logo");
+    }
+    if (slides !== undefined) {
+      data.homeContent.slides = Array.isArray(slides)
+        ? slides.map((slide, idx) => saveBase64Image(slide, `home_slide_${idx}`))
+        : slides;
+    }
     if (dealers !== undefined) data.homeContent.dealers = dealers;
     
     saveDatabase(data);
@@ -1547,6 +1712,9 @@ async function startServer() {
   // =====================================
   // VITE & STATIC FILES SERVING INTERACTION
   // =====================================
+
+  // Serve uploaded images statically
+  app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
