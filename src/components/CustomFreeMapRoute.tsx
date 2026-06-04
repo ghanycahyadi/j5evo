@@ -1236,7 +1236,7 @@ export default function CustomFreeMapRoute({
             {/* Header with Larger Floating J5 Evo logo badge */}
             <div className="border-b border-white/[0.08] pb-4 text-center space-y-3.5 flex flex-col items-center justify-center">
               <div className="relative">
-                <div className="absolute -inset-1.5 bg-gradient-to-r from-emerald-500 to-cyan-500 rounded-full blur-md opacity-75 animate-pulse" />
+                <div className="absolute -inset-1.5 bg-gradient-to-r from-emerald-500 to-cyan-500 rounded-full blur-md opacity-75" />
                 <div className="relative bg-[#09090b] rounded-full p-3.5 border border-emerald-500/30">
                   <J5EvoLogo className="w-14 h-14 transform hover:scale-110 hover:rotate-12 transition duration-500 cursor-pointer" color="#10b981" bgFill="#09090b" />
                 </div>
@@ -1286,15 +1286,15 @@ export default function CustomFreeMapRoute({
                   <div className="absolute left-6 right-6 top-[28px] h-0.5 bg-gradient-to-r from-emerald-500 via-emerald-400 to-cyan-400 z-0" />
 
                   {/* Starting check */}
-                  <div className="relative z-10 flex flex-col items-center space-y-1 flex-shrink-0">
-                    <div className="relative z-10 w-10 h-10 rounded-full bg-[#022c22] border-2 border-emerald-500 flex items-center justify-center text-sm shadow-xl shadow-emerald-950/40">
+                  <div className="relative z-10 flex flex-col items-center space-y-1 flex-shrink-0 w-[95px]">
+                    <div className="relative z-20 w-10 h-10 rounded-full bg-[#022c22] border-2 border-emerald-500 flex items-center justify-center text-sm shadow-xl shadow-emerald-950/40">
                       📍
                     </div>
-                    <div className="text-center relative z-10">
-                      <span className="text-[10px] font-black text-white block truncate max-w-[85px] uppercase">
+                    <div className="text-center relative z-10 px-1 flex flex-col items-center justify-start w-full">
+                      <span className="text-[8.5px] font-black text-white block uppercase leading-[1.1] text-center" style={{ display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
                         {originPlace ? originPlace.display_name.split(",")[0].trim() : originInput.split(",")[0].trim() || "Start"}
                       </span>
-                      <span className="text-[8px] font-mono text-emerald-400 font-extrabold block">
+                      <span className="text-[8px] font-mono text-emerald-400 font-extrabold block mt-0.5">
                         SOC {socAtStart}%
                       </span>
                     </div>
@@ -1302,15 +1302,15 @@ export default function CustomFreeMapRoute({
 
                   {/* SPKLU Charging Stops */}
                   {activeTimeline.filter(item => item.type === "spklu" && item.isCharging).map((item) => (
-                    <div key={item.id} className="relative z-10 flex flex-col items-center space-y-1 flex-shrink-0">
-                      <div className="relative z-10 w-10 h-10 rounded-full bg-[#451a03] border-2 border-amber-500 flex items-center justify-center text-sm shadow-xl shadow-amber-950/40 animate-pulse">
+                    <div key={item.id} className="relative z-10 flex flex-col items-center space-y-1 flex-shrink-0 w-[95px]">
+                      <div className="relative z-20 w-10 h-10 rounded-full bg-[#451a03] border-2 border-amber-500 flex items-center justify-center text-sm shadow-xl shadow-amber-950/40">
                         🔌
                       </div>
-                      <div className="text-center relative z-10">
-                        <span className="text-[10px] font-black text-amber-200 block truncate max-w-[85px] uppercase">
-                          {item.name.replace("SPKLU", "").trim().substring(0, 15)}
+                      <div className="text-center relative z-10 px-1 flex flex-col items-center justify-start w-full">
+                        <span className="text-[8.5px] font-black text-amber-200 block uppercase leading-[1.1] text-center" style={{ display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                          {item.name.replace("SPKLU", "").trim()}
                         </span>
-                        <span className="text-[8px] font-mono text-emerald-400 block font-black leading-none">
+                        <span className="text-[8px] font-mono text-emerald-400 block font-black leading-none mt-0.5">
                           {item.distanceFromStart.toFixed(0)} KM
                         </span>
                         <span className="text-[8px] font-mono text-amber-300 block font-bold leading-tight mt-0.5">
@@ -1321,15 +1321,15 @@ export default function CustomFreeMapRoute({
                   ))}
 
                   {/* Destination */}
-                  <div className="relative z-10 flex flex-col items-center space-y-1 flex-shrink-0">
-                    <div className="relative z-10 w-10 h-10 rounded-full bg-[#083344] border-2 border-cyan-500 flex items-center justify-center text-sm shadow-xl shadow-cyan-950/40">
+                  <div className="relative z-10 flex flex-col items-center space-y-1 flex-shrink-0 w-[95px]">
+                    <div className="relative z-20 w-10 h-10 rounded-full bg-[#083344] border-2 border-cyan-500 flex items-center justify-center text-sm shadow-xl shadow-cyan-950/40">
                       🏆
                     </div>
-                    <div className="text-center relative z-10">
-                      <span className="text-[10px] font-black text-white block truncate max-w-[85px] uppercase">
+                    <div className="text-center relative z-10 px-1 flex flex-col items-center justify-start w-full">
+                      <span className="text-[8.5px] font-black text-white block uppercase leading-[1.1] text-center" style={{ display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
                         {destPlace ? destPlace.display_name.split(",")[0].trim() : destInput.split(",")[0].trim() || "Tujuan"}
                       </span>
-                      <span className="text-[8px] font-mono text-cyan-300 font-extrabold block">
+                      <span className="text-[8px] font-mono text-cyan-300 font-extrabold block mt-0.5">
                         Tiba: {activeTimeline[activeTimeline.length - 1]?.socArrival}%
                       </span>
                     </div>
