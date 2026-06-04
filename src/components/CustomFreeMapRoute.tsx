@@ -83,6 +83,11 @@ const SPKLU_DATABASE: SpkluDbItem[] = [
   { id: "spklu_km389b", name: "SPKLU Rest Area KM 389B Batang", location: "Tol Batang - Semarang KM 389B", lat: -6.9654, lon: 109.9321, type: "Ultra-Fast DC", capacity: "120 kW", note: "Cocok untuk top-up sembari santap malam pecel." },
   { id: "spklu_km429a", name: "SPKLU Rest Area KM 429A Solo", location: "Tol Semarang - Solo KM 429A", lat: -7.1415, lon: 110.4325, type: "Fast DC", capacity: "60 kW", note: "Terletak di ketinggian sejuk dengan tempat ibadah arsitektur indah." },
   { id: "spklu_km519a", name: "SPKLU Rest Area KM 519A Ngawi", location: "Tol Solo - Ngawi KM 519A", lat: -7.4112, lon: 111.1215, type: "Ultra-Fast DC", capacity: "120 kW", note: "Stasiun krusial di pusat sabuk penyeberangan Jawa Timur." },
+  { id: "spklu_km575a", name: "SPKLU Rest Area KM 575A Ngawi", location: "Tol Solo - Ngawi KM 575A", lat: -7.4252, lon: 111.3524, type: "Ultra-Fast DC", capacity: "120 kW", note: "Fasilitas lengkap dengan food court nyaman di kawasan Ngawi." },
+  { id: "spklu_km626a", name: "SPKLU Rest Area KM 626A Madiun", location: "Tol Ngawi - Kertosono KM 626A", lat: -7.5312, lon: 111.6432, type: "Fast DC", capacity: "60 kW", note: "Pemberhentian sejuk di perbatasan Madiun, andalan pengisian daya Jawa Timur Tengah." },
+  { id: "spklu_km725a", name: "SPKLU Rest Area KM 725A Mojokerto", location: "Tol Mojokerto - Surabaya KM 725A", lat: -7.3421, lon: 112.5115, type: "Ultra-Fast DC", capacity: "120 kW", note: "Lokasi strategis sebelum memasuki wilayah metropolitan Surabaya dan percabangan Malang." },
+  { id: "spklu_km84a", name: "SPKLU Rest Area KM 84A Pandaan", location: "Tol Gempol - Pandaan KM 84A (Arah Malang)", lat: -7.6685, lon: 112.6912, type: "Fast DC", capacity: "50 kW", note: "Rest area terakhir yang sangat sejuk, sangat pas untuk top-up sebelum mendaki ke Malang." },
+  { id: "spklu_up3_malang", name: "SPKLU PLN UP3 Malang", location: "Jl. Jend. Basic Rahmat No.100, Klojen, Malang", lat: -7.9782, lon: 112.6285, type: "Fast DC", capacity: "50 kW", note: "Stasiun pusat isi daya di tengah Kota Malang, dekat kawasan Alun-Alun." },
   { id: "spklu_ketapang", name: "SPKLU ASDP Ketapang Banyuwangi", location: "Pelabuhan Ketapang, Banyuwangi", lat: -8.1342, lon: 114.3942, type: "Ultra-Fast DC", capacity: "120 kW", note: "Isi hingga 85% untuk jaminan penyeberangan laut feri aman menuju Pulau Bali." }
 ];
 
@@ -438,8 +443,8 @@ export default function CustomFreeMapRoute({
         closestPointIndex
       };
     })
-    // List only SPKLUs situated within 15 km threshold from any point of the driving route
-    .filter(item => item.distanceToRoute <= 15)
+    // List only SPKLUs situated within 30 km threshold from any point of the driving route to account for toll roads or bypasses
+    .filter(item => item.distanceToRoute <= 30)
     // Sort chronologically based on when the car naturally passes them on the road!
     .sort((a, b) => a.closestPointIndex - b.closestPointIndex);
   }, [routePoints]);
@@ -681,32 +686,51 @@ export default function CustomFreeMapRoute({
       return { autoStops };
     }
 
-    // Auto Recommended Stops Optimizer System
-    let currentAutoSoc = socAtStart;
-    let lastAutoStopDist = 0;
-
-    for (let i = 0; i < finalSpklusToUse.length; i++) {
-      const spklu = finalSpklusToUse[i];
-      const distFromLast = spklu.distanceFromStart - lastAutoStopDist;
-      const loss = (distFromLast * efficiency) / JAECOO_EV_SPECS.batteryCapacityKwh;
-      const arrivalSoc = currentAutoSoc - loss;
-
-      const nextMilestoneDist = (i < finalSpklusToUse.length - 1)
-        ? finalSpklusToUse[i + 1].distanceFromStart
-        : totalDist;
-
-      const distToNext = nextMilestoneDist - spklu.distanceFromStart;
-      const lossToNext = (distToNext * efficiency) / JAECOO_EV_SPECS.batteryCapacityKwh;
-      const projectSocAtNextNoCharge = arrivalSoc - lossToNext;
-
-      // If battery is projected to go below safety threshold before reaching next milestone, force stop!
-      if (arrivalSoc <= socSafetyLimit || projectSocAtNextNoCharge < socSafetyLimit) {
-        autoStops.push(spklu.id);
-        currentAutoSoc = 80; // Standard fast DC limit
-        lastAutoStopDist = spklu.distanceFromStart;
-      } else {
-        currentAutoSoc = arrivalSoc;
+    // Robust Greedy EV charging algorithm: maximizes driving distance per leg
+    let currentSoc = socAtStart;
+    let currentPos = 0;
+    
+    while (true) {
+      // Can we reach the destination directly?
+      const distToDest = totalDist - currentPos;
+      const lossToDest = (distToDest * efficiency) / JAECOO_EV_SPECS.batteryCapacityKwh;
+      if (currentSoc - lossToDest >= socSafetyLimit) {
+        break; // Yes, we can reach the destination safely!
       }
+      
+      // If we cannot reach destination, find the candidate SPKLUs that are ahead of our current position
+      const candidates = finalSpklusToUse.filter(spklu => spklu.distanceFromStart > currentPos);
+      if (candidates.length === 0) {
+        break; // No more stations ahead
+      }
+      
+      // Of these candidates, which ones can be reached safely (arrivalSoc >= socSafetyLimit)?
+      const safeCandidates = candidates.filter(spklu => {
+        const dist = spklu.distanceFromStart - currentPos;
+        const loss = (dist * efficiency) / JAECOO_EV_SPECS.batteryCapacityKwh;
+        return (currentSoc - loss) >= socSafetyLimit;
+      });
+      
+      let stopSpklu = null;
+      if (safeCandidates.length > 0) {
+        // Stop at the furthest safe station
+        stopSpklu = safeCandidates[safeCandidates.length - 1];
+      } else {
+        // If no station can be reached safely, we must stop at the VERY FIRST candidate station to charge, 
+        // even if we arrive below safety limit, to avoid complete depletion
+        stopSpklu = candidates[0];
+      }
+      
+      // Add to autoStops
+      autoStops.push(stopSpklu.id);
+      
+      // Update our state for the next leg after charging
+      const distToStop = stopSpklu.distanceFromStart - currentPos;
+      const lossToStop = (distToStop * efficiency) / JAECOO_EV_SPECS.batteryCapacityKwh;
+      const arrivalSoc = Math.max(0, currentSoc - lossToStop);
+      
+      currentPos = stopSpklu.distanceFromStart;
+      currentSoc = Math.max(80, arrivalSoc); // Charge up to standard fast DC limit (at least 80%)
     }
 
     return { autoStops };
@@ -1363,7 +1387,7 @@ export default function CustomFreeMapRoute({
               <div className="flex justify-between font-bold">
                 <span className="text-zinc-400">Rekomendasi Stop Pengisian:</span>
                 <span className="font-mono font-black text-amber-300 text-xs">
-                  {routeDistanceKm !== null ? (metrics.chargingStopsNumber === 0 ? "Tanpa Berhenti (Cukup)" : `${metrics.chargingStopsNumber}x Stop DC`) : "Belum ditentukan"}
+                  {routeDistanceKm !== null ? (simulatedChargeStops.length === 0 ? "Tanpa Berhenti (Cukup)" : `${simulatedChargeStops.length}x Stop DC`) : "Belum ditentukan"}
                 </span>
               </div>
 
