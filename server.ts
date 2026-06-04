@@ -85,7 +85,43 @@ const DEFAULT_HOME_CONTENT = {
   emblemDesc: "Logo resmi Tameng J5 Evo melambangkan ketahanan baterai (Tameng Hijau), keamanan ADAS 2+, dan kekuatan sinergi seluruh member JAECOO Indonesia.",
   emblemWatermark: "OFFICIAL J5 EVO MEMBER",
   emblemLogo: "",
-  slides: [] as string[]
+  slides: [] as string[],
+  dealers: [
+    {
+      id: "dl-1",
+      name: "JAECOO ANDALAN MAMPANG",
+      address: "Jl. Mampang Prapatan Raya, No. 20, Desa/Kelurahan Tegal Parang, Kec. Mampang Prapatan, Kota Adm. Jakarta Selatan, Provinsi DKI Jakarta, Kode Pos: 12790",
+      mapsUrl: "https://maps.google.com/?q=Jaecoo+Andalan+Mampang,+Jl.+Mampang+Prapatan+Raya+No.20,+Tegal+Parang,+Mampang+Prapatan,+South+Jakarta+City,+Jakarta+12790"
+    },
+    {
+      id: "dl-2",
+      name: "JAECOO 1S ANDALAN SCBD PARK (COMING SOON)",
+      address: "Sudirman Central Business District (SCBD, Jl. Jend. Sudirman kav 52-53 No.LOT 6-8, RT.5/RW.1, Senayan, Kec. Kby. Baru, Daerah Khusus Ibukota Jakarta 12190",
+      isComingSoon: true,
+      mapsUrl: "https://maps.google.com/?q=SCBD+Park,+Senayan,+Kebayoran+Baru,+South+Jakarta+City,+Jakarta+12190"
+    },
+    {
+      id: "dl-3",
+      name: "JAECOO ANDALAN SUMMARECON BEKASI (COMING SOON)",
+      address: "AXC Summarecon Bekasi Blok VA10 - VA11, Jl. Bulevar Timur Rt. 003 Rw. 002, Marga Mulya, Bekasi Utara, Kota Bekasi, Jawa Barat 17142",
+      isComingSoon: true,
+      mapsUrl: "https://maps.google.com/?q=AXC+Summarecon+Bekasi,+Marga+Mulya,+Bekasi+Utara,+Bekasi+City,+West+Java+17142"
+    },
+    {
+      id: "dl-4",
+      name: "JAECOO ANDALAN TANGERANG BSD (COMING SOON)",
+      address: "Jl. BSD Boulevard Utara, Lengkong Kulon, Kec. Pagedangan, Kabupaten Tangerang, Banten 15331",
+      isComingSoon: true,
+      mapsUrl: "https://maps.google.com/?q=BSD+Boulevard+Utara,+Lengkong+Kulon,+Pagedangan,+Tangerang+Regency,+Banten+15331"
+    },
+    {
+      id: "dl-5",
+      name: "JAECOO ANDALAN SURABAYA GUBENG (COMING SOON)",
+      address: "Jl. Raya Gubeng No. 17, Gubeng, Kec. Gubeng, Kota Surabaya, Jawa Timur 60281",
+      isComingSoon: true,
+      mapsUrl: "https://maps.google.com/?q=Jl.+Raya+Gubeng+No.17,+Gubeng,+Kec.+Gubeng,+Surabaya,+East+Java+60281"
+    }
+  ] as any[]
 };
 
 const DEFAULT_SPONSORS = [
@@ -1486,7 +1522,7 @@ async function startServer() {
 
   // POST & PUT update home page content
   const handleUpdateHomeContent = (req, res) => {
-    const { heroTitle, heroSubtitle, aboutTitle, aboutDescription, heroBadge, emblemTitle, emblemDesc, emblemWatermark, emblemLogo, slides } = req.body;
+    const { heroTitle, heroSubtitle, aboutTitle, aboutDescription, heroBadge, emblemTitle, emblemDesc, emblemWatermark, emblemLogo, slides, dealers } = req.body;
     const data = loadDatabase();
     if (!data.homeContent) data.homeContent = { ...DEFAULT_HOME_CONTENT };
     
@@ -1500,6 +1536,7 @@ async function startServer() {
     if (emblemWatermark !== undefined) data.homeContent.emblemWatermark = emblemWatermark;
     if (emblemLogo !== undefined) data.homeContent.emblemLogo = emblemLogo;
     if (slides !== undefined) data.homeContent.slides = slides;
+    if (dealers !== undefined) data.homeContent.dealers = dealers;
     
     saveDatabase(data);
     res.json({ success: true, homeContent: data.homeContent });

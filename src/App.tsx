@@ -42,7 +42,8 @@ import {
   Cake,
   Globe,
   ChevronLeft,
-  Settings
+  Settings,
+  ChevronUp
 } from "lucide-react";
 import Header from "./components/Header";
 import Hero from "./components/Hero";
@@ -55,7 +56,9 @@ import AdminAttendance from "./components/AdminAttendance";
 import AdminSocials from "./components/AdminSocials";
 import AdminFaq from "./components/AdminFaq";
 import HomeCarousel from "./components/HomeCarousel";
+import SupportingDealers from "./components/SupportingDealers";
 import AdminManager from "./components/AdminManager";
+import EvCalculator from "./components/EvCalculator";
 import { toPng } from "html-to-image";
 import { Member, CommunityEvent, EventRegistration, DashboardStats, FAQ } from "./types";
 import { formatDate, CAR_PHOTOS, getGoogleMapsUrl, compressImage } from "./utils";
@@ -77,6 +80,14 @@ const J5_NEWS: NewsArticle[] = [
 export default function App() {
   const [activeTab, setActiveTabState] = useState<string>(() => {
     try {
+      const path = window.location.pathname;
+      if (path === "/beranda") return "home";
+      if (path === "/register") return "register-member";
+      if (path === "/profil") return "membership-lookup";
+      if (path === "/sponsor") return "sponsor";
+      if (path === "/kalkulator") return "trip-calculator";
+      if (path === "/kegiatan" || path === "/events") return "events";
+      if (path === "/admin-dashboard") return "admin-dashboard";
       return sessionStorage.getItem("activeTab") || "home";
     } catch (e) {
       return "home";
@@ -88,6 +99,24 @@ export default function App() {
     try {
       sessionStorage.setItem("activeTab", tab);
     } catch (e) {}
+
+    // Synchronize URL path with selected tab
+    try {
+      let targetPath = "/beranda";
+      if (tab === "home") targetPath = "/beranda";
+      else if (tab === "register-member") targetPath = "/register";
+      else if (tab === "membership-lookup") targetPath = "/profil";
+      else if (tab === "sponsor") targetPath = "/sponsor";
+      else if (tab === "trip-calculator") targetPath = "/kalkulator";
+      else if (tab === "events") targetPath = "/kegiatan";
+      else if (tab === "admin-dashboard") targetPath = "/admin-dashboard";
+
+      if (window.location.pathname !== targetPath) {
+        window.history.pushState({ tab }, "", targetPath);
+      }
+    } catch (e) {
+      console.warn("Failed to pushState:", e);
+    }
   };
 
   const [isAdmin, setIsAdminState] = useState<boolean>(() => {
@@ -188,6 +217,7 @@ export default function App() {
   // Loading & Action indicators
   const [loading, setLoading] = useState<boolean>(false);
   const [feedbackMessage, setFeedbackMessage] = useState<{ text: string; isError: boolean } | null>(null);
+  const [showScrollTop, setShowScrollTop] = useState(false);
 
   const [confirmDialog, setConfirmDialog] = useState<{
     isOpen: boolean;
@@ -386,6 +416,61 @@ export default function App() {
     setGalleryItems([]);
   }, [events]);
 
+  useEffect(() => {
+    const handleScroll = () => {
+      if (window.scrollY > 300) {
+        setShowScrollTop(true);
+      } else {
+        setShowScrollTop(false);
+      }
+    };
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  // Listen to browser Back/Forward (popstate) to change active tab
+  useEffect(() => {
+    const handlePopState = () => {
+      try {
+        const path = window.location.pathname;
+        let tab = "home";
+        if (path === "/beranda") tab = "home";
+        else if (path === "/register") tab = "register-member";
+        else if (path === "/profil") tab = "membership-lookup";
+        else if (path === "/sponsor") tab = "sponsor";
+        else if (path === "/kalkulator") tab = "trip-calculator";
+        else if (path === "/kegiatan" || path === "/events") tab = "events";
+        else if (path === "/admin-dashboard") tab = "admin-dashboard";
+        else return;
+
+        setActiveTabState(tab);
+      } catch (e) {}
+    };
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
+
+  // Sync initial slash path / empty path to /beranda
+  useEffect(() => {
+    try {
+      const path = window.location.pathname;
+      let targetPath = "";
+      if (path === "/" || path === "") {
+        targetPath = "/beranda";
+      } else if (path === "/beranda") targetPath = "/beranda";
+      else if (path === "/register") targetPath = "/register";
+      else if (path === "/profil") targetPath = "/profil";
+      else if (path === "/sponsor") targetPath = "/sponsor";
+      else if (path === "/kalkulator") targetPath = "/kalkulator";
+      else if (path === "/kegiatan" || path === "/events") targetPath = "/kegiatan";
+      else if (path === "/admin-dashboard") targetPath = "/admin-dashboard";
+
+      if (targetPath && window.location.pathname !== targetPath) {
+        window.history.replaceState(null, "", targetPath);
+      }
+    } catch (e) {}
+  }, []);
+
   // PIN reset dialog helper states
   const [pinResetOpen, setPinResetOpen] = useState(false);
   const [pinResetIdentity, setPinResetIdentity] = useState("");
@@ -503,6 +588,26 @@ export default function App() {
 
   const [cmsSlides, setCmsSlides] = useState<string[]>([]);
 
+  // Supporting Dealers CMS states
+  const [cmsDealers, setCmsDealers] = useState<any[]>([]);
+  const [editingDealerId, setEditingDealerId] = useState<string | null>(null);
+  const [dealerForm, setDealerForm] = useState({
+    id: "",
+    name: "",
+    address: "",
+    isComingSoon: false,
+    mapsUrl: ""
+  });
+
+  const [faqCurrentPage, setFaqCurrentPage] = useState(1);
+  const [upcomingCurrentPage, setUpcomingCurrentPage] = useState(1);
+  const [pastCurrentPage, setPastCurrentPage] = useState(1);
+
+  // Reset FAQ page when categories or search queries change
+  useEffect(() => {
+    setFaqCurrentPage(1);
+  }, [faqSearchQuery, activeFaqCategory]);
+
   // Fetch initial database items on mount and handle deep linking scan QR codes
   useEffect(() => {
     fetchData();
@@ -604,6 +709,7 @@ export default function App() {
           emblemLogo: hcRes.emblemLogo || ""
         });
         setCmsSlides(hcRes.slides || []);
+        setCmsDealers(hcRes.dealers || []);
       }
     } catch (err) {
       console.error("Error communicating with full-stack J5 API:", err);
@@ -670,6 +776,28 @@ export default function App() {
       fetchData();
     } catch (err) {
       showFeedback("Terjadi kesalahan sistem saat menyimpan slide beranda.", true);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSaveDealersCms = async (newDealers: any[]) => {
+    try {
+      setLoading(true);
+      const res = await fetch("/api/home-content", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dealers: newDealers })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        showFeedback(data.error || "Gagal memperbarui dealer resmi.", true);
+        return;
+      }
+      showFeedback("Urutan dan daftar dealer resmi berhasil diperbarui dan disimpan!");
+      fetchData();
+    } catch (err) {
+      showFeedback("Terjadi kesalahan sistem saat menyimpan data dealer resmi.", true);
     } finally {
       setLoading(false);
     }
@@ -2028,7 +2156,7 @@ export default function App() {
       />
 
       {/* Main Container */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-12">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 md:pt-8 pb-8 space-y-12">
         
         {/* TAB 1: INTERACTIVE HOMEPAGE */}
         {activeTab === "home" && (
@@ -2368,70 +2496,103 @@ export default function App() {
                     <div className="p-8 text-center rounded-2xl bg-zinc-50 border border-zinc-200 text-zinc-400">
                       Tidak ada kegiatan mendatang yang direncanakan sementara ini.
                     </div>
-                  ) : (
-                    <div className="space-y-4">
-                      {upcomingEvents.map((evt) => (
-                        <div key={evt.id} className="bg-white p-5 rounded-2xl border border-zinc-200 hover:border-teal-500/50 hover:shadow-md transition-all duration-300 shadow-xs flex flex-col justify-between group">
-                          <div 
-                            onClick={() => setSelectedEvent(evt)}
-                            className="flex flex-col sm:flex-row gap-4 cursor-pointer"
-                          >
-                            <div className="w-full sm:w-28 h-20 rounded-lg overflow-hidden border border-zinc-150 flex-shrink-0 relative">
-                              <img src={evt.image} alt={evt.title} className="w-full h-full object-cover group-hover:scale-105 transition duration-500 animate-fadeIn" />
-                              <div className="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition"></div>
-                            </div>
-                            <div className="space-y-1.5 flex-1">
-                              <span className="px-2 py-0.5 text-[9px] font-mono bg-cyan-50 text-cyan-800 border border-cyan-200 rounded font-bold">
-                                📅 {formatDate(evt.date)}
-                              </span>
-                              <h5 className="font-extrabold text-sm sm:text-base text-zinc-900 group-hover:text-teal-700 transition leading-snug">{evt.title}</h5>
-                              <p className="text-xs text-zinc-650 leading-relaxed font-sans line-clamp-2">{evt.description}</p>
-                              
-                              <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-zinc-500 pt-1 font-medium">
-                                <a
-                                  href={getGoogleMapsUrl(evt.location)}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  onClick={(e) => e.stopPropagation()}
-                                  className="flex items-center gap-1 text-[#005c56] hover:underline font-bold"
-                                >
-                                  <MapPin className="w-3.5 h-3.5 text-[#005c56]" />
-                                  {evt.location.replace(/https?:\/\/[^\s]+/, "Google Maps")}
-                                </a>
-                                {evt.time && <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5 text-zinc-500" /> {evt.time}</span>}
+                  ) : (() => {
+                    const upcomingPageSize = 2;
+                    const totalPages = Math.ceil(upcomingEvents.length / upcomingPageSize);
+                    const safePage = Math.min(upcomingCurrentPage, totalPages || 1);
+                    const paginatedList = upcomingEvents.slice((safePage - 1) * upcomingPageSize, safePage * upcomingPageSize);
+
+                    return (
+                      <div className="space-y-4">
+                        <div className="space-y-4">
+                          {paginatedList.map((evt) => (
+                            <div key={evt.id} className="bg-white p-5 rounded-2xl border border-zinc-200 hover:border-teal-500/50 hover:shadow-md transition-all duration-300 shadow-xs flex flex-col justify-between group">
+                              <div 
+                                onClick={() => setSelectedEvent(evt)}
+                                className="flex flex-col sm:flex-row gap-4 cursor-pointer"
+                              >
+                                <div className="w-full sm:w-28 h-20 rounded-lg overflow-hidden border border-zinc-200 flex-shrink-0 relative">
+                                  <img src={evt.image} alt={evt.title} className="w-full h-full object-cover group-hover:scale-105 transition duration-500 animate-fadeIn" />
+                                  <div className="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition"></div>
+                                </div>
+                                <div className="space-y-1.5 flex-1">
+                                  <span className="px-2 py-0.5 text-[9px] font-mono bg-cyan-50 text-cyan-800 border border-cyan-200 rounded font-bold">
+                                    📅 {formatDate(evt.date)}
+                                  </span>
+                                  <h5 className="font-extrabold text-sm sm:text-base text-zinc-900 group-hover:text-teal-700 transition leading-snug">{evt.title}</h5>
+                                  <p className="text-xs text-zinc-650 leading-relaxed font-sans line-clamp-2">{evt.description}</p>
+                                  
+                                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-zinc-500 pt-1 font-medium">
+                                    <a
+                                      href={getGoogleMapsUrl(evt.location)}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      onClick={(e) => e.stopPropagation()}
+                                      className="flex items-center gap-1 text-[#005c56] hover:underline font-bold"
+                                    >
+                                      <MapPin className="w-3.5 h-3.5 text-[#005c56]" />
+                                      {evt.location.replace(/https?:\/\/[^\s]+/, "Google Maps")}
+                                    </a>
+                                    {evt.time && <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5 text-zinc-500" /> {evt.time}</span>}
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="mt-4 pt-3 border-t border-zinc-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                                <span className="text-xs text-zinc-650 font-medium">
+                                  Sisa Kuota: <strong className="text-teal-700 font-mono font-extrabold">{evt.slots - (registrations.filter(r => r.eventId === evt.id).length)}</strong> dari {evt.slots} slot
+                                </span>
+                                <div className="flex gap-2 w-full sm:w-auto">
+                                  <button
+                                    onClick={() => setSelectedEvent(evt)}
+                                    className="w-1/2 sm:w-auto justify-center px-3.5 py-1.5 border border-zinc-200 text-zinc-700 hover:bg-zinc-50 hover:text-zinc-900 text-xs font-bold rounded-lg transition shadow-2xs flex items-center gap-1 cursor-pointer"
+                                  >
+                                    Detail <Info className="w-3.5 h-3.5 text-zinc-500" />
+                                  </button>
+                                  <button
+                                    onClick={() => setSelectedEvent(evt)}
+                                    className="w-1/2 sm:w-auto justify-center px-4 py-1.5 bg-[#005c56] hover:bg-[#004843] text-white text-xs font-extrabold rounded-lg transition shadow-xs uppercase tracking-wider cursor-pointer"
+                                  >
+                                    Gabung
+                                  </button>
+                                </div>
                               </div>
                             </div>
-                          </div>
-
-                          <div className="mt-4 pt-3 border-t border-zinc-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
-                            <span className="text-xs text-zinc-650 font-medium">
-                              Sisa Kuota: <strong className="text-teal-700 font-mono font-extrabold">{evt.slots - (registrations.filter(r => r.eventId === evt.id).length)}</strong> dari {evt.slots} slot
-                            </span>
-                            <div className="flex gap-2 w-full sm:w-auto">
-                              <button
-                                onClick={() => setSelectedEvent(evt)}
-                                className="w-1/2 sm:w-auto justify-center px-3.5 py-1.5 border border-zinc-200 text-zinc-700 hover:bg-zinc-50 hover:text-zinc-900 text-xs font-bold rounded-lg transition shadow-2xs flex items-center gap-1 cursor-pointer"
-                              >
-                                Detail Kegiatan <Info className="w-3.5 h-3.5 text-zinc-500" />
-                              </button>
-                              <button
-                                onClick={() => setSelectedEvent(evt)}
-                                className="w-1/2 sm:w-auto justify-center px-4 py-1.5 bg-[#005c56] hover:bg-[#004843] text-white text-xs font-extrabold rounded-lg transition shadow-xs uppercase tracking-wider cursor-pointer"
-                              >
-                                Gabung Kegiatan
-                              </button>
-                            </div>
-                          </div>
+                          ))}
                         </div>
-                      ))}
-                    </div>
-                  )}
+
+                        {totalPages > 1 && (
+                          <div className="flex items-center justify-between bg-zinc-50 border border-zinc-200 p-2.5 rounded-2xl">
+                            <button
+                              type="button"
+                              disabled={safePage === 1}
+                              onClick={() => setUpcomingCurrentPage((prev) => Math.max(prev - 1, 1))}
+                              className="px-3 py-1 bg-white border border-zinc-200 text-zinc-750 text-[10px] font-bold rounded-lg hover:bg-zinc-100 disabled:opacity-40 cursor-pointer select-none"
+                            >
+                              ← Sebelumnya
+                            </button>
+                            <span className="text-[11px] text-zinc-500 font-bold font-mono">
+                              Hal {safePage} / {totalPages}
+                            </span>
+                            <button
+                              type="button"
+                              disabled={safePage === totalPages}
+                              onClick={() => setUpcomingCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                              className="px-3 py-1 bg-white border border-zinc-200 text-zinc-750 text-[10px] font-bold rounded-lg hover:bg-zinc-100 disabled:opacity-40 cursor-pointer select-none"
+                            >
+                              Berikutnya →
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 {/* 2. Completed / Past Events (History / Sudah Terlaksana) */}
                 <div className="space-y-4">
                   <div className="flex items-center gap-2 text-emerald-750">
-                    <CheckCircle2 className="w-5 h-5" />
+                    <CheckCircle2 className="w-5 h-5 text-emerald-600 animate-pulse" />
                     <h4 className="font-sans font-bold text-lg">Riwayat Kegiatan Selesai (Completed)</h4>
                   </div>
 
@@ -2439,73 +2600,106 @@ export default function App() {
                     <div className="p-8 text-center rounded-2xl bg-zinc-50 border border-zinc-200 text-zinc-400">
                       Belum ada pencatatan kegiatan lampau.
                     </div>
-                  ) : (
-                    <div className="space-y-4">
-                      {pastEvents.map((evt) => {
-                        const countAttendees = registrations.filter(r => r.eventId === evt.id && r.status === "Attended").length;
-                        return (
-                          <div 
-                            key={evt.id} 
-                            onClick={() => setSelectedEvent(evt)}
-                            className="bg-white p-5 rounded-2xl border border-zinc-200 hover:border-teal-500/50 hover:shadow-md transition-all duration-300 shadow-xs relative overflow-hidden cursor-pointer group"
-                          >
-                            <div className="absolute right-0 top-0 bg-emerald-50 text-emerald-800 px-3 py-1 rounded-bl-xl text-[10px] font-mono border-l border-b border-emerald-150 font-bold uppercase flex items-center gap-1">
-                              🟢 SELESAI
-                            </div>
+                  ) : (() => {
+                    const pastPageSize = 2;
+                    const totalPages = Math.ceil(pastEvents.length / pastPageSize);
+                    const safePage = Math.min(pastCurrentPage, totalPages || 1);
+                    const paginatedList = pastEvents.slice((safePage - 1) * pastPageSize, safePage * pastPageSize);
 
-                            <div className="flex flex-col sm:flex-row gap-4">
-                              <div className="w-full sm:w-28 h-20 rounded-lg overflow-hidden border border-zinc-150 flex-shrink-0 relative">
-                                <img src={evt.image} alt={evt.title} className="w-full h-full object-cover group-hover:scale-105 transition duration-500" />
-                                <div className="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition"></div>
-                              </div>
-                              <div className="space-y-1.5 flex-1">
-                                <span className="text-[11px] font-mono text-zinc-400 block pt-0.5">
-                                  {formatDate(evt.date)}
-                                </span>
-                                <h5 className="font-extrabold text-sm sm:text-base text-zinc-800 group-hover:text-teal-700 transition leading-snug">{evt.title}</h5>
-                                <p className="text-xs text-zinc-650 leading-relaxed font-sans line-clamp-2">{evt.description}</p>
-                                
-                                <div className="flex items-center gap-1.5 text-xs text-[#005c56] pt-1 font-bold">
-                                  <MapPin className="w-3.5 h-3.5 text-[#005c56]" />
-                                  <a
-                                    href={getGoogleMapsUrl(evt.location)}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    onClick={(e) => e.stopPropagation()}
-                                    className="hover:underline text-[#005c56]"
+                    return (
+                      <div className="space-y-4">
+                        <div className="space-y-4">
+                          {paginatedList.map((evt) => {
+                            const countAttendees = registrations.filter(r => r.eventId === evt.id && r.status === "Attended").length;
+                            return (
+                              <div 
+                                key={evt.id} 
+                                onClick={() => setSelectedEvent(evt)}
+                                className="bg-white p-5 rounded-2xl border border-zinc-200 hover:border-teal-500/50 hover:shadow-md transition-all duration-300 shadow-xs relative overflow-hidden cursor-pointer group flex flex-col justify-between"
+                              >
+                                <div className="absolute right-0 top-0 bg-emerald-50 text-emerald-800 px-3 py-1 rounded-bl-xl text-[10px] font-mono border-l border-b border-emerald-150 font-bold uppercase flex items-center gap-1 z-10">
+                                  🟢 SELESAI
+                                </div>
+
+                                <div className="flex flex-col sm:flex-row gap-4">
+                                  <div className="w-full sm:w-28 h-20 rounded-lg overflow-hidden border border-zinc-200 flex-shrink-0 relative">
+                                    <img src={evt.image} alt={evt.title} className="w-full h-full object-cover group-hover:scale-105 transition duration-500" />
+                                    <div className="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition"></div>
+                                  </div>
+                                  <div className="space-y-1.5 flex-1">
+                                    <span className="text-[11px] font-mono text-zinc-400 block pt-0.5">
+                                      {formatDate(evt.date)}
+                                    </span>
+                                    <h5 className="font-extrabold text-sm sm:text-base text-zinc-800 group-hover:text-teal-700 transition leading-snug">{evt.title}</h5>
+                                    <p className="text-xs text-zinc-650 leading-relaxed font-sans line-clamp-2">{evt.description}</p>
+                                    
+                                    <div className="flex items-center gap-1.5 text-xs text-[#005c56] pt-1 font-bold">
+                                      <MapPin className="w-3.5 h-3.5 text-[#005c56]" />
+                                      <a
+                                        href={getGoogleMapsUrl(evt.location)}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        onClick={(e) => e.stopPropagation()}
+                                        className="hover:underline text-[#005c56]"
+                                      >
+                                        {evt.location.replace(/https?:\/\/[^\s]+/, "Google Maps")}
+                                      </a>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                <div className="mt-4 pt-3 border-t border-zinc-100 flex items-center justify-between text-xs font-semibold">
+                                  <span className="text-zinc-650">
+                                    Hadir: <strong className="text-emerald-700 font-mono font-extrabold">{countAttendees || 2} member</strong>
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      const albumCount = evt.galleryCount ?? (evt.galleryImages?.length ?? 0);
+                                      if (albumCount === 0) {
+                                        showFeedback("Kegiatan ini belum memiliki foto dokumentasi galeri.", true);
+                                        return;
+                                      }
+                                      handleOpenAlbum(evt.id, evt.title);
+                                      document.getElementById("gallery-section")?.scrollIntoView({ behavior: "smooth" });
+                                    }}
+                                    className="text-[10px] font-mono text-teal-700 font-bold bg-teal-50 hover:bg-teal-100 px-2 py-1 rounded border border-teal-150 shadow-2xs cursor-pointer transform hover:scale-[1.03] transition"
                                   >
-                                    {evt.location.replace(/https?:\/\/[^\s]+/, "Google Maps")}
-                                  </a>
+                                    DOKUMENTASI
+                                  </button>
                                 </div>
                               </div>
-                            </div>
+                            );
+                          })}
+                        </div>
 
-                            <div className="mt-4 pt-3 border-t border-zinc-100 flex items-center justify-between text-xs font-semibold">
-                              <span className="text-zinc-650">
-                                Anggota Hadir Terpapar: <strong className="text-emerald-700 font-mono font-extrabold">{countAttendees || 2} member</strong>
-                              </span>
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  const albumCount = evt.galleryCount ?? (evt.galleryImages?.length ?? 0);
-                                  if (albumCount === 0) {
-                                    showFeedback("Kegiatan ini belum memiliki foto dokumentasi galeri.", true);
-                                    return;
-                                  }
-                                  handleOpenAlbum(evt.id, evt.title);
-                                  document.getElementById("gallery-section")?.scrollIntoView({ behavior: "smooth" });
-                                }}
-                                className="text-[10px] font-mono text-teal-700 font-bold bg-teal-50 hover:bg-teal-100 px-2 py-1 rounded border border-teal-150 shadow-2xs cursor-pointer transform hover:scale-[1.03] transition active:scale-[0.97]"
-                              >
-                                LIHAT DOKUMENTASI
-                              </button>
-                            </div>
+                        {totalPages > 1 && (
+                          <div className="flex items-center justify-between bg-zinc-50 border border-zinc-200 p-2.5 rounded-2xl">
+                            <button
+                              type="button"
+                              disabled={safePage === 1}
+                              onClick={() => setPastCurrentPage((prev) => Math.max(prev - 1, 1))}
+                              className="px-3 py-1 bg-white border border-zinc-200 text-zinc-755 text-[10px] font-bold rounded-lg hover:bg-zinc-100 disabled:opacity-40 cursor-pointer select-none"
+                            >
+                              ← Sebelumnya
+                            </button>
+                            <span className="text-[11px] text-zinc-500 font-bold font-mono">
+                              Hal {safePage} / {totalPages}
+                            </span>
+                            <button
+                              type="button"
+                              disabled={safePage === totalPages}
+                              onClick={() => setPastCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                              className="px-3 py-1 bg-white border border-zinc-200 text-zinc-755 text-[10px] font-bold rounded-lg hover:bg-zinc-100 disabled:opacity-40 cursor-pointer select-none"
+                            >
+                              Berikutnya →
+                            </button>
                           </div>
-                        );
-                      })}
-                    </div>
-                  )}
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
 
               </div>
@@ -2583,125 +2777,172 @@ export default function App() {
                   );
                 }
 
+                const faqPageSize = 4;
+                const totalPages = Math.ceil(filtered.length / faqPageSize);
+                const safePage = Math.min(faqCurrentPage, totalPages || 1);
+                const paginatedFaqs = filtered.slice((safePage - 1) * faqPageSize, safePage * faqPageSize);
+
                 return (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {filtered.map((f, i) => {
-                      const isExpanded = expandedFaqId === f.id;
-                      const freqStyle = f.frequency === "High"
-                        ? "bg-red-50 text-red-700 border-red-250 font-bold"
-                        : f.frequency === "Med"
-                        ? "bg-amber-50 text-amber-800 border-amber-250 font-bold"
-                        : "bg-blue-50 text-blue-700 border-blue-250 font-bold";
+                  <div className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {paginatedFaqs.map((f, i) => {
+                        const isExpanded = expandedFaqId === f.id;
+                        const freqStyle = f.frequency === "High"
+                          ? "bg-red-50 text-red-700 border-red-250 font-bold"
+                          : f.frequency === "Med"
+                          ? "bg-amber-50 text-amber-800 border-amber-250 font-bold"
+                          : "bg-blue-50 text-blue-700 border-blue-250 font-bold";
 
-                      return (
-                        <div
-                          key={f.id || i}
-                          className={`p-5 rounded-2xl border transition duration-300 flex flex-col justify-between ${
-                            isExpanded 
-                              ? "bg-teal-50/20 border-teal-500/40 shadow-xs" 
-                              : "bg-white border-zinc-200 hover:border-zinc-300 hover:shadow-2xs"
-                          }`}
-                        >
-                          <div className="space-y-4">
-                            <div className="flex items-center justify-between gap-2">
-                              <span className="px-2 py-0.5 bg-zinc-100 border border-zinc-200 text-zinc-805 text-[9px] font-mono font-bold rounded-md">
-                                📁 {f.category}
-                              </span>
-                              <span className={`px-2 py-0.5 border text-[9px] font-mono rounded-md ${freqStyle}`}>
-                                {f.frequency === "High" ? "⚠️ TINGGI" : f.frequency === "Med" ? "🎚️ SEDANG" : "💡 LAINNYA"}
-                              </span>
-                            </div>
-
-                            <div className="space-y-2.5">
-                              <h4 className="font-extrabold text-sm text-zinc-900 leading-snug">
-                                {f.problem}
-                              </h4>
-                              
-                              <div className="p-4 rounded-xl bg-emerald-50/50 border border-emerald-100 space-y-1.5 text-xs text-left">
-                                <span className="text-[10px] uppercase font-mono tracking-wider text-emerald-800 font-extrabold block">
-                                  💡 Solusi / Pemecahan Masalah:
+                        return (
+                          <div
+                            key={f.id || i}
+                            className={`p-5 rounded-2xl border transition duration-300 flex flex-col justify-between ${
+                              isExpanded 
+                                ? "bg-teal-50/20 border-teal-500/40 shadow-xs" 
+                                : "bg-white border-zinc-200 hover:border-zinc-300 hover:shadow-2xs"
+                            }`}
+                          >
+                            <div className="space-y-4">
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="px-2 py-0.5 bg-zinc-100 border border-zinc-200 text-zinc-805 text-[9px] font-mono font-bold rounded-md">
+                                  📁 {f.category}
                                 </span>
-                                <p className="text-zinc-700 font-semibold leading-relaxed">
-                                  {f.solution}
-                                </p>
+                                <span className={`px-2 py-0.5 border text-[9px] font-mono rounded-md ${freqStyle}`}>
+                                  {f.frequency === "High" ? "⚠️ TINGGI" : f.frequency === "Med" ? "🎚️ SEDANG" : "💡 LAINNYA"}
+                                </span>
+                              </div>
+
+                              <div className="space-y-2.5">
+                                <h4 className="font-extrabold text-sm text-zinc-900 leading-snug">
+                                  {f.problem}
+                                </h4>
+                                
+                                <div className="p-4 rounded-xl bg-emerald-50/50 border border-emerald-100 space-y-1.5 text-xs text-left">
+                                  <span className="text-[10px] uppercase font-mono tracking-wider text-emerald-800 font-extrabold block">
+                                    💡 Solusi / Pemecahan Masalah:
+                                  </span>
+                                  <p className="text-zinc-700 font-semibold leading-relaxed">
+                                    {f.solution}
+                                  </p>
+                                </div>
                               </div>
                             </div>
                           </div>
-                        </div>
-                      );
-                    })}
+                        );
+                      })}
+                    </div>
+
+                    {totalPages > 1 && (
+                      <div className="flex items-center justify-between bg-zinc-50 border border-zinc-200 p-3 rounded-2xl">
+                        <button
+                          type="button"
+                          disabled={safePage === 1}
+                          onClick={() => setFaqCurrentPage((prev) => Math.max(prev - 1, 1))}
+                          className="px-3.5 py-1.5 bg-white border border-zinc-200 text-zinc-700 text-[11px] font-bold rounded-xl hover:bg-zinc-100 disabled:opacity-40 cursor-pointer transition-all select-none disabled:cursor-not-allowed"
+                        >
+                          ← Sebelumnya
+                        </button>
+                        <span className="text-[11.5px] text-zinc-600 font-bold font-mono">
+                          Halaman {safePage} dari {totalPages}
+                        </span>
+                        <button
+                          type="button"
+                          disabled={safePage === totalPages}
+                          onClick={() => setFaqCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                          className="px-3.5 py-1.5 bg-white border border-zinc-200 text-zinc-700 text-[11px] font-bold rounded-xl hover:bg-zinc-100 disabled:opacity-40 cursor-pointer transition-all select-none disabled:cursor-not-allowed"
+                        >
+                          Berikutnya →
+                        </button>
+                      </div>
+                    )}
                   </div>
                 );
               })()}
             </div>
 
-            {/* SPONSOR LOGO RUNNING BANNER (IMAGE SLIDE REDESIGNED AS A PREMIUM GRID TO MATCH SCREENSHOT) */}
-            <div id="home-sponsor-carousel" className="space-y-8 pt-12 border-t border-zinc-200 mt-16 text-left">
-              <div className="bg-[#0B0F19] rounded-3xl p-8 md:p-12 relative overflow-hidden shadow-2xl border border-zinc-800/50">
-                <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff02_1px,transparent_1px),linear-gradient(to_bottom,#ffffff02_1px,transparent_1px)] bg-[size:30px_30px]" />
-                <div className="absolute -left-12 -top-12 w-64 h-64 bg-teal-500/10 rounded-full blur-3xl pointer-events-none" />
-                <div className="absolute -right-12 -bottom-12 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+            {/* NEW MODULE: SUPPORTING DEALERS AND PARTNER/SPONSOR SIDE BY SIDE */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-stretch pt-12 border-t border-zinc-200 mt-16">
+              {/* Left Column: Supporting Dealers (already a gorgeous flex-col rounded card) */}
+              <SupportingDealers dealers={homeContent?.dealers} />
 
-                <div className="relative z-10 space-y-8">
-                  <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-zinc-800/80 pb-6">
-                    <div className="space-y-1">
-                      <h3 className="font-sans font-black tracking-[0.2em] text-3xl md:text-4xl text-white uppercase">
-                        PARTNER
-                      </h3>
-                      <p className="text-xs md:text-sm text-zinc-400 max-w-xl leading-relaxed">
-                        Mitra strategis & sponsor resmi J5 EVO Indonesia yang menyediakan berbagai benefit eksklusif bagi seluruh member terdaftar.
-                      </p>
-                    </div>
-                    <div className="shrink-0">
-                      <button
-                        onClick={() => setActiveTab("sponsor")}
-                        className="inline-flex items-center gap-1.5 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700/60 rounded-xl text-xs font-bold text-teal-400 transition-all duration-300 hover:scale-[1.02] cursor-pointer"
-                      >
-                        Lihat Program Sponsor <ArrowRight className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </div>
+              {/* Right Column: Partners & Sponsors (styled identically with nice dark contrast theme) */}
+              <div id="home-sponsor-carousel" className="flex flex-col justify-between h-full bg-[#0B0F19] rounded-3xl p-6 md:p-8 relative overflow-hidden shadow-xl border border-zinc-800">
+                <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff01_1px,transparent_1px),linear-gradient(to_bottom,#ffffff01_1px,transparent_1px)] bg-[size:30px_30px]" />
+                <div className="absolute -left-12 -top-12 w-64 h-64 bg-teal-500/5 rounded-full blur-3xl pointer-events-none" />
+                <div className="absolute -right-12 -bottom-12 w-64 h-64 bg-emerald-500/5 rounded-full blur-3xl pointer-events-none" />
 
-                  {sponsors.length === 0 ? (
-                    <div className="py-12 text-center text-zinc-500 text-xs font-medium border border-dashed border-zinc-800 rounded-2xl bg-zinc-900/40">
-                      Sponsor resmi sedang dalam tahap kurasi oleh pengurus nasional J5 EVO.
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6 sm:gap-8 items-center justify-items-center pt-2">
-                      {sponsors.map((spr) => (
-                        <div
-                          key={spr.id}
-                          onClick={() => {
-                            setSelectedSponsorId(spr.id);
-                            setProductSearchQuery("");
-                            setActiveTab("sponsor");
-                            window.scrollTo({ top: 0, behavior: 'smooth' });
-                          }}
-                          className="w-full flex flex-col items-center justify-center p-4 transition-all duration-300 group cursor-pointer hover:bg-zinc-800/10 active:bg-zinc-850/20 rounded-2xl select-none"
-                          role="button"
-                          tabIndex={0}
+                <div className="relative z-10 space-y-6 flex-1 flex flex-col justify-between">
+                  <div className="space-y-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-800/60 pb-5">
+                      <div className="space-y-1 text-left">
+                        <div className="flex items-center gap-2">
+                          <div className="w-2.5 h-6 bg-teal-500 rounded-md shadow-xs animate-pulse"></div>
+                          <h3 className="font-sans font-black tracking-wider text-xl text-white uppercase">
+                            PARTNERS & SPONSOR
+                          </h3>
+                        </div>
+                        <p className="text-[11px] sm:text-xs text-zinc-400 max-w-md leading-relaxed">
+                          Mitra strategis & sponsor resmi J5 EVO Indonesia.
+                        </p>
+                      </div>
+                      
+                      <div className="shrink-0 flex justify-start">
+                        <button
+                          onClick={() => setActiveTab("sponsor")}
+                          className="inline-flex items-center gap-1 px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-xl text-[10px] font-bold text-teal-400 transition-all cursor-pointer active:scale-95"
                         >
-                          <div className="h-16 w-full flex items-center justify-center transition-all duration-300 group-hover:scale-110 group-active:scale-95">
-                            {spr.logo ? (
-                              <img
-                                src={spr.logo}
-                                alt={spr.name}
-                                className="max-h-12 max-w-full object-contain filter grayscale opacity-70 brightness-200 group-hover:grayscale-0 group-hover:opacity-100 group-hover:brightness-100 group-active:grayscale-0 group-active:opacity-100 group-active:brightness-100 group-focus:grayscale-0 group-focus:opacity-100 group-focus:brightness-100 transition-all duration-300"
-                                referrerPolicy="no-referrer"
-                              />
-                            ) : (
-                              <span className="text-sm font-black text-white group-hover:text-teal-400 group-active:text-teal-400 group-focus:text-teal-400 font-mono tracking-wider transition-colors duration-300 text-center uppercase">
+                          Rincian <ArrowRight className="w-3 h-3" />
+                        </button>
+                      </div>
+                    </div>
+
+                    {sponsors.length === 0 ? (
+                      <div className="py-12 text-center text-zinc-500 text-xs font-semibold border border-dashed border-zinc-800 rounded-2xl bg-zinc-900/40">
+                        Sponsor resmi sedang dalam tahap kurasi pengurus.
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3.5 items-center justify-items-center pt-2">
+                        {sponsors.slice(0, 6).map((spr) => (
+                          <div
+                            key={spr.id}
+                            onClick={() => {
+                              setSelectedSponsorId(spr.id);
+                              setProductSearchQuery("");
+                              setActiveTab("sponsor");
+                              window.scrollTo({ top: 0, behavior: 'smooth' });
+                            }}
+                            className="w-full h-20 flex flex-col items-center justify-center p-3 transition-all duration-300 group cursor-pointer bg-zinc-900 hover:bg-zinc-850/80 active:bg-zinc-800 border border-zinc-800/60 rounded-2xl select-none"
+                            role="button"
+                            tabIndex={0}
+                          >
+                            <div className="h-8 w-full flex items-center justify-center transition-all duration-300 group-hover:scale-105">
+                              {spr.logo ? (
+                                <img
+                                  src={spr.logo}
+                                  alt={spr.name}
+                                  className="max-h-7 max-w-full object-contain filter grayscale opacity-70 brightness-150 group-hover:grayscale-0 group-hover:opacity-100 group-hover:brightness-100 transition-all"
+                                  referrerPolicy="no-referrer"
+                                />
+                              ) : (
+                                <span className="text-[9px] font-black text-white group-hover:text-teal-400 font-mono tracking-wider text-center uppercase line-clamp-1">
+                                  {spr.name}
+                                </span>
+                              )}
+                            </div>
+                            {spr.logo && (
+                              <span className="text-[8px] font-bold text-zinc-500 group-hover:text-zinc-300 transition-colors mt-1 text-center select-none truncate w-full uppercase">
                                 {spr.name}
                               </span>
                             )}
                           </div>
-                          {spr.logo && (
-                            <span className="text-[10px] font-bold text-zinc-500 group-hover:text-zinc-300 group-active:text-zinc-200 transition-colors duration-300 mt-2 text-center select-none tracking-wide">
-                              {spr.name}
-                            </span>
-                          )}
-                        </div>
-                      ))}
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {sponsors.length > 6 && (
+                    <div className="text-center pt-3 mt-4 border-t border-zinc-800/40 text-[10px] text-zinc-400 font-bold">
+                      Dan <span className="text-teal-400 font-black font-mono">{sponsors.length - 6}</span> mitra resmi lainnya terpapar.
                     </div>
                   )}
                 </div>
@@ -4783,6 +5024,13 @@ export default function App() {
           </div>
         )}
 
+        {/* TAB 4.8: INTERACTIVE J5 TRIPS & EV CHARGING CALCULATOR */}
+        {activeTab === "trip-calculator" && (
+          <div id="tab-trip-calculator" className="animate-fadeIn">
+            <EvCalculator />
+          </div>
+        )}
+
         {/* TAB 5: ADMIN SPECIAL MONITORING & EXCEL EXPORTER DASHBOARD */}
         {activeTab === "admin-dashboard" && (
           !adminAuthenticated ? (
@@ -5375,6 +5623,240 @@ export default function App() {
                         </button>
                       </div>
                     </form>
+                  </div>
+                </div>
+
+                {/* Segment Baru: Kelola Supporting Dealers */}
+                <div className="border-t border-zinc-200 pt-6 mt-6">
+                  <div className="space-y-4 text-left font-sans">
+                    <div className="flex items-center gap-2">
+                      <MapPin className="w-5 h-5 text-[#005c56]" />
+                      <h4 className="font-sans font-bold text-base text-zinc-900">Kelola Supporting Dealer J5 EVO</h4>
+                    </div>
+                    <p className="text-zinc-[650] text-xs leading-relaxed">
+                      Tambahkan, sunting, atau hapus daftar dealer resmi JAECOO yang memberikan dukungan penuh kepada komunitas J5 EVO Indonesia di Beranda Utama.
+                    </p>
+
+                    <div className="bg-zinc-50 border border-zinc-200 rounded-2xl p-4 md:p-5 space-y-4">
+                      <h5 className="font-bold text-[#005c56] text-xs flex items-center gap-1 uppercase tracking-wider">
+                        {editingDealerId ? "📝 Edit Informasi Dealer" : "➕ Tambah Dealer Baru"}
+                      </h5>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-sans">
+                        <div className="space-y-1">
+                          <label className="text-zinc-700 font-bold block uppercase tracking-wider">Nama Dealer *</label>
+                          <input
+                            type="text"
+                            required
+                            placeholder="Contoh: JAECOO ANDALAN MAMPANG"
+                            value={dealerForm.name}
+                            onChange={(e) => setDealerForm({ ...dealerForm, name: e.target.value.toUpperCase() })}
+                            className="w-full bg-white text-zinc-900 border border-zinc-250 rounded-xl p-3 focus:outline-none focus:border-teal-500 font-bold uppercase tracking-wider"
+                          />
+                        </div>
+
+                        <div className="space-y-1">
+                          <label className="text-zinc-700 font-bold block uppercase tracking-wider">URL Google Maps *</label>
+                          <input
+                            type="text"
+                            required
+                            placeholder="Contoh: https://maps.google.com/?q=..."
+                            value={dealerForm.mapsUrl}
+                            onChange={(e) => setDealerForm({ ...dealerForm, mapsUrl: e.target.value })}
+                            className="w-full bg-white text-zinc-900 border border-zinc-250 rounded-xl p-3 focus:outline-none focus:border-teal-500 font-mono font-bold"
+                          />
+                        </div>
+
+                        <div className="space-y-1 md:col-span-2">
+                          <label className="text-zinc-700 font-bold block uppercase tracking-wider">Alamat Lengkap *</label>
+                          <textarea
+                            required
+                            rows={2}
+                            placeholder="Tuliskan nama jalan, kelurahan, kecamatan, kota, provinsi, dan kode pos..."
+                            value={dealerForm.address}
+                            onChange={(e) => setDealerForm({ ...dealerForm, address: e.target.value })}
+                            className="w-full bg-white text-zinc-900 border border-zinc-250 rounded-xl p-3 focus:outline-none focus:border-teal-500 font-semibold leading-relaxed"
+                          />
+                        </div>
+
+                        <div className="flex items-center gap-2 py-1 md:col-span-2">
+                          <input
+                            type="checkbox"
+                            id="dealer-comming-soon-cb"
+                            checked={dealerForm.isComingSoon}
+                            onChange={(e) => setDealerForm({ ...dealerForm, isComingSoon: e.target.checked })}
+                            className="w-4 h-4 text-teal-600 border-zinc-300 rounded focus:ring-teal-500 cursor-pointer"
+                          />
+                          <label htmlFor="dealer-comming-soon-cb" className="text-zinc-700 font-bold cursor-pointer select-none">
+                            Status Dealer: Segera Hadir (Coming Soon)
+                          </label>
+                        </div>
+                      </div>
+
+                      <div className="flex gap-2 justify-end pt-2 border-t border-zinc-200/50">
+                        {editingDealerId && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingDealerId(null);
+                              setDealerForm({ id: "", name: "", address: "", isComingSoon: false, mapsUrl: "" });
+                            }}
+                            className="py-2 px-4 bg-zinc-100 hover:bg-zinc-250 text-zinc-700 text-xs font-bold rounded-xl transition cursor-pointer"
+                          >
+                            Batal Sedit
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (!dealerForm.name.trim() || !dealerForm.address.trim() || !dealerForm.mapsUrl.trim()) {
+                              showFeedback("Nama, Alamat Lengkap, dan URL Google Maps harus diisi!", true);
+                              return;
+                            }
+
+                            let updatedDealers = [...cmsDealers];
+                            if (editingDealerId) {
+                              // edit
+                              updatedDealers = updatedDealers.map((dl) => 
+                                dl.id === editingDealerId ? { ...dl, ...dealerForm } : dl
+                              );
+                              showFeedback("Dealer berhasil diperbarui pada daftar sementara.");
+                            } else {
+                              // add
+                              const newDl = {
+                                ...dealerForm,
+                                id: "dl-" + Date.now()
+                              };
+                              updatedDealers.push(newDl);
+                              showFeedback("Dealer baru ditambahkan ke daftar sementara.");
+                            }
+
+                            setCmsDealers(updatedDealers);
+                            setEditingDealerId(null);
+                            setDealerForm({ id: "", name: "", address: "", isComingSoon: false, mapsUrl: "" });
+                          }}
+                          className={`py-2 px-5 text-white text-xs font-extrabold rounded-xl transition cursor-pointer uppercase ${
+                            editingDealerId ? 'bg-amber-600 hover:bg-amber-700' : 'bg-teal-700 hover:bg-teal-850'
+                          }`}
+                        >
+                          {editingDealerId ? "Simpan Perubahan Dealer" : "Tambah Ke Daftar Sementara"}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Current temporary list of dealers with actions */}
+                    <div className="space-y-2">
+                      <label className="text-zinc-700 font-bold font-sans text-xs block">
+                        Daftar Supporting Dealer Aktif saat ini ({cmsDealers.length})
+                      </label>
+                      
+                      {cmsDealers.length === 0 ? (
+                        <div className="p-6 text-center border border-dashed border-zinc-200 rounded-xl text-zinc-400 bg-white leading-normal text-xs">
+                          Belum ada Supporting Dealer yang ditambahkan.
+                        </div>
+                      ) : (
+                        <div className="bg-white border border-zinc-200 rounded-2xl overflow-hidden divide-y divide-zinc-150 text-xs">
+                          {cmsDealers.map((dl, idx) => (
+                            <div key={dl.id || idx} className="p-3.5 flex sm:items-center justify-between gap-4 hover:bg-zinc-50/50 transition">
+                              <div className="min-w-0 flex-1 space-y-1">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-mono text-[9px] font-bold px-1.5 py-0.5 bg-zinc-100 border border-zinc-200 text-zinc-500 rounded">
+                                    Urutan #{idx + 1}
+                                  </span>
+                                  <strong className="text-zinc-900 font-extrabold tracking-wide text-xs">
+                                    {dl.name}
+                                  </strong>
+                                  {dl.isComingSoon && (
+                                    <span className="px-1.5 py-0.5 bg-amber-50 text-amber-700 border border-amber-200 text-[8px] font-mono font-bold rounded">
+                                      SEGERA HADIR
+                                    </span>
+                                  )}
+                                </div>
+                                <p className="text-zinc-500 text-[10.5px] truncate max-w-xl uppercase font-sans font-medium">{dl.address}</p>
+                              </div>
+
+                              <div className="flex items-center gap-1.5 shrink-0">
+                                {/* Up button */}
+                                {idx > 0 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const nextDls = [...cmsDealers];
+                                      const tmp = nextDls[idx];
+                                      nextDls[idx] = nextDls[idx - 1];
+                                      nextDls[idx - 1] = tmp;
+                                      setCmsDealers(nextDls);
+                                    }}
+                                    className="p-1 px-2.5 bg-zinc-105 hover:bg-zinc-200 rounded text-zinc-700 transition cursor-pointer font-bold"
+                                    title="Pindahkan ke atas"
+                                  >
+                                    ↑
+                                  </button>
+                                )}
+                                {/* Down button */}
+                                {idx < cmsDealers.length - 1 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const nextDls = [...cmsDealers];
+                                      const tmp = nextDls[idx];
+                                      nextDls[idx] = nextDls[idx + 1];
+                                      nextDls[idx + 1] = tmp;
+                                      setCmsDealers(nextDls);
+                                    }}
+                                    className="p-1 px-2.5 bg-zinc-105 hover:bg-zinc-200 rounded text-zinc-700 transition cursor-pointer font-bold"
+                                    title="Pindahkan ke bawah"
+                                  >
+                                    ↓
+                                  </button>
+                                )}
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setEditingDealerId(dl.id);
+                                    setDealerForm({
+                                      id: dl.id || "",
+                                      name: dl.name || "",
+                                      address: dl.address || "",
+                                      isComingSoon: !!dl.isComingSoon,
+                                      mapsUrl: dl.mapsUrl || ""
+                                    });
+                                    showFeedback("Pindahkan dealer ke mode edit.");
+                                  }}
+                                  className="p-1 px-2.5 bg-teal-50 text-teal-800 border border-teal-200 hover:bg-teal-600 hover:text-white rounded text-[10px] font-bold cursor-pointer transition uppercase"
+                                >
+                                  Edit
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    if (confirm("Apakah anda yakin ingin menghapus dealer '" + dl.name + "'?")) {
+                                      const nextDls = cmsDealers.filter((item, i) => (item.id && dl.id ? item.id !== dl.id : i !== idx));
+                                      setCmsDealers(nextDls);
+                                      showFeedback("Dealer dihapus dari daftar sementara.");
+                                    }
+                                  }}
+                                  className="p-1 px-2.5 bg-rose-50 text-rose-600 border border-rose-200 hover:bg-rose-600 hover:text-white rounded text-[10px] font-bold cursor-pointer transition uppercase"
+                                >
+                                  Hapus
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Final submit button for dealer segment */}
+                    <div className="pt-4 border-t border-zinc-200">
+                      <button
+                        type="button"
+                        onClick={() => handleSaveDealersCms(cmsDealers)}
+                        className="w-full py-3 bg-[#005c56] hover:bg-[#004843] text-white font-extrabold text-xs rounded-xl shadow-md transition uppercase cursor-pointer"
+                      >
+                        💾 Simpan Semua Perubahan Supporting Dealer
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -7028,6 +7510,17 @@ export default function App() {
             )}
           </div>
         </div>
+      )}
+
+      {/* Floating Scroll-to-Top FAB Button */}
+      {showScrollTop && (
+        <button
+          onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+          className="fixed bottom-6 right-6 md:right-8 z-40 p-3 bg-teal-600 hover:bg-teal-700 text-white rounded-full shadow-2xl transition-all duration-300 hover:scale-110 active:scale-95 cursor-pointer border border-emerald-400/25 flex items-center justify-center grayscale-0 hover:brightness-110"
+          title="Kembali ke atas"
+        >
+          <ChevronUp className="w-5 h-5 md:w-6 md:h-6 stroke-[3]" />
+        </button>
       )}
 
     </div>
