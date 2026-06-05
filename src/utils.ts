@@ -394,34 +394,89 @@ export const INITIAL_EVENTS: CommunityEvent[] = [
 ];
 
 export const INITIAL_REGISTRATIONS: EventRegistration[] = [
-  {
-    id: "reg_1",
-    memberId: "J5EVO-202605-0002", // Ghany Cahyadi
-    eventId: "evt_3",  // Charity
-    registeredAt: "2026-05-05T09:00:00Z",
-    status: "Attended"
-  },
-  {
-    id: "reg_2",
-    memberId: "J5EVO-202604-0001", // Rian Hidayat
-    eventId: "evt_3",  // Charity
-    registeredAt: "2026-05-06T10:15:20Z",
-    status: "Attended"
-  },
-  {
-    id: "reg_3",
-    memberId: "J5EVO-202605-0002", // Ghany Cahyadi
-    eventId: "evt_1",  // Eco Touring
-    registeredAt: "2026-05-20T16:45:00Z",
-    status: "Registered"
-  },
-  {
-    id: "reg_4",
-    memberId: "J5EVO-202605-0003", // Dewi Lestari
-    eventId: "evt_1",  // Eco Touring
-    registeredAt: "2026-05-22T08:30:10Z",
-    status: "Registered"
-  }
+  // event 1: First Meet Up J5 Evo Indonesia (10 participants)
+  { id: "reg_1_1", memberId: "J5EVO-202604-0001", eventId: "evt_1", registeredAt: "2026-05-10T08:00:00Z", status: "Registered" },
+  { id: "reg_1_2", memberId: "J5EVO-202605-0002", eventId: "evt_1", registeredAt: "2026-05-10T08:30:00Z", status: "Registered" },
+  { id: "reg_1_3", memberId: "J5EVO-202605-0003", eventId: "evt_1", registeredAt: "2026-05-11T09:00:00Z", status: "Registered" },
+  { id: "reg_1_4", memberId: "J5EVO-202604-0004", eventId: "evt_1", registeredAt: "2026-05-11T10:15:00Z", status: "Registered" },
+  { id: "reg_1_5", memberId: "J5EVO-202604-0005", eventId: "evt_1", registeredAt: "2026-05-12T14:24:00Z", status: "Registered" },
+  { id: "reg_1_6", memberId: "J5EVO-202604-0006", eventId: "evt_1", registeredAt: "2026-05-12T15:00:00Z", status: "Registered" },
+  { id: "reg_1_7", memberId: "J5EVO-202604-0007", eventId: "evt_1", registeredAt: "2026-05-13T11:00:00Z", status: "Registered" },
+  { id: "reg_1_8", memberId: "J5EVO-202604-0008", eventId: "evt_1", registeredAt: "2026-05-13T16:45:00Z", status: "Registered" },
+  { id: "reg_1_9", memberId: "J5EVO-202604-0009", eventId: "evt_1", registeredAt: "2026-05-14T09:12:00Z", status: "Registered" },
+  { id: "reg_1_10", memberId: "J5EVO-202604-0010", eventId: "evt_1", registeredAt: "2026-05-14T11:30:00Z", status: "Registered" },
+
+  // event 2: Handover Ceremony 3000 Unit Jaecoo J5 (10 participants)
+  { id: "reg_2_1", memberId: "J5EVO-202604-0001", eventId: "evt_2", registeredAt: "2026-05-15T10:00:00Z", status: "Attended" },
+  { id: "reg_2_2", memberId: "J5EVO-202605-0002", eventId: "evt_2", registeredAt: "2026-05-15T11:00:00Z", status: "Attended" },
+  { id: "reg_2_3", memberId: "J5EVO-202605-0003", eventId: "evt_2", registeredAt: "2026-05-16T12:00:00Z", status: "Attended" },
+  { id: "reg_2_4", memberId: "J5EVO-202604-0004", eventId: "evt_2", registeredAt: "2026-05-16T14:30:00Z", status: "Attended" },
+  { id: "reg_2_5", memberId: "J5EVO-202604-0005", eventId: "evt_2", registeredAt: "2026-05-17T09:00:00Z", status: "Attended" },
+  { id: "reg_2_6", memberId: "J5EVO-202604-0006", eventId: "evt_2", registeredAt: "2026-05-17T15:45:00Z", status: "Attended" },
+  { id: "reg_2_7", memberId: "J5EVO-202604-0007", eventId: "evt_2", registeredAt: "2026-05-18T10:15:00Z", status: "Attended" },
+  { id: "reg_2_8", memberId: "J5EVO-202604-0008", eventId: "evt_2", registeredAt: "2026-05-18T16:20:00Z", status: "Attended" },
+  { id: "reg_2_9", memberId: "J5EVO-202604-0009", eventId: "evt_2", registeredAt: "2026-05-19T08:45:00Z", status: "Attended" },
+  { id: "reg_2_10", memberId: "J5EVO-202604-0010", eventId: "evt_2", registeredAt: "2026-05-19T11:40:00Z", status: "Attended" },
+
+  // event 3: J5 Evo Ramadan Iftar... (10 participants)
+  { id: "reg_3_1", memberId: "J5EVO-202604-0001", eventId: "evt_3", registeredAt: "2026-03-10T17:00:00Z", status: "Attended" },
+  { id: "reg_3_2", memberId: "J5EVO-202605-0002", eventId: "evt_3", registeredAt: "2026-03-10T17:30:00Z", status: "Attended" },
+  { id: "reg_3_3", memberId: "J5EVO-202605-0003", eventId: "evt_3", registeredAt: "2026-03-11T18:00:00Z", status: "Attended" },
+  { id: "reg_3_4", memberId: "J5EVO-202604-0004", eventId: "evt_3", registeredAt: "2026-03-11T18:15:00Z", status: "Attended" },
+  { id: "reg_3_5", memberId: "J5EVO-202604-0005", eventId: "evt_3", registeredAt: "2026-03-12T17:45:00Z", status: "Attended" },
+  { id: "reg_3_6", memberId: "J5EVO-202604-0006", eventId: "evt_3", registeredAt: "2026-03-12T18:10:00Z", status: "Attended" },
+  { id: "reg_3_7", memberId: "J5EVO-202604-0007", eventId: "evt_3", registeredAt: "2026-03-13T18:30:00Z", status: "Attended" },
+  { id: "reg_3_8", memberId: "J5EVO-202604-0008", eventId: "evt_3", registeredAt: "2026-03-13T19:00:00Z", status: "Attended" },
+  { id: "reg_3_9", memberId: "J5EVO-202604-0009", eventId: "evt_3", registeredAt: "2026-03-14T17:55:00Z", status: "Attended" },
+  { id: "reg_3_10", memberId: "J5EVO-202604-0010", eventId: "evt_3", registeredAt: "2026-03-14T18:20:00Z", status: "Attended" },
+
+  // event 4: Goes to Jaecoo Land (10 participants)
+  { id: "reg_4_1", memberId: "J5EVO-202604-0001", eventId: "evt_4", registeredAt: "2026-05-20T08:00:00Z", status: "Registered" },
+  { id: "reg_4_2", memberId: "J5EVO-202605-0002", eventId: "evt_4", registeredAt: "2026-05-20T09:00:00Z", status: "Registered" },
+  { id: "reg_4_3", memberId: "J5EVO-202605-0003", eventId: "evt_4", registeredAt: "2026-05-21T10:00:00Z", status: "Registered" },
+  { id: "reg_4_4", memberId: "J5EVO-202604-0004", eventId: "evt_4", registeredAt: "2026-05-21T11:00:00Z", status: "Registered" },
+  { id: "reg_4_5", memberId: "J5EVO-202604-0005", eventId: "evt_4", registeredAt: "2026-05-22T08:30:00Z", status: "Registered" },
+  { id: "reg_4_6", memberId: "J5EVO-202604-0006", eventId: "evt_4", registeredAt: "2026-05-22T14:40:00Z", status: "Registered" },
+  { id: "reg_4_7", memberId: "J5EVO-202604-0007", eventId: "evt_4", registeredAt: "2026-05-23T11:15:00Z", status: "Registered" },
+  { id: "reg_4_8", memberId: "J5EVO-202604-0008", eventId: "evt_4", registeredAt: "2026-05-23T15:20:00Z", status: "Registered" },
+  { id: "reg_4_9", memberId: "J5EVO-202604-0009", eventId: "evt_4", registeredAt: "2026-05-24T09:00:00Z", status: "Registered" },
+  { id: "reg_4_10", memberId: "J5EVO-202604-0010", eventId: "evt_4", registeredAt: "2026-05-24T13:10:00Z", status: "Registered" },
+
+  // event 5: j5 Signatur SPKLU (10 participants)
+  { id: "reg_5_1", memberId: "J5EVO-202604-0001", eventId: "evt_5", registeredAt: "2026-05-25T08:00:00Z", status: "Registered" },
+  { id: "reg_5_2", memberId: "J5EVO-202605-0002", eventId: "evt_5", registeredAt: "2026-05-25T09:12:00Z", status: "Registered" },
+  { id: "reg_5_3", memberId: "J5EVO-202605-0003", eventId: "evt_5", registeredAt: "2026-05-26T10:45:00Z", status: "Registered" },
+  { id: "reg_5_4", memberId: "J5EVO-202604-0004", eventId: "evt_5", registeredAt: "2026-05-26T11:20:00Z", status: "Registered" },
+  { id: "reg_5_5", memberId: "J5EVO-202604-0005", eventId: "evt_5", registeredAt: "2026-05-27T08:30:00Z", status: "Registered" },
+  { id: "reg_5_6", memberId: "J5EVO-202604-0006", eventId: "evt_5", registeredAt: "2026-05-27T14:10:00Z", status: "Registered" },
+  { id: "reg_5_7", memberId: "J5EVO-202604-0007", eventId: "evt_5", registeredAt: "2026-05-28T09:30:00Z", status: "Registered" },
+  { id: "reg_5_8", memberId: "J5EVO-202604-0008", eventId: "evt_5", registeredAt: "2026-05-28T15:20:00Z", status: "Registered" },
+  { id: "reg_5_9", memberId: "J5EVO-202604-0009", eventId: "evt_5", registeredAt: "2026-05-29T10:00:00Z", status: "Registered" },
+  { id: "reg_5_10", memberId: "J5EVO-202604-0010", eventId: "evt_5", registeredAt: "2026-05-29T16:40:00Z", status: "Registered" },
+
+  // event 6: CARS & Coffee Meet Up (10 participants)
+  { id: "reg_6_1", memberId: "J5EVO-202604-0001", eventId: "evt_6", registeredAt: "2026-05-20T08:30:00Z", status: "Registered" },
+  { id: "reg_6_2", memberId: "J5EVO-202605-0002", eventId: "evt_6", registeredAt: "2026-05-20T09:45:00Z", status: "Registered" },
+  { id: "reg_6_3", memberId: "J5EVO-202605-0003", eventId: "evt_6", registeredAt: "2026-05-21T10:15:00Z", status: "Registered" },
+  { id: "reg_6_4", memberId: "J5EVO-202604-0004", eventId: "evt_6", registeredAt: "2026-05-21T11:00:00Z", status: "Registered" },
+  { id: "reg_6_5", memberId: "J5EVO-202604-0005", eventId: "evt_6", registeredAt: "2026-05-22T08:15:00Z", status: "Registered" },
+  { id: "reg_6_6", memberId: "J5EVO-202604-0006", eventId: "evt_6", registeredAt: "2026-05-22T14:30:00Z", status: "Registered" },
+  { id: "reg_6_7", memberId: "J5EVO-202604-0007", eventId: "evt_6", registeredAt: "2026-05-23T09:00:00Z", status: "Registered" },
+  { id: "reg_6_8", memberId: "J5EVO-202604-0008", eventId: "evt_6", registeredAt: "2026-05-23T15:45:00Z", status: "Registered" },
+  { id: "reg_6_9", memberId: "J5EVO-202604-0009", eventId: "evt_6", registeredAt: "2026-05-24T10:20:00Z", status: "Registered" },
+  { id: "reg_6_10", memberId: "J5EVO-202604-0010", eventId: "evt_6", registeredAt: "2026-05-24T16:10:00Z", status: "Registered" },
+
+  // event 7: Meet Up Jogjakarta J5 Evo (10 participants)
+  { id: "reg_7_1", memberId: "J5EVO-202604-0001", eventId: "evt_7", registeredAt: "2026-05-25T08:00:00Z", status: "Registered" },
+  { id: "reg_7_2", memberId: "J5EVO-202605-0002", eventId: "evt_7", registeredAt: "2026-05-25T09:30:00Z", status: "Registered" },
+  { id: "reg_7_3", memberId: "J5EVO-202605-0003", eventId: "evt_7", registeredAt: "2026-05-26T10:00:00Z", status: "Registered" },
+  { id: "reg_7_4", memberId: "J5EVO-202604-0004", eventId: "evt_7", registeredAt: "2026-05-26T11:45:00Z", status: "Registered" },
+  { id: "reg_7_5", memberId: "J5EVO-202604-0005", eventId: "evt_7", registeredAt: "2026-05-27T08:15:00Z", status: "Registered" },
+  { id: "reg_7_6", memberId: "J5EVO-202604-0006", eventId: "evt_7", registeredAt: "2026-05-27T14:20:00Z", status: "Registered" },
+  { id: "reg_7_7", memberId: "J5EVO-202604-0007", eventId: "evt_7", registeredAt: "2026-05-28T09:45:00Z", status: "Registered" },
+  { id: "reg_7_8", memberId: "J5EVO-202604-0008", eventId: "evt_7", registeredAt: "2026-05-28T15:30:00Z", status: "Registered" },
+  { id: "reg_7_9", memberId: "J5EVO-202604-0009", eventId: "evt_7", registeredAt: "2026-05-29T10:10:00Z", status: "Registered" },
+  { id: "reg_7_10", memberId: "J5EVO-202604-0010", eventId: "evt_7", registeredAt: "2026-05-29T16:50:00Z", status: "Registered" }
 ];
 
 export const INITIAL_FAQS: any[] = [
