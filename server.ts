@@ -121,7 +121,10 @@ const DEFAULT_HOME_CONTENT = {
       isComingSoon: true,
       mapsUrl: "https://maps.google.com/?q=Jl.+Raya+Gubeng+No.17,+Gubeng,+Kec.+Gubeng,+Surabaya,+East+Java+60281"
     }
-  ] as any[]
+  ] as any[],
+  promoActive: false,
+  promoImage: "",
+  promoActionUrl: ""
 };
 
 const DEFAULT_SPONSORS = [
@@ -210,11 +213,22 @@ function loadDatabase(): DatabaseSchema {
             memberReg = "J5 EVO - TANGERANG RAYA";
           }
         }
+        
+        const initialMatch = INITIAL_MEMBERS.find(init => init.id === m.id || init.email?.toLowerCase().trim() === m.email?.toLowerCase().trim());
+        
         return {
           ...m,
           membershipTier: m.membershipTier || "SILVER",
           regional: memberReg,
-          pin: m.pin || "123456"
+          pin: m.pin || "123456",
+          garageCarName: m.garageCarName !== undefined ? m.garageCarName : (initialMatch?.garageCarName || ""),
+          garageDescription: m.garageDescription !== undefined ? m.garageDescription : (initialMatch?.garageDescription || ""),
+          garageImages: m.garageImages !== undefined ? m.garageImages : (initialMatch?.garageImages || []),
+          showInGarage: m.showInGarage !== undefined ? m.showInGarage : (initialMatch?.showInGarage || false),
+          hideIdentityPublic: m.hideIdentityPublic !== undefined ? m.hideIdentityPublic : (initialMatch?.hideIdentityPublic || false),
+          ratings: m.ratings || [],
+          ratingAverage: m.ratingAverage !== undefined ? m.ratingAverage : 0,
+          ratingCount: m.ratingCount !== undefined ? m.ratingCount : 0
         };
       });
     }
@@ -415,6 +429,13 @@ function migrateDatabaseImages() {
       const result = saveBase64Image(data.homeContent.emblemLogo, "home_emblem_logo");
       if (result !== data.homeContent.emblemLogo) {
         data.homeContent.emblemLogo = result;
+        modified = true;
+      }
+    }
+    if (data.homeContent.promoImage && typeof data.homeContent.promoImage === "string" && data.homeContent.promoImage.startsWith("data:image/")) {
+      const result = saveBase64Image(data.homeContent.promoImage, "home_promo_image");
+      if (result !== data.homeContent.promoImage) {
+        data.homeContent.promoImage = result;
         modified = true;
       }
     }
@@ -703,7 +724,11 @@ async function startServer() {
   // PUT update a member (Admin feature - can alter fields including membershipTier)
   app.put("/api/members/:id", (req, res) => {
     const memberId = req.params.id;
-    const { name, phone, address, regional, plateNumber, chassisNumber, membershipTier, email, birthDate, ownerPhoto, pin } = req.body;
+    const { 
+      name, phone, address, regional, plateNumber, chassisNumber, membershipTier, email, birthDate, ownerPhoto, pin,
+      garageCarName, garageDescription, garageImages, showInGarage, hideIdentityPublic,
+      censorPlatePhoto, censorPlateY, censorPlateX, censorPlateRotate, censorPlateScale, censorPlateIndices
+    } = req.body;
     
     const data = loadDatabase();
     const member = data.members.find((m) => m.id === memberId);
@@ -766,8 +791,77 @@ async function startServer() {
       member.membershipTier = membershipTier; // 'GOLD' | 'SILVER'
     }
 
+    // Digital Garage Show Up Your EV properties
+    if (garageCarName !== undefined) {
+      member.garageCarName = garageCarName;
+    }
+    if (garageDescription !== undefined) {
+      member.garageDescription = garageDescription;
+    }
+    if (showInGarage !== undefined) {
+      member.showInGarage = !!showInGarage;
+    }
+    if (hideIdentityPublic !== undefined) {
+      member.hideIdentityPublic = !!hideIdentityPublic;
+    }
+    if (garageImages !== undefined) {
+      if (Array.isArray(garageImages)) {
+        member.garageImages = garageImages.map((img: any, idx: number) => {
+          return saveBase64Image(img, `member_${memberId}_garage_${idx}`);
+        });
+      } else {
+        member.garageImages = [];
+      }
+    }
+
+    if (censorPlatePhoto !== undefined) member.censorPlatePhoto = !!censorPlatePhoto;
+    if (censorPlateY !== undefined) member.censorPlateY = Number(censorPlateY);
+    if (censorPlateX !== undefined) member.censorPlateX = Number(censorPlateX);
+    if (censorPlateRotate !== undefined) member.censorPlateRotate = Number(censorPlateRotate);
+    if (censorPlateScale !== undefined) member.censorPlateScale = Number(censorPlateScale);
+    if (censorPlateIndices !== undefined) {
+      member.censorPlateIndices = Array.isArray(censorPlateIndices) 
+        ? censorPlateIndices.map(Number) 
+        : [];
+    }
+
     saveDatabase(data);
     res.json({ success: true, message: "Member berhasil diperbarui.", member });
+  });
+
+  // POST rate a digital garage member (Public rating count & average)
+  app.post("/api/members/:id/rate", (req, res) => {
+    const memberId = req.params.id;
+    const { rating } = req.body;
+
+    if (rating === undefined || typeof rating !== "number" || rating < 1 || rating > 5) {
+      return res.status(400).json({ error: "Rating harus berupa angka antara 1 sampai 5 bintang!" });
+    }
+
+    const data = loadDatabase();
+    const member = data.members.find((m) => m.id === memberId);
+    if (!member) {
+      return res.status(404).json({ error: "Anggota tidak ditemukan." });
+    }
+
+    if (!member.ratings) {
+      member.ratings = [];
+    }
+    
+    member.ratings.push(rating);
+    
+    const sum = member.ratings.reduce((acc: number, val: number) => acc + val, 0);
+    member.ratingCount = member.ratings.length;
+    member.ratingAverage = parseFloat((sum / member.ratings.length).toFixed(1));
+
+    saveDatabase(data);
+    res.json({ 
+      success: true, 
+      message: "Terima kasih! Rating bintang Anda berhasil disubmit.", 
+      ratingAverage: member.ratingAverage, 
+      ratingCount: member.ratingCount, 
+      member 
+    });
   });
 
   // GET all events (stripped of heavy galleryImages for fast initial loading)
@@ -1713,7 +1807,7 @@ async function startServer() {
 
   // POST & PUT update home page content
   const handleUpdateHomeContent = (req, res) => {
-    const { heroTitle, heroSubtitle, aboutTitle, aboutDescription, heroBadge, emblemTitle, emblemDesc, emblemWatermark, emblemLogo, slides, dealers } = req.body;
+    const { heroTitle, heroSubtitle, aboutTitle, aboutDescription, heroBadge, emblemTitle, emblemDesc, emblemWatermark, emblemLogo, slides, dealers, promoActive, promoImage, promoActionUrl } = req.body;
     const data = loadDatabase();
     if (!data.homeContent) data.homeContent = { ...DEFAULT_HOME_CONTENT };
     
@@ -1734,6 +1828,13 @@ async function startServer() {
         : slides;
     }
     if (dealers !== undefined) data.homeContent.dealers = dealers;
+    
+    // Promo / Ad Settings
+    if (promoActive !== undefined) data.homeContent.promoActive = !!promoActive;
+    if (promoActionUrl !== undefined) data.homeContent.promoActionUrl = promoActionUrl;
+    if (promoImage !== undefined) {
+      data.homeContent.promoImage = saveBase64Image(promoImage, "home_promo_image");
+    }
     
     saveDatabase(data);
     res.json({ success: true, homeContent: data.homeContent });

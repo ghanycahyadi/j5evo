@@ -21,6 +21,20 @@ export interface Member {
   membershipTier?: "GOLD" | "SILVER";
   birthDate?: string; // Tanggal lahir
   hasOwnerPhoto?: boolean;
+  garageImages?: string[]; // Array up to 6 base64 image strings or file paths
+  garageCarName?: string; // Custom title of the car
+  garageDescription?: string; // Custom mod story or details
+  showInGarage?: boolean; // Show off EV in homepage/public showcase
+  hideIdentityPublic?: boolean; // If true, masks name and plate to the public
+  censorPlatePhoto?: boolean; // If true, overlays a digital plate sticker across car photos
+  censorPlateY?: number; // Custom Y coordinate percentage (e.g. 74) for the overlay tag
+  censorPlateX?: number; // Custom X coordinate percentage (e.g. 50) for the overlay tag
+  censorPlateRotate?: number; // Rotation degrees (e.g. 0) for the overlay tag
+  censorPlateScale?: number; // Custom scaling size percentage (e.g. 100)
+  censorPlateIndices?: number[]; // List of specific image indices that should have the plate censored
+  ratings?: number[]; // Array of ratings given by visitors
+  ratingAverage?: number; // Calculated average rating
+  ratingCount?: number; // Total count of star ratings
 }
 
 export interface CommunityEvent {

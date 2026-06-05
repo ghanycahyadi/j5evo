@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.5
  */
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Users,
   Calendar,
@@ -43,7 +43,8 @@ import {
   Globe,
   ChevronLeft,
   Settings,
-  ChevronUp
+  ChevronUp,
+  Megaphone
 } from "lucide-react";
 import Header from "./components/Header";
 import Hero from "./components/Hero";
@@ -76,6 +77,31 @@ interface NewsArticle {
 
 const J5_NEWS: NewsArticle[] = [
 ];
+
+const maskName = (fullName: string): string => {
+  if (!fullName) return "";
+  const name = fullName.trim();
+  if (name.length <= 3) {
+    return name[0] + "*".repeat(Math.max(1, name.length - 1));
+  }
+  const first = name[0];
+  const lastTwo = name.slice(-2);
+  const starsCount = Math.max(4, name.length - 3);
+  return first + "*".repeat(starsCount) + lastTwo;
+};
+
+const maskPlate = (plateNumber: string): string => {
+  if (!plateNumber) return "";
+  const plate = plateNumber.toUpperCase().replace(/\s+/g, " ").trim();
+  const parts = plate.split(" ");
+  if (parts.length >= 2) {
+    const midStars = "*".repeat(parts[1].length);
+    const suffix = parts[2] || "";
+    const suffixMask = suffix.length > 0 ? suffix[0] + "*".repeat(suffix.length - 1) : "";
+    return `${parts[0]} ${midStars} ${suffixMask}`.trim();
+  }
+  return plate.substring(0, Math.min(2, plate.length)) + "*".repeat(Math.max(1, plate.length - 2));
+};
 
 export default function App() {
   const [activeTab, setActiveTabState] = useState<string>(() => {
@@ -300,6 +326,7 @@ export default function App() {
 
   // States - Member Self-Edit Profile
   const [showEditVerification, setShowEditVerification] = useState<boolean>(false);
+  const [editFormPreviewIdx, setEditFormPreviewIdx] = useState<number>(0);
   const [verificationPhoneNum, setVerificationPhoneNum] = useState<string>("");
   const [verificationPin, setVerificationPin] = useState<string>("");
   const [verificationError, setVerificationError] = useState<string | null>(null);
@@ -319,8 +346,70 @@ export default function App() {
     p3: "",
     ownerPhoto: "",
     pin: "",
-    chassisNumber: ""
+    chassisNumber: "",
+    garageCarName: "",
+    garageDescription: "",
+    garageImages: [] as string[],
+    showInGarage: false,
+    hideIdentityPublic: false,
+    censorPlatePhoto: false,
+    censorPlateY: 74,
+    censorPlateX: 50,
+    censorPlateRotate: 0,
+    censorPlateScale: 100,
+    censorPlateIndices: [] as number[]
   });
+
+  // Dragging states and handlers for the interactive plate censor preview
+  const [isDraggingPlate, setIsDraggingPlate] = useState(false);
+  const previewContainerRef = useRef<HTMLDivElement>(null);
+
+  const handlePlateDragUpdate = (clientX: number, clientY: number) => {
+    if (!previewContainerRef.current) return;
+    const rect = previewContainerRef.current.getBoundingClientRect();
+    const xPercent = Math.round(((clientX - rect.left) / rect.width) * 100);
+    const yPercent = Math.round(((clientY - rect.top) / rect.height) * 100);
+    
+    const boundedX = Math.max(5, Math.min(95, xPercent));
+    const boundedY = Math.max(5, Math.min(95, yPercent));
+
+    setSelfEditForm(prev => ({
+      ...prev,
+      censorPlateX: boundedX,
+      censorPlateY: boundedY
+    }));
+  };
+
+  const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    setIsDraggingPlate(true);
+    handlePlateDragUpdate(e.clientX, e.clientY);
+  };
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!isDraggingPlate) return;
+    handlePlateDragUpdate(e.clientX, e.clientY);
+  };
+
+  const handleMouseUpOrLeave = () => {
+    setIsDraggingPlate(false);
+  };
+
+  const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (e.touches && e.touches[0]) {
+      setIsDraggingPlate(true);
+      handlePlateDragUpdate(e.touches[0].clientX, e.touches[0].clientY);
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (!isDraggingPlate) return;
+    if (e.touches && e.touches[0]) {
+      if (e.cancelable) {
+        e.preventDefault();
+      }
+      handlePlateDragUpdate(e.touches[0].clientX, e.touches[0].clientY);
+    }
+  };
 
   // FAQ implementation state variables
   const [faqs, setFaqs] = useState<FAQ[]>([]);
@@ -348,6 +437,53 @@ export default function App() {
   const [selectedAlbumPhotos, setSelectedAlbumPhotos] = useState<any[]>([]);
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState<number>(0);
   const [loadingAlbumId, setLoadingAlbumId] = useState<string | null>(null);
+  const [selectedGarageMember, setSelectedGarageMember] = useState<Member | null>(null);
+  const [activeGarageImageIdx, setActiveGarageImageIdx] = useState<number>(0);
+  const [userRatingHover, setUserRatingHover] = useState<number | null>(null);
+  const [shuffledGarageMembers, setShuffledGarageMembers] = useState<Member[]>([]);
+  const [garageSlideIdx, setGarageSlideIdx] = useState<number>(0);
+  const [itemsPerPage, setItemsPerPage] = useState<number>(3);
+
+  useEffect(() => {
+    const pubMembers = members.filter(
+      (m) => m.showInGarage && (m.garageCarName || (m.garageImages && m.garageImages.length > 0))
+    );
+    // Randomized placement
+    const shuffled = [...pubMembers].sort(() => Math.random() - 0.5);
+    setShuffledGarageMembers(shuffled);
+    setGarageSlideIdx(0);
+  }, [members]);
+
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth >= 1024) {
+        setItemsPerPage(3);
+      } else if (window.innerWidth >= 768) {
+        setItemsPerPage(2);
+      } else {
+        setItemsPerPage(1);
+      }
+    };
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  // Auto-slide effect to rotate items naturally every 5 seconds
+  useEffect(() => {
+    if (shuffledGarageMembers.length <= itemsPerPage) return;
+    const interval = setInterval(() => {
+      setGarageSlideIdx((prev) => {
+        const maxSlideIdx = Math.max(0, shuffledGarageMembers.length - itemsPerPage);
+        if (prev >= maxSlideIdx) {
+          return 0; // Wrap back to the beginning
+        }
+        return prev + 1; // Move forward by one item
+      });
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [shuffledGarageMembers.length, itemsPerPage]);
 
   const handleOpenAlbum = async (evtId: string, title: string) => {
     try {
@@ -505,6 +641,19 @@ export default function App() {
   const [productSearchQuery, setProductSearchQuery] = useState("");
   const [homeContent, setHomeContent] = useState<any>(null);
 
+  // Promotion Pop-up and Floating Button States
+  const [isPromoOpen, setIsPromoOpen] = useState<boolean>(false);
+  const [showPromoFloatingButton, setShowPromoFloatingButton] = useState<boolean>(false);
+  const [hasPromoPopped, setHasPromoPopped] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (homeContent && homeContent.promoActive && homeContent.promoImage && !hasPromoPopped) {
+      setIsPromoOpen(true);
+      setShowPromoFloatingButton(true);
+      setHasPromoPopped(true);
+    }
+  }, [homeContent, hasPromoPopped]);
+
   // CMS Admin states for managing Regionals, Sponsors, and Home Content
   const [newRegionalName, setNewRegionalName] = useState("");
   const [editingRegionalIndex, setEditingRegionalIndex] = useState<number | null>(null);
@@ -583,7 +732,10 @@ export default function App() {
     emblemTitle: "",
     emblemDesc: "",
     emblemWatermark: "",
-    emblemLogo: ""
+    emblemLogo: "",
+    promoActive: false,
+    promoImage: "",
+    promoActionUrl: ""
   });
 
   const [cmsSlides, setCmsSlides] = useState<string[]>([]);
@@ -753,7 +905,10 @@ export default function App() {
           emblemTitle: hcRes.emblemTitle || "",
           emblemDesc: hcRes.emblemDesc || "",
           emblemWatermark: hcRes.emblemWatermark || "",
-          emblemLogo: hcRes.emblemLogo || ""
+          emblemLogo: hcRes.emblemLogo || "",
+          promoActive: !!hcRes.promoActive,
+          promoImage: hcRes.promoImage || "",
+          promoActionUrl: hcRes.promoActionUrl || ""
         });
         setCmsSlides(hcRes.slides || []);
         setCmsDealers(hcRes.dealers || []);
@@ -801,6 +956,22 @@ export default function App() {
         reader.readAsDataURL(file);
       } catch (err) {
         showFeedback("Gagal mengompres foto logo emblem", true);
+      }
+    }
+  };
+
+  const handlePromoImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      try {
+        const reader = new FileReader();
+        reader.onloadend = async () => {
+          const compressed = await compressImage(reader.result as string);
+          setHomeCmsForm({ ...homeCmsForm, promoImage: compressed });
+        };
+        reader.readAsDataURL(file);
+      } catch (err) {
+        showFeedback("Gagal mengompres foto iklan promo", true);
       }
     }
   };
@@ -901,6 +1072,7 @@ export default function App() {
       const part2 = pParts[1] || "";
       const part3 = pParts[2] || "";
       
+      setEditFormPreviewIdx(0);
       setSelfEditForm({
         id: lookupResult.member.id,
         name: lookupResult.member.name,
@@ -914,11 +1086,76 @@ export default function App() {
         p3: part3,
         ownerPhoto: lookupResult.member.ownerPhoto || "",
         pin: lookupResult.member.pin || "",
-        chassisNumber: lookupResult.member.chassisNumber || ""
+        chassisNumber: lookupResult.member.chassisNumber || "",
+        garageCarName: lookupResult.member.garageCarName || "",
+        garageDescription: lookupResult.member.garageDescription || "",
+        garageImages: lookupResult.member.garageImages || [],
+        showInGarage: !!lookupResult.member.showInGarage,
+        hideIdentityPublic: !!lookupResult.member.hideIdentityPublic,
+        censorPlatePhoto: !!lookupResult.member.censorPlatePhoto,
+        censorPlateY: lookupResult.member.censorPlateY !== undefined ? lookupResult.member.censorPlateY : 74,
+        censorPlateX: lookupResult.member.censorPlateX !== undefined ? lookupResult.member.censorPlateX : 50,
+        censorPlateRotate: lookupResult.member.censorPlateRotate !== undefined ? lookupResult.member.censorPlateRotate : 0,
+        censorPlateScale: lookupResult.member.censorPlateScale !== undefined ? lookupResult.member.censorPlateScale : 100,
+        censorPlateIndices: lookupResult.member.censorPlateIndices !== undefined 
+          ? lookupResult.member.censorPlateIndices 
+          : (lookupResult.member.censorPlatePhoto ? Array.from({ length: (lookupResult.member.garageImages?.length || 1) }, (_, i) => i) : [])
       });
     } else {
       setVerificationError("PIN 6 Digit yang Anda masukkan salah.");
     }
+  };
+
+  const handleGarageImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files) return;
+    const files = Array.from(e.target.files);
+    
+    const currentImagesCount = selfEditForm.garageImages ? selfEditForm.garageImages.length : 0;
+    if (currentImagesCount + files.length > 6) {
+      showFeedback(`Batas maksimal foto garasi adalah 6 gambar! (Terpilih ${files.length} + Terunggah ${currentImagesCount})`, true);
+      return;
+    }
+    
+    setLoading(true);
+    const newCompressedImages: string[] = [];
+    
+    for (const file of files) {
+      try {
+        const reader = new FileReader();
+        const compressedDataUrl = await new Promise<string>((resolve, reject) => {
+          reader.onload = async () => {
+            try {
+              const res = await compressImage(reader.result as string, 800, 600, 0.82);
+              resolve(res);
+            } catch (err) {
+              reject(err);
+            }
+          };
+          reader.onerror = () => reject(reader.error);
+          reader.readAsDataURL(file as File);
+        });
+        
+        newCompressedImages.push(compressedDataUrl);
+      } catch (err) {
+        console.error("Gagal mengompres gambar garasi:", err);
+        showFeedback("Sebagian gambar gagal diunggah karena galat kompresi.", true);
+      }
+    }
+    
+    const existingImages = selfEditForm.garageImages || [];
+    setSelfEditForm({
+      ...selfEditForm,
+      garageImages: [...existingImages, ...newCompressedImages]
+    });
+    setLoading(false);
+  };
+
+  const removeGarageImage = (indexToRemove: number) => {
+    const existingImages = selfEditForm.garageImages || [];
+    setSelfEditForm({
+      ...selfEditForm,
+      garageImages: existingImages.filter((_, idx) => idx !== indexToRemove)
+    });
   };
 
   const handleSaveSelfEdit = async (e: React.FormEvent) => {
@@ -971,7 +1208,18 @@ export default function App() {
       ownerPhoto: selfEditForm.ownerPhoto,
       pin: selfEditForm.pin,
       plateNumber: mergedPlate,
-      chassisNumber: cleanChassis
+      chassisNumber: cleanChassis,
+      garageCarName: selfEditForm.garageCarName,
+      garageDescription: selfEditForm.garageDescription,
+      garageImages: selfEditForm.garageImages,
+      showInGarage: selfEditForm.showInGarage,
+      hideIdentityPublic: selfEditForm.hideIdentityPublic,
+      censorPlatePhoto: selfEditForm.censorPlatePhoto,
+      censorPlateY: selfEditForm.censorPlateY,
+      censorPlateX: selfEditForm.censorPlateX,
+      censorPlateRotate: selfEditForm.censorPlateRotate,
+      censorPlateScale: selfEditForm.censorPlateScale,
+      censorPlateIndices: selfEditForm.censorPlateIndices
     };
 
     try {
@@ -1447,6 +1695,76 @@ export default function App() {
       showFeedback("Terjadi kesalahan jaringan rute API reset PIN.", true);
     } finally {
       setPinResetLoading(false);
+    }
+  };
+
+  const handleLookupByGarageMember = async (m: Member) => {
+    setSelectedGarageMember(null);
+    setActiveTab("membership-lookup");
+    setLookupQuery(m.plateNumber);
+    setLookupPlate1("");
+    setLookupPlate2("");
+    setLookupPlate3("");
+    setLookupError(null);
+    
+    try {
+      setLoading(true);
+      const res = await fetch(`/api/members/${encodeURIComponent(m.plateNumber)}`);
+      const data = await res.json();
+      if (!res.ok) {
+        setLookupResult(null);
+        setLookupError(data.error || "Data kepesertaan tidak ditemukan dalam sistem J5 EVO.");
+        return;
+      }
+      setLookupResult(data);
+    } catch (err) {
+      setLookupResult(null);
+      setLookupError("Gagal mengambil data KTA.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRateMember = async (memberId: string, rating: number) => {
+    try {
+      const res = await fetch(`/api/members/${memberId}/rate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rating })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        showFeedback(data.error || "Gagal mengirimkan rating.", true);
+        return;
+      }
+      showFeedback("Terima kasih! Rating bintang Anda berhasil disubmit.");
+      
+      // Update local state views immediately
+      setSelectedGarageMember((prev) => {
+        if (!prev) return null;
+        return {
+          ...prev,
+          ratingAverage: data.ratingAverage,
+          ratingCount: data.ratingCount,
+          ratings: data.member?.ratings || []
+        };
+      });
+
+      setMembers((prevMembers) => 
+        prevMembers.map((m) => {
+          if (m.id === memberId) {
+            return {
+              ...m,
+              ratingAverage: data.ratingAverage,
+              ratingCount: data.ratingCount,
+              ratings: data.member?.ratings || []
+            };
+          }
+          return m;
+        })
+      );
+    } catch (err) {
+      showFeedback("Gagal menghubungi server untuk mengirim rating.", true);
     }
   };
 
@@ -2168,6 +2486,127 @@ export default function App() {
     window.location.href = "/api/export/excel";
   };
 
+  // Admin moderation: delete custom gallery photos
+  const handleAdminDeleteActivePhoto = async () => {
+    if (!currentUser || currentUser.role !== "admin") {
+      showFeedback("Akses ditolak: Anda harus login sebagai admin untuk melakukan tindakan ini.", true);
+      return;
+    }
+    if (!selectedGarageMember) return;
+    const currentImages = selectedGarageMember.garageImages || [];
+    if (currentImages.length === 0) return;
+
+    setConfirmDialog({
+      isOpen: true,
+      title: "Moderasi Hapus Foto",
+      message: `Apakah Anda yakin ingin menghapus foto #${activeGarageImageIdx + 1} dari galeri member ini? Tindakan ini permanen.`,
+      confirmText: "Ya, Hapus Foto",
+      cancelText: "Batal",
+      isDanger: true,
+      onConfirm: async () => {
+        setConfirmDialog(null);
+        try {
+          setLoading(true);
+          const updatedImages = currentImages.filter((_, idx) => idx !== activeGarageImageIdx);
+          
+          // Shift plate censor indices
+          let updatedCensorIndices = selectedGarageMember.censorPlateIndices || [];
+          updatedCensorIndices = updatedCensorIndices
+            .filter((idx) => idx !== activeGarageImageIdx)
+            .map((idx) => (idx > activeGarageImageIdx ? idx - 1 : idx));
+
+          const res = await fetch(`/api/members/${encodeURIComponent(selectedGarageMember.id)}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              ...selectedGarageMember,
+              garageImages: updatedImages,
+              censorPlateIndices: updatedCensorIndices
+            })
+          });
+
+          if (res.ok) {
+            const data = await res.json();
+            showFeedback("Sukses menghapus foto dari galeri member.");
+            setSelectedGarageMember(data.member);
+            setActiveGarageImageIdx(0);
+            fetchData(); // reload list
+            
+            // Sync lookup result if opened
+            if (lookupResult && lookupResult.member.id === selectedGarageMember.id) {
+              setLookupResult({
+                ...lookupResult,
+                member: data.member
+              });
+            }
+          } else {
+            const errData = await res.json();
+            showFeedback(errData.error || "Gagal menghapus foto.", true);
+          }
+        } catch (err) {
+          showFeedback("Gagal menghubungi server untuk menghapus foto.", true);
+        } finally {
+          setLoading(false);
+        }
+      }
+    });
+  };
+
+  const handleAdminDeleteAllPhotos = async () => {
+    if (!currentUser || currentUser.role !== "admin") {
+      showFeedback("Akses ditolak: Anda harus login sebagai admin untuk melakukan tindakan ini.", true);
+      return;
+    }
+    if (!selectedGarageMember) return;
+
+    setConfirmDialog({
+      isOpen: true,
+      title: "Moderasi Hapus Seluruh Galeri",
+      message: "Apakah Anda yakin ingin menghapus SELURUH foto galeri milik member ini? Tindakan ini tidak dapat dibatalkan.",
+      confirmText: "Ya, Hapus Semua",
+      cancelText: "Batal",
+      isDanger: true,
+      onConfirm: async () => {
+        setConfirmDialog(null);
+        try {
+          setLoading(true);
+          const res = await fetch(`/api/members/${encodeURIComponent(selectedGarageMember.id)}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              ...selectedGarageMember,
+              garageImages: [],
+              censorPlateIndices: [],
+              showInGarage: false
+            })
+          });
+
+          if (res.ok) {
+            const data = await res.json();
+            showFeedback("Sukses mengosongkan seluruh foto galeri member.");
+            setSelectedGarageMember(data.member);
+            setActiveGarageImageIdx(0);
+            fetchData(); // reload list
+            
+            if (lookupResult && lookupResult.member.id === selectedGarageMember.id) {
+              setLookupResult({
+                ...lookupResult,
+                member: data.member
+              });
+            }
+          } else {
+            const errData = await res.json();
+            showFeedback(errData.error || "Gagal menghapus seluruh galeri.", true);
+          }
+        } catch (err) {
+          showFeedback("Gagal menghubungi server.", true);
+        } finally {
+          setLoading(false);
+        }
+      }
+    });
+  };
+
   // Divide events for display
   const upcomingEvents = events.filter((e) => e.status === "upcoming");
   const pastEvents = events.filter((e) => e.status === "completed" || e.status === "ongoing");
@@ -2390,6 +2829,225 @@ export default function App() {
               </div>
 
             </div>
+
+            {/* GALERI DIGITAL GARASI EV - SHOW UP YOUR EV */}
+            <div id="digital-garage-members" className="space-y-6 bg-[#f7fdfb] rounded-3xl p-6 md:p-8 border border-teal-100/65 shadow-sm">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-teal-100/30 pb-5">
+                <div className="text-left space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="px-2.5 py-0.5 text-[9px] font-mono tracking-widest text-[#005c56] bg-teal-50 rounded-full border border-teal-200 uppercase font-black">
+                      ✨ SHOW UP YOUR EV
+                    </span>
+                    <span className="text-teal-600 text-xs font-semibold">● Live Garage Showcase</span>
+                  </div>
+                  <h3 className="text-2xl font-black text-zinc-900 font-sans tracking-tight">
+                    Galeri Garasi J5 Evo Member
+                  </h3>
+                  <p className="text-zinc-500 text-xs leading-relaxed max-w-2xl font-medium">
+                    Kumpulan Galery mobil Jaecoo J5 EV milik para anggota komunitas J5 Evo.
+                  </p>
+                </div>
+                
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("membership-lookup")}
+                  className="px-5 py-3 bg-gradient-to-r from-[#005c56] to-teal-700 hover:from-teal-750 hover:to-teal-650 text-white font-extrabold rounded-2xl text-xs transition duration-200 shadow-md flex items-center justify-center gap-2 cursor-pointer shrink-0 uppercase tracking-wider"
+                >
+                  🚙 Kelola Garasi Saya
+                </button>
+              </div>
+
+              {(() => {
+                if (shuffledGarageMembers.length === 0) {
+                  return (
+                    <div className="p-10 border border-dashed border-teal-200 bg-teal-50/20 text-center rounded-2xl max-w-md mx-auto space-y-3 font-sans">
+                      <span className="text-3xl block">🚗</span>
+                      <h4 className="text-zinc-900 font-black text-sm uppercase tracking-wider">Garasi Publik Masih Kosong!</h4>
+                      <p className="text-zinc-500 text-2xs leading-relaxed">
+                        Jadilah anggota pertama yang memamerkan modifikasi mobil Jaecoo J5 EV Anda di sini. Cari nomor plat Anda, masukkan PIN, pilih "Edit Info Profil" dan isi detail garasi Anda.
+                      </p>
+                      <button
+                        onClick={() => setActiveTab("membership-lookup")}
+                        className="inline-block py-2 px-4 bg-[#005c56] hover:bg-teal-850 text-white font-extrabold rounded-lg text-xs transition uppercase cursor-pointer"
+                      >
+                        Masuk Ke Profil Saya
+                      </button>
+                    </div>
+                  );
+                }
+
+                // Slice elements based on current slide pointer and responsive state
+                const visibleMembers = shuffledGarageMembers.slice(garageSlideIdx, garageSlideIdx + itemsPerPage);
+
+                return (
+                  <div className="space-y-6">
+                    {/* Active Cards Container with Entrance Motion Wrapper */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-fadeIn">
+                      {visibleMembers.map((m) => {
+                        const firstImage = m.garageImages && m.garageImages.length > 0 ? m.garageImages[0] : m.carPhoto;
+                        const displayName = m.hideIdentityPublic ? maskName(m.name) : m.name;
+                        const displayPlate = m.hideIdentityPublic ? maskPlate(m.plateNumber) : m.plateNumber;
+
+                        return (
+                          <div
+                            key={m.id}
+                            onClick={() => {
+                              setSelectedGarageMember(m);
+                              setActiveGarageImageIdx(0);
+                            }}
+                            className="bg-white rounded-2xl border border-zinc-200 shadow-3xs hover:border-[#005c56] hover:shadow-[0_12px_32px_rgba(0,92,86,0.08)] overflow-hidden transition-all duration-300 flex flex-col group cursor-pointer active:scale-[0.99] text-left transform duration-200"
+                          >
+                            {/* Cover Image */}
+                            <div className="relative aspect-video bg-zinc-950 overflow-hidden shrink-0 flex items-center justify-center border-b border-zinc-200">
+                              <div className="relative inline-block max-h-full max-w-full">
+                                <img
+                                  src={firstImage}
+                                  alt={m.garageCarName || "Jaecoo J5 EV"}
+                                  className="max-h-full max-w-full w-auto h-auto object-contain group-hover:scale-[1.03] transition-all duration-500 block"
+                                  referrerPolicy="no-referrer"
+                                />
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/25 via-transparent to-transparent opacity-80 group-hover:opacity-90 transition-opacity pointer-events-none z-10"></div>
+                                
+                                {/* Censor plate cover stiker */}
+                                {m.censorPlatePhoto && (!m.censorPlateIndices || m.censorPlateIndices.length === 0 || m.censorPlateIndices.includes(0)) && (
+                                  <div 
+                                    style={{ 
+                                      top: `${m.censorPlateY !== undefined ? m.censorPlateY : 74}%`,
+                                      left: `${m.censorPlateX !== undefined ? m.censorPlateX : 50}%`,
+                                      transform: `translate(-50%, -50%) rotate(${m.censorPlateRotate !== undefined ? m.censorPlateRotate : 0}deg) scale(${(m.censorPlateScale !== undefined ? m.censorPlateScale : 100) / 100 * 0.9})`
+                                    }} 
+                                    className="absolute bg-white/95 text-zinc-900 border-2 border-[#005c56]/60 rounded-sm shadow-md py-0.5 px-2.5 flex items-center justify-center min-w-[90px] select-none pointer-events-none transition-all duration-300 z-25"
+                                  >
+                                    <span className="font-mono text-[7px] tracking-wider font-extrabold text-[#005c56]">J 5 EVO</span>
+                                  </div>
+                                )}
+                              </div>
+                              
+                              {/* Left-top Plate-info Tag */}
+                              <div className="absolute top-3 left-3 bg-zinc-950/85 backdrop-blur-sm border border-zinc-700/60 font-mono text-[9px] text-[#00ffd2] font-black tracking-widest px-2.5 py-1 rounded-md uppercase">
+                                {displayPlate}
+                              </div>
+
+                              {/* Right-top Public Rating Star Badge */}
+                              <div className="absolute top-3 right-3 bg-zinc-950/85 backdrop-blur-sm border border-zinc-700/60 font-sans text-[9px] text-yellow-400 font-extrabold px-2.5 py-1 rounded-md flex items-center gap-1">
+                                ⭐ {m.ratingAverage || "0.0"} ({m.ratingCount || 0})
+                              </div>
+                              
+                              {/* Left-bottom Photos tag */}
+                              {m.garageImages && m.garageImages.length > 0 && (
+                                <div className="absolute bottom-3 left-3 bg-teal-950/95 text-[9px] font-black text-white px-2.5 py-1 rounded border border-teal-400/30">
+                                  📸 {m.garageImages.length} FOTO
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Content Body */}
+                            <div className="p-4 flex-1 flex flex-col justify-between space-y-4">
+                              <div className="space-y-1.5 text-left">
+                                <span className="text-[9px] font-mono tracking-widest text-[#005c56] font-bold block uppercase leading-none">
+                                  {m.regional || "J5 EVO - INDONESIA"}
+                                </span>
+                                <h4 className="font-sans font-black text-xs text-zinc-900 line-clamp-1 group-hover:text-[#005c56] transition leading-snug">
+                                  {m.garageCarName || "Jaecoo J5 EV Premium SUV"}
+                                </h4>
+                                {m.garageDescription ? (
+                                  <p className="text-zinc-[650] text-[10px] leading-relaxed line-clamp-2 font-medium">
+                                    {m.garageDescription}
+                                  </p>
+                                ) : (
+                                  <p className="text-zinc-400 text-[10px] italic leading-relaxed">
+                                    Deskripsi modifikasi belum disematkan pada garasi ini.
+                                  </p>
+                                )}
+                              </div>
+
+                              {/* Owner Human Block footer without silver string */}
+                              <div className="pt-3 border-t border-zinc-150 flex items-center justify-between gap-2.5">
+                                <div className="flex items-center gap-2">
+                                  <div className="w-7 h-7 rounded-full bg-zinc-150 overflow-hidden shrink-0 border border-teal-200">
+                                    <img
+                                      src={m.ownerPhoto || "/logo.png"}
+                                      alt={displayName}
+                                      className="w-full h-full object-cover"
+                                      referrerPolicy="no-referrer"
+                                    />
+                                  </div>
+                                  <div className="text-left leading-none">
+                                    <span className="text-[10px] font-card-display font-black text-zinc-900 block truncate max-w-[130px] uppercase">
+                                      {displayName}
+                                    </span>
+                                    {m.membershipTier === "GOLD" ? (
+                                      <span className="text-[8px] font-mono font-bold text-amber-600 tracking-wider">
+                                        GOLD MEMBER
+                                      </span>
+                                    ) : (
+                                      <span className="text-[8px] font-mono font-bold text-teal-850 tracking-wider">
+                                        MEMBER
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                                
+                                <span className="text-[9px] text-[#005c56] font-black group-hover:underline flex items-center gap-0.5 uppercase tracking-wider shrink-0">
+                                  Detail →
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* SLIDE CONTROL NAVIGATION SYSTEM */}
+                    {shuffledGarageMembers.length > itemsPerPage && (
+                      <div className="flex items-center justify-between bg-zinc-50 border border-zinc-200 p-2.5 rounded-2xl mt-4 max-w-md mx-auto">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const maxSlideIdx = Math.max(0, shuffledGarageMembers.length - itemsPerPage);
+                            setGarageSlideIdx((prev) => (prev <= 0) ? maxSlideIdx : prev - 1);
+                          }}
+                          className="px-3.5 py-1.5 bg-white border border-zinc-200 text-zinc-750 text-xs font-bold rounded-lg hover:bg-zinc-100 active:scale-95 transition cursor-pointer select-none"
+                        >
+                          ← Sebelumnya
+                        </button>
+
+                        {/* Page Dots indicator */}
+                        <div className="flex gap-2 items-center">
+                          {Array.from({ length: Math.min(8, Math.ceil(shuffledGarageMembers.length / itemsPerPage)) }).map((_, idx) => {
+                            const isCurrent = Math.floor(garageSlideIdx / itemsPerPage) === idx;
+                            return (
+                              <button
+                                key={idx}
+                                onClick={() => {
+                                  const targetIdx = Math.min(shuffledGarageMembers.length - itemsPerPage, idx * itemsPerPage);
+                                  setGarageSlideIdx(Math.max(0, targetIdx));
+                                }}
+                                className={`h-2 rounded-full transition-all duration-300 cursor-pointer ${
+                                  isCurrent ? "w-6 bg-[#005c56]" : "w-2 bg-zinc-250 hover:bg-zinc-350"
+                                }`}
+                              />
+                            );
+                          })}
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const maxSlideIdx = Math.max(0, shuffledGarageMembers.length - itemsPerPage);
+                            setGarageSlideIdx((prev) => (prev >= maxSlideIdx) ? 0 : prev + 1);
+                          }}
+                          className="px-3.5 py-1.5 bg-white border border-zinc-200 text-zinc-750 text-xs font-bold rounded-lg hover:bg-zinc-100 active:scale-95 transition cursor-pointer select-none"
+                        >
+                          Berikutnya →
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+            </div>
+
             <div id="gallery-section" className="space-y-6">
               <div className="flex items-center justify-between flex-wrap gap-2">
                 <div className="flex items-center gap-2">
@@ -4038,6 +4696,98 @@ export default function App() {
                         </button>
                       </div>
 
+                      {/* DIGITAL GARAGE SHOWCASE (FOR THE CURRENT LOOKED UP MEMBER) */}
+                      {(lookupResult.member.garageCarName || (lookupResult.member.garageImages && lookupResult.member.garageImages.length > 0)) ? (
+                        <div className="max-w-[490px] mx-auto bg-white border border-zinc-200 rounded-3xl p-5 shadow-sm text-left mt-2 mb-4 space-y-4 font-sans relative overflow-hidden">
+                          <div className="absolute top-0 right-0 p-3 text-[10px] uppercase font-mono tracking-widest text-teal-700 font-bold">
+                            GARASI MEMBER
+                          </div>
+                          
+                          <div className="flex items-center gap-2">
+                            <span className="text-xl">🚗</span>
+                            <div>
+                              <span className="text-[10px] font-bold text-teal-700 uppercase tracking-widest block leading-none">Show Up Your EV!</span>
+                              <h4 className="font-sans font-black text-sm text-zinc-900 mt-0.5">
+                                {lookupResult.member.garageCarName || "Jaecoo J5 EV Premium SUV"}
+                              </h4>
+                            </div>
+                          </div>
+
+                          {lookupResult.member.garageDescription && (
+                            <p className="text-zinc-[650] text-2xs leading-relaxed bg-teal-50/15 p-3 rounded-2xl border border-teal-100/30 font-medium">
+                              {lookupResult.member.garageDescription}
+                            </p>
+                          )}
+
+                          {lookupResult.member.garageImages && lookupResult.member.garageImages.length > 0 && (
+                            <div className="space-y-2">
+                              <span className="text-[9px] font-bold text-zinc-400 block uppercase tracking-wider">Galeri Foto Modifikasi:</span>
+                              <div className="grid grid-cols-3 gap-2">
+                                {lookupResult.member.garageImages.map((img, idx) => {
+                                  const m = lookupResult.member;
+                                  const isCensored = m.censorPlatePhoto && (!m.censorPlateIndices || m.censorPlateIndices.length === 0 || m.censorPlateIndices.includes(idx));
+                                  return (
+                                    <button
+                                      key={idx}
+                                      type="button"
+                                      onClick={() => {
+                                        setSelectedGarageMember(m);
+                                        setActiveGarageImageIdx(idx);
+                                      }}
+                                      className="relative aspect-video bg-zinc-950 rounded-xl overflow-hidden border border-zinc-150 hover:border-teal-500 transition shadow-3xs cursor-zoom-in flex items-center justify-center focus:outline-none focus:ring-1 focus:ring-teal-500"
+                                    >
+                                      <div className="relative inline-block max-h-full max-w-full">
+                                        <img
+                                          src={img}
+                                          alt={`${m.name} EV ${idx + 1}`}
+                                          className="max-h-full max-w-full w-auto h-auto object-contain hover:scale-[1.05] transition duration-300 block"
+                                          referrerPolicy="no-referrer"
+                                        />
+                                        {/* Miniature censor plate overlay */}
+                                        {isCensored && (
+                                          <div 
+                                            style={{ 
+                                              top: `${m.censorPlateY !== undefined ? m.censorPlateY : 74}%`,
+                                              left: `${m.censorPlateX !== undefined ? m.censorPlateX : 50}%`,
+                                              transform: `translate(-50%, -50%) rotate(${m.censorPlateRotate !== undefined ? m.censorPlateRotate : 0}deg) scale(${((m.censorPlateScale !== undefined ? m.censorPlateScale : 100) / 100) * 0.45})`
+                                            }} 
+                                            className="absolute bg-white/95 text-zinc-900 border border-[#005c56]/60 rounded-sm shadow-sm py-0.2 px-1 flex items-center justify-center min-w-[50px] select-none pointer-events-none transition-all duration-300 z-10"
+                                          >
+                                            <span className="font-mono text-[4.5px] tracking-wider font-extrabold text-[#005c56]">J 5 EVO</span>
+                                          </div>
+                                        )}
+                                      </div>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
+
+                          {lookupResult.member.showInGarage ? (
+                            <div className="flex items-center gap-1.5 text-emerald-600 text-[10px] font-bold">
+                              <span>● Terpublikasi di Galeri Publik Beranda</span>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-1.5 text-zinc-400 text-[10px] font-bold">
+                              <span>○ Private (Hanya terlihat di Profil Anda)</span>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="max-w-[490px] mx-auto bg-teal-50/10 border border-dashed border-teal-200 rounded-3xl p-5 text-left mt-2 mb-4 space-y-2.5 font-sans">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xl">🚗</span>
+                            <h4 className="font-sans font-extrabold text-xs text-teal-800">
+                              Garasi J5 EV Anda Masih Kosong!
+                            </h4>
+                          </div>
+                          <p className="text-zinc-650 text-[10px] leading-relaxed font-medium">
+                            Ayo pamerkan kreasi modifikasi, wraps warna stiker, foto interior, maupun aksesoris kustom mobil Jaecoo J5 EV Anda kepada seluruh anggota komunitas! Tekan tombol <strong>"Edit Info Profil"</strong> di atas, masukkan PIN Anda, lalu isi rincian Garasi EV Anda.
+                          </p>
+                        </div>
+                      )}
+
                       {/* VERIFICATION DIALOG MODAL (PIN check) */}
                       {showEditVerification && (
                         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-900/60 backdrop-blur-xs animate-fadeIn">
@@ -4255,9 +5005,9 @@ export default function App() {
                               {/* PIN Keamanan & Alamat Email Row */}
                               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                 <div className="space-y-1">
-                                  <div className="flex justify-between items-center">
-                                    <label className="text-zinc-700 font-bold block uppercase tracking-wider">PIN 6 Digit Baru *</label>
-                                    <span className="text-[10px] text-zinc-400 font-semibold">Ganti PIN Anda</span>
+                                  <div className="flex justify-between items-center h-5 gap-1">
+                                    <label className="text-zinc-700 font-bold block uppercase tracking-wider truncate">PIN 6 Digit Baru *</label>
+                                    <span className="text-[9px] text-zinc-400 font-semibold shrink-0">Ganti PIN Anda</span>
                                   </div>
                                   <input
                                     type="password"
@@ -4267,18 +5017,20 @@ export default function App() {
                                     required
                                     value={selfEditForm.pin || ""}
                                     onChange={(e) => setSelfEditForm({ ...selfEditForm, pin: e.target.value.replace(/[^0-9]/g, "").slice(0, 6) })}
-                                    className="w-full bg-zinc-50 text-zinc-900 border border-zinc-250 rounded-xl p-3 focus:outline-none focus:border-teal-500 font-semibold text-center tracking-widest"
+                                    className="w-full bg-zinc-50 text-zinc-900 border border-zinc-250 rounded-xl p-3 focus:outline-none focus:border-teal-500 font-semibold text-center tracking-widest h-11"
                                     placeholder="******"
                                   />
                                 </div>
                                 <div className="space-y-1">
-                                  <label className="text-zinc-700 font-bold block uppercase tracking-wider">Alamat Email Aktif *</label>
+                                  <div className="flex items-center h-5">
+                                    <label className="text-zinc-700 font-bold block uppercase tracking-wider truncate">Alamat Email Aktif *</label>
+                                  </div>
                                   <input
                                     type="email"
                                     required
                                     value={selfEditForm.email || ""}
                                     onChange={(e) => setSelfEditForm({ ...selfEditForm, email: e.target.value })}
-                                    className="w-full bg-zinc-50 text-zinc-900 border border-zinc-250 rounded-xl p-3 focus:outline-none focus:border-teal-500 font-semibold text-xs"
+                                    className="w-full bg-zinc-50 text-zinc-900 border border-zinc-250 rounded-xl p-3 focus:outline-none focus:border-teal-500 font-semibold text-xs h-11"
                                     placeholder="contoh@domain.com"
                                   />
                                 </div>
@@ -4392,6 +5144,387 @@ export default function App() {
                                   className="w-full bg-zinc-50 text-zinc-900 border border-zinc-250 rounded-xl p-3 focus:outline-none focus:border-teal-500 font-semibold leading-relaxed text-xs"
                                   placeholder="Kantor atau alamat domisili lengkap pengiriman official kit."
                                 />
+                              </div>
+
+                              {/* GARASI DIGITAL EV SECTION */}
+                              <div className="p-4 border border-teal-150/70 bg-teal-50/15 rounded-3xl space-y-3.5 text-left">
+                                <div className="flex items-center gap-2 pb-2 border-b border-teal-100/30">
+                                  <div className="w-8 h-8 rounded-lg bg-teal-100 flex items-center justify-center text-teal-700 font-bold text-sm shrink-0">
+                                    🚗
+                                  </div>
+                                  <div>
+                                    <h5 className="font-sans font-black text-xs text-zinc-900 leading-tight">
+                                      Garasi EV - Show Up Your EV!
+                                    </h5>
+                                    <p className="text-[10px] text-zinc-500 font-medium leading-none mt-0.5">Tampilkan foto kendaraan & modifikasi Anda</p>
+                                  </div>
+                                </div>
+
+                                {/* Toggle Publish */}
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 bg-white border border-teal-100/60 rounded-2xl">
+                                  <div className="space-y-0.5 pr-2 text-left">
+                                    <label className="text-2xs font-extrabold text-zinc-800 block uppercase tracking-wider">Tampilkan di Beranda / Galeri Publik</label>
+                                    <span className="text-[9px] text-zinc-400 block leading-tight">Izinkan pengunjung & member melihat mobil Anda secara acak</span>
+                                  </div>
+                                  <label className="relative inline-flex items-center cursor-pointer flex-shrink-0">
+                                    <input
+                                      type="checkbox"
+                                      checked={selfEditForm.showInGarage}
+                                      onChange={(e) => setSelfEditForm({ ...selfEditForm, showInGarage: e.target.checked })}
+                                      className="sr-only peer"
+                                    />
+                                    <div className="w-9 h-5 bg-zinc-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-teal-600"></div>
+                                  </label>
+                                </div>
+
+                                {/* Toggle Hide Identity */}
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 bg-white border border-teal-100/60 rounded-2xl">
+                                  <div className="space-y-0.5 pr-2 text-left">
+                                    <label className="text-2xs font-extrabold text-zinc-800 block uppercase tracking-wider">Samarkan Nama & Plat Nomor Asli</label>
+                                    <span className="text-[9px] text-zinc-400 block leading-tight">Ganti nama & plat nomor dengan inisial bertanda bintang di Galeri Publik</span>
+                                  </div>
+                                  <label className="relative inline-flex items-center cursor-pointer flex-shrink-0">
+                                    <input
+                                      type="checkbox"
+                                      checked={selfEditForm.hideIdentityPublic}
+                                      onChange={(e) => setSelfEditForm({ ...selfEditForm, hideIdentityPublic: e.target.checked })}
+                                      className="sr-only peer"
+                                    />
+                                    <div className="w-9 h-5 bg-zinc-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-teal-600"></div>
+                                  </label>
+                                </div>
+
+                                {/* Nama Variasi / Nama Mobil */}
+                                <div className="space-y-1">
+                                  <label className="text-zinc-700 font-bold block uppercase tracking-wider">Nama / Seri Modifikasi Mobil EV Anda</label>
+                                  <input
+                                    type="text"
+                                    value={selfEditForm.garageCarName || ""}
+                                    onChange={(e) => setSelfEditForm({ ...selfEditForm, garageCarName: e.target.value })}
+                                    className="w-full bg-white text-zinc-900 border border-zinc-250 rounded-xl p-3 focus:outline-none focus:border-teal-500 font-semibold"
+                                    placeholder="Contoh: Jaecoo J5 Stealth Midnight Edition"
+                                  />
+                                </div>
+
+                                {/* Deskripsi Modifikasi */}
+                                <div className="space-y-1">
+                                  <label className="text-zinc-700 font-bold block uppercase tracking-wider">Rincian Modifikasi / Specs Detail</label>
+                                  <textarea
+                                    rows={2}
+                                    value={selfEditForm.garageDescription || ""}
+                                    onChange={(e) => setSelfEditForm({ ...selfEditForm, garageDescription: e.target.value })}
+                                    className="w-full bg-white text-zinc-900 border border-zinc-250 rounded-xl p-3 focus:outline-none focus:border-teal-500 font-semibold leading-relaxed text-xs"
+                                    placeholder="Contoh: Velg Volkrays SE37 19 inch, Full Wrapping Satin Dark Chrome, Ground clearance customized, Ambient lights upgrade."
+                                  />
+                                </div>
+
+                                {/* Foto-Foto Garasi (Max 6) */}
+                                <div className="space-y-1.5">
+                                  <div className="flex justify-between items-center">
+                                    <label className="text-zinc-700 font-bold block uppercase tracking-wider">Foto Kendaraan (Maksimal 6 Foto)</label>
+                                    <span className="text-[10px] font-mono font-extrabold text-teal-800 bg-teal-50 border border-teal-100 px-2 py-0.5 rounded-full">
+                                      {(selfEditForm.garageImages || []).length} / 6 Terunggah
+                                    </span>
+                                  </div>
+
+                                  {/* Photo Grid */}
+                                  <div className="grid grid-cols-3 gap-2">
+                                    {(selfEditForm.garageImages || []).map((img, idx) => (
+                                      <div key={idx} className="relative aspect-video rounded-xl bg-zinc-100 overflow-hidden group border border-zinc-200">
+                                         <img
+                                           src={img}
+                                           alt={`Garasi ${idx + 1}`}
+                                           className="w-full h-full object-cover"
+                                           referrerPolicy="no-referrer"
+                                         />
+                                         <button
+                                           type="button"
+                                           onClick={() => removeGarageImage(idx)}
+                                           className="absolute top-1 right-1 w-5 h-5 rounded-full bg-rose-600 hover:bg-rose-700 text-white flex items-center justify-center font-bold text-[10px] shadow-sm cursor-pointer transition active:scale-90"
+                                           title="Hapus foto ini"
+                                         >
+                                           ✕
+                                         </button>
+                                      </div>
+                                    ))}
+
+                                    {/* Add Button if less than 6 */}
+                                    {(!selfEditForm.garageImages || selfEditForm.garageImages.length < 6) && (
+                                      <label className="relative aspect-video rounded-xl border-2 border-dashed border-teal-200 bg-teal-50/10 hover:bg-teal-50/30 flex flex-col items-center justify-center cursor-pointer transition active:scale-[0.98] group">
+                                         <span className="text-teal-700 font-black text-sm group-hover:scale-110 transition">+</span>
+                                         <span className="text-[8px] text-teal-800 font-bold mt-0.5 uppercase tracking-wider">Unggah Foto</span>
+                                         <input
+                                           type="file"
+                                           accept="image/*"
+                                           multiple
+                                           onChange={handleGarageImageUpload}
+                                           className="hidden"
+                                         />
+                                      </label>
+                                    )}
+                                  </div>
+                                  <p className="text-[8px] text-zinc-400">File berkas gambar akan otomatis dikompres demi performa tinggi. Anda dapat memilih beberapa gambar sekaligus.</p>
+                                </div>
+
+                                {/* Toggle Sensor Plat Nomor */}
+                                <div className="flex flex-col gap-3 p-3 bg-teal-50/10 border border-[#005c56]/20 rounded-2xl">
+                                  <div className="flex items-center justify-between gap-3">
+                                    <div className="space-y-0.5 pr-2 text-left">
+                                      <label className="text-2xs font-extrabold text-[#005c56] uppercase tracking-wider block">
+                                        Sensor Plat Nomor
+                                      </label>
+                                      <span className="text-[9px] text-zinc-400 block leading-tight">
+                                        Menutup plat nomor fisik pada gambar kendaraan Anda.
+                                      </span>
+                                    </div>
+                                    <label className="relative inline-flex items-center cursor-pointer flex-shrink-0">
+                                      <input
+                                        type="checkbox"
+                                        checked={selfEditForm.censorPlatePhoto}
+                                        onChange={(e) => {
+                                          const checked = e.target.checked;
+                                          const len = selfEditForm.garageImages && selfEditForm.garageImages.length > 0
+                                            ? selfEditForm.garageImages.length
+                                            : 1;
+                                          setSelfEditForm({
+                                            ...selfEditForm,
+                                            censorPlatePhoto: checked,
+                                            censorPlateIndices: checked ? Array.from({ length: len }, (_, i) => i) : []
+                                          });
+                                        }}
+                                        className="sr-only peer"
+                                      />
+                                      <div className="w-9 h-5 bg-zinc-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#005c56]"></div>
+                                    </label>
+                                  </div>
+
+                                  {selfEditForm.censorPlatePhoto && (() => {
+                                    const availableImages = selfEditForm.garageImages && selfEditForm.garageImages.length > 0 
+                                      ? selfEditForm.garageImages 
+                                      : [selfEditForm.carPhoto || "https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=800&q=80"];
+                                    const safePreviewIdx = Math.min(Math.max(0, editFormPreviewIdx), availableImages.length - 1);
+                                    const activePreviewPhoto = availableImages[safePreviewIdx] || "";
+
+                                    return (
+                                      <div className="space-y-4 pt-2.5 border-t border-zinc-200 text-left">
+                                        {/* Slider 1: Vertikal (Y) */}
+                                        <div className="space-y-1">
+                                          <div className="flex justify-between items-center text-[10px] font-bold text-zinc-700">
+                                            <span>Atur Posisi Vertikal (Tinggi)</span>
+                                            <span className="font-mono text-xs text-[#005c56] font-extrabold">{selfEditForm.censorPlateY !== undefined ? selfEditForm.censorPlateY : 74}%</span>
+                                          </div>
+                                          <input
+                                            type="range"
+                                            min={5}
+                                            max={95}
+                                            value={selfEditForm.censorPlateY !== undefined ? selfEditForm.censorPlateY : 74}
+                                            onChange={(e) => setSelfEditForm({ ...selfEditForm, censorPlateY: parseInt(e.target.value) })}
+                                            className="w-full h-1.5 bg-zinc-200 rounded-lg appearance-none cursor-pointer accent-[#005c56]"
+                                          />
+                                        </div>
+
+                                        {/* Slider 2: Horizontal (X) */}
+                                        <div className="space-y-1">
+                                          <div className="flex justify-between items-center text-[10px] font-bold text-zinc-700">
+                                            <span>Atur Posisi Horizontal (Kiri/Kanan)</span>
+                                            <span className="font-mono text-xs text-[#005c56] font-extrabold">{selfEditForm.censorPlateX !== undefined ? selfEditForm.censorPlateX : 50}%</span>
+                                          </div>
+                                          <input
+                                            type="range"
+                                            min={5}
+                                            max={95}
+                                            value={selfEditForm.censorPlateX !== undefined ? selfEditForm.censorPlateX : 50}
+                                            onChange={(e) => setSelfEditForm({ ...selfEditForm, censorPlateX: parseInt(e.target.value) })}
+                                            className="w-full h-1.5 bg-zinc-200 rounded-lg appearance-none cursor-pointer accent-[#005c56]"
+                                          />
+                                        </div>
+
+                                        {/* Slider 3: Rotasi Kemiringan */}
+                                        <div className="space-y-1">
+                                          <div className="flex justify-between items-center text-[10px] font-bold text-zinc-700">
+                                            <span>Miringkan Stiker (Rotasi Sudut)</span>
+                                            <span className="font-mono text-xs text-[#005c56] font-extrabold">{selfEditForm.censorPlateRotate !== undefined ? selfEditForm.censorPlateRotate : 0}°</span>
+                                          </div>
+                                          <input
+                                            type="range"
+                                            min={-90}
+                                            max={90}
+                                            value={selfEditForm.censorPlateRotate !== undefined ? selfEditForm.censorPlateRotate : 0}
+                                            onChange={(e) => setSelfEditForm({ ...selfEditForm, censorPlateRotate: parseInt(e.target.value) })}
+                                            className="w-full h-1.5 bg-zinc-200 rounded-lg appearance-none cursor-pointer accent-[#005c56]"
+                                          />
+                                        </div>
+
+                                        {/* Slider 4: Ukuran / Skala */}
+                                        <div className="space-y-1">
+                                          <div className="flex justify-between items-center text-[10px] font-bold text-zinc-700">
+                                            <span>Ukuran Sensor (Besar/Kecil)</span>
+                                            <span className="font-mono text-xs text-[#005c56] font-extrabold">{selfEditForm.censorPlateScale !== undefined ? selfEditForm.censorPlateScale : 100}%</span>
+                                          </div>
+                                          <input
+                                            type="range"
+                                            min={40}
+                                            max={220}
+                                            value={selfEditForm.censorPlateScale !== undefined ? selfEditForm.censorPlateScale : 100}
+                                            onChange={(e) => setSelfEditForm({ ...selfEditForm, censorPlateScale: parseInt(e.target.value) })}
+                                            className="w-full h-1.5 bg-zinc-200 rounded-lg appearance-none cursor-pointer accent-[#005c56]"
+                                          />
+                                        </div>
+
+                                        {/* Dynamic Per-Image Checklist */}
+                                        <div className="space-y-1.5 bg-zinc-50 border border-zinc-200 rounded-2xl p-3">
+                                          <span className="text-[10px] font-extrabold text-[#005c56] uppercase tracking-wider block">
+                                            Pilih Foto yang Ingin Disensor:
+                                          </span>
+                                          <p className="text-[8.5px] text-zinc-400 leading-tight">
+                                            Pilih foto mana saja yang pelat nomornya ingin ditutup stiker digital. Foto yang tidak dicentang tidak akan dipasang stiker.
+                                          </p>
+                                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
+                                            {availableImages.map((img, idx) => {
+                                              const current_indices = selfEditForm.censorPlateIndices || [];
+                                              const isCensored = current_indices.includes(idx);
+                                              
+                                              return (
+                                                <button
+                                                  key={idx}
+                                                  type="button"
+                                                  onClick={() => {
+                                                    let updated: number[];
+                                                    if (isCensored) {
+                                                      updated = current_indices.filter(id => id !== idx);
+                                                    } else {
+                                                      updated = [...current_indices, idx];
+                                                    }
+                                                    setSelfEditForm({ ...selfEditForm, censorPlateIndices: updated });
+                                                  }}
+                                                  className={`flex items-center gap-2.5 p-2 rounded-xl border text-left cursor-pointer transition active:scale-95 ${
+                                                    isCensored 
+                                                      ? "bg-teal-50/45 border-teal-200 text-teal-800" 
+                                                      : "bg-white border-zinc-200 text-zinc-500 hover:border-zinc-350"
+                                                  }`}
+                                                >
+                                                  <div className={`w-4 h-4 rounded flex items-center justify-center border shrink-0 ${
+                                                    isCensored ? "bg-[#005c56] border-[#005c56] text-white" : "border-zinc-300 bg-white"
+                                                  }`}>
+                                                    {isCensored && (
+                                                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="w-2.5 h-2.5">
+                                                        <polyline points="20 6 9 17 4 12" />
+                                                      </svg>
+                                                    )}
+                                                  </div>
+                                                  <div className="leading-tight">
+                                                    <div className="text-[10px] font-bold">Foto #{idx + 1}</div>
+                                                    <div className="text-[8px] text-zinc-400 font-medium">
+                                                      {isCensored ? "✓ Aktif Sensor" : "Tanpa Sensor"}
+                                                    </div>
+                                                  </div>
+                                                </button>
+                                              );
+                                            })}
+                                          </div>
+                                        </div>
+
+                                        {/* Dynamic Photo Selector */}
+                                        {availableImages.length > 1 && (
+                                          <div className="space-y-1.5">
+                                            <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-wider block">Pilih Foto Pratinjau untuk Kalibrasi:</span>
+                                            <div className="flex gap-2 overflow-x-auto py-1 scrollbar-thin">
+                                              {availableImages.map((img, idx) => (
+                                                <button
+                                                  key={idx}
+                                                  type="button"
+                                                  onClick={() => setEditFormPreviewIdx(idx)}
+                                                  className={`relative w-12 h-12 rounded-lg overflow-hidden border-2 shrink-0 transition-all ${
+                                                    safePreviewIdx === idx ? 'border-[#005c56] scale-105 shadow-sm font-bold' : 'border-zinc-200 hover:border-zinc-400 opacity-75 hover:opacity-100'
+                                                  }`}
+                                                >
+                                                  <img src={img} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                                                  <span className="absolute bottom-0 right-0 bg-[#005c56] text-white text-[8px] px-1 font-mono rounded-tl">
+                                                    #{idx + 1}
+                                                  </span>
+                                                </button>
+                                              ))}
+                                            </div>
+                                          </div>
+                                        )}
+
+                                        {/* Live Preview Screen with Drag triggers and scale overlay */}
+                                        <div className="space-y-1">
+                                          <div className="flex justify-between items-center">
+                                            <span className="text-[9px] font-bold text-[#005c56] uppercase tracking-wider block">Gunakan Drag / Sentuh untuk Menempatkan Sensor</span>
+                                            <span className="text-[8px] text-[#005c56] font-extrabold bg-[#005c56]/5 px-1.5 py-0.5 rounded">X: {selfEditForm.censorPlateX !== undefined ? selfEditForm.censorPlateX : 50}%, Y: {selfEditForm.censorPlateY !== undefined ? selfEditForm.censorPlateY : 74}%</span>
+                                          </div>
+                                          <div className="flex justify-center bg-zinc-50 border border-zinc-200 rounded-xl p-2 relative max-w-sm mx-auto shadow-inner">
+                                            <div 
+                                              ref={previewContainerRef}
+                                              onMouseDown={handleMouseDown}
+                                              onMouseMove={handleMouseMove}
+                                              onMouseUp={handleMouseUpOrLeave}
+                                              onMouseLeave={handleMouseUpOrLeave}
+                                              onTouchStart={handleTouchStart}
+                                              onTouchMove={handleTouchMove}
+                                              onTouchEnd={handleMouseUpOrLeave}
+                                              className="relative rounded-xl overflow-hidden bg-zinc-100 shadow-sm cursor-pointer select-none active:cursor-move animate-fade-in inline-block max-w-full"
+                                            >
+                                              <img
+                                                src={activePreviewPhoto}
+                                                alt="Pratinjau Mobil"
+                                                className="max-h-[220px] w-auto h-auto object-contain pointer-events-none rounded-xl block"
+                                                referrerPolicy="no-referrer"
+                                              />
+                                              {/* Advanced positioning sticker */}
+                                              {((selfEditForm.censorPlateIndices || []).includes(safePreviewIdx)) && (
+                                                <div
+                                                  style={{ 
+                                                    top: `${selfEditForm.censorPlateY !== undefined ? selfEditForm.censorPlateY : 74}%`,
+                                                    left: `${selfEditForm.censorPlateX !== undefined ? selfEditForm.censorPlateX : 50}%`,
+                                                    transform: `translate(-50%, -50%) rotate(${selfEditForm.censorPlateRotate !== undefined ? selfEditForm.censorPlateRotate : 0}deg) scale(${(selfEditForm.censorPlateScale !== undefined ? selfEditForm.censorPlateScale : 100) / 100 * 0.9})`
+                                                  }}
+                                                  className="absolute bg-white/95 text-zinc-900 border-2 border-[#005c56]/60 rounded-sm shadow-md py-0.5 px-2.5 flex items-center justify-center min-w-[90px] pointer-events-none transition-all duration-75 select-none z-25"
+                                                >
+                                                  <span className="font-mono text-[7px] tracking-wider font-extrabold text-[#005c56]">J 5 EVO</span>
+                                                </div>
+                                              )}
+
+                                              {/* Plus / Minus Quick buttons overlays */}
+                                              <div className="absolute top-2 right-2 flex gap-1 z-35">
+                                                <button
+                                                  type="button"
+                                                  onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setSelfEditForm(prev => ({
+                                                      ...prev,
+                                                      censorPlateScale: Math.max(40, Math.min(220, (prev.censorPlateScale !== undefined ? prev.censorPlateScale : 100) - 10))
+                                                    }));
+                                                  }}
+                                                  className="w-7 h-7 rounded-lg bg-black/75 hover:bg-black text-white flex items-center justify-center text-xs font-black active:scale-95 transition backdrop-blur-sm cursor-pointer shadow border border-white/20 select-none pb-0.5"
+                                                  title="Perkecil Sensor"
+                                                >
+                                                  －
+                                                </button>
+                                                <button
+                                                  type="button"
+                                                  onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setSelfEditForm(prev => ({
+                                                      ...prev,
+                                                      censorPlateScale: Math.max(40, Math.min(220, (prev.censorPlateScale !== undefined ? prev.censorPlateScale : 100) + 10))
+                                                    }));
+                                                  }}
+                                                  className="w-7 h-7 rounded-lg bg-black/75 hover:bg-black text-white flex items-center justify-center text-xs font-black active:scale-95 transition backdrop-blur-sm cursor-pointer shadow border border-white/20 select-none pb-0.5"
+                                                  title="Perbesar Sensor"
+                                                >
+                                                  ＋
+                                                </button>
+                                              </div>
+                                            </div>
+                                          </div>
+                                          <p className="text-[8px] text-zinc-400 text-center italic mt-1">Anda dapat menyentuh/menggeser plat di atas dan menggunakan tombol +/- untuk mengatur ukuran dengan mudah.</p>
+                                        </div>
+                                      </div>
+                                    );
+                                  })()}
+                                </div>
                               </div>
 
                               <div className="pt-2 flex gap-3">
@@ -5519,6 +6652,74 @@ export default function App() {
                             src={homeCmsForm.emblemLogo}
                             alt="Emblem Kustom Preview"
                             className="w-12 h-12 object-contain"
+                            referrerPolicy="no-referrer"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Promotion/Ad Settings Section */}
+                  <div className="space-y-4 pt-4 border-t border-zinc-105">
+                    <h5 className="font-sans font-extrabold text-sm text-zinc-800 flex items-center gap-1.5">
+                      <Megaphone className="w-4 h-4 text-teal-650" />
+                      📢 CMS: Pengaturan Iklan / Kampanye Promo
+                    </h5>
+                    <p className="text-zinc-[600] text-[11px] leading-relaxed">
+                      Konfigurasikan popup promo/iklan yang muncul pertama kali saat pengunjung membuka web ini. Saat iklan ditutup, tombol melayang putih interaktif akan tetap tampil di sudut kanan bawah untuk membukanya kembali.
+                    </p>
+
+                    <div className="flex items-center gap-2.5 pt-1">
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={!!homeCmsForm.promoActive}
+                          onChange={(e) => setHomeCmsForm({ ...homeCmsForm, promoActive: e.target.checked })}
+                          className="sr-only peer"
+                        />
+                        <div className="w-9 h-5 bg-zinc-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-teal-600"></div>
+                      </label>
+                      <span className="font-bold text-zinc-700">Aktifkan Popup Iklan Beranda</span>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-zinc-700 font-bold font-sans">URL Tindakan / Tautan Klik Iklan (Opsional)</label>
+                      <input
+                        type="url"
+                        value={homeCmsForm.promoActionUrl || ""}
+                        onChange={(e) => setHomeCmsForm({ ...homeCmsForm, promoActionUrl: e.target.value })}
+                        placeholder="Contoh: https://j5evo.id atau https://linktr.ee/j5evo"
+                        className="w-full bg-zinc-50 text-zinc-900 border border-zinc-250 rounded-lg p-2.5 focus:outline-none focus:border-teal-500 focus:bg-white text-xs font-semibold"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-zinc-700 font-bold font-sans block">Gambar / Banner Promo Iklan *</label>
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handlePromoImageUpload}
+                          className="file:mr-2 file:py-1 file:px-2 file:rounded-md file:border file:border-zinc-250 file:text-[10px] file:bg-zinc-100 file:text-zinc-700 hover:file:bg-zinc-200 text-[10px] text-zinc-500 focus:outline-none"
+                        />
+                        {homeCmsForm.promoImage && (
+                          <button
+                            type="button"
+                            onClick={() => setHomeCmsForm({ ...homeCmsForm, promoImage: "" })}
+                            className="px-2 py-1 bg-red-50 text-red-600 hover:bg-red-500 hover:text-white border border-red-200 rounded-md transition text-2xs font-extrabold cursor-pointer"
+                          >
+                            Hapus Gambar Iklan
+                          </button>
+                        )}
+                      </div>
+                      
+                      {homeCmsForm.promoImage && (
+                        <div className="mt-2 p-2 border border-zinc-200 rounded-xl bg-zinc-50 inline-block max-w-xs shadow-xs">
+                          <p className="text-[10px] font-bold text-zinc-400 mb-1">Pratinjau Banner Iklan:</p>
+                          <img
+                            src={homeCmsForm.promoImage}
+                            alt="Campaign Promo Preview"
+                            className="w-full h-auto max-h-40 object-contain rounded-lg border border-zinc-200"
                             referrerPolicy="no-referrer"
                           />
                         </div>
@@ -6888,6 +8089,96 @@ export default function App() {
                         ></textarea>
                       </div>
 
+                      {/* Kelola Galeri / Garasi Digital Member (Moderasi Admin) */}
+                      <div className="bg-zinc-50 p-4 rounded-2xl border border-zinc-200 mt-3 space-y-3">
+                        <span className="text-[10.5px] uppercase font-mono tracking-wider font-extrabold text-[#005c56] flex items-center gap-1">
+                          🛡️ Moderasi Garasi &amp; Galeri Member
+                        </span>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                          <div className="space-y-1">
+                            <label className="text-zinc-700 font-bold block">Nama Modifikasi EV</label>
+                            <input
+                              type="text"
+                              value={editMemberForm.garageCarName || ""}
+                              onChange={(e) => setEditMemberForm({ ...editMemberForm, garageCarName: e.target.value })}
+                              placeholder="Contoh: Jaecoo J5 Edition"
+                              className="w-full bg-white text-zinc-900 border border-zinc-250 rounded-lg p-2.5 focus:outline-none focus:border-teal-500 font-semibold"
+                            />
+                          </div>
+                          
+                          <div className="space-y-1">
+                            <label className="text-zinc-700 font-bold block">Status Publikasi</label>
+                            <div className="flex items-center gap-2 pt-2">
+                              <label className="relative inline-flex items-center cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={!!editMemberForm.showInGarage}
+                                  onChange={(e) => setEditMemberForm({ ...editMemberForm, showInGarage: e.target.checked })}
+                                  className="sr-only peer"
+                                />
+                                <div className="w-9 h-5 bg-zinc-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-teal-600"></div>
+                              </label>
+                              <span className="font-semibold text-zinc-700">Tampilkan di Galeri Beranda</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="space-y-1 text-xs font-sans">
+                          <label className="text-zinc-700 font-bold block">Deskripsi Modifikasi / Rincian Specs</label>
+                          <textarea
+                            value={editMemberForm.garageDescription || ""}
+                            onChange={(e) => setEditMemberForm({ ...editMemberForm, garageDescription: e.target.value })}
+                            rows={2}
+                            placeholder="Detail modifikasi..."
+                            className="w-full bg-white text-zinc-900 border border-zinc-250 rounded-lg p-2.5 focus:outline-none focus:border-teal-500 font-mono text-[11px]"
+                          />
+                        </div>
+
+                        <div className="space-y-1.5 text-xs font-sans">
+                          <div className="flex justify-between items-center">
+                            <label className="text-zinc-700 font-bold block">Daftar Foto Galeri Member ({ (editMemberForm.garageImages || []).length } foto)</label>
+                          </div>
+
+                          {editMemberForm.garageImages && editMemberForm.garageImages.length > 0 ? (
+                            <div className="grid grid-cols-4 gap-2">
+                              {editMemberForm.garageImages.map((img: string, idx: number) => (
+                                <div key={idx} className="relative aspect-video rounded-xl bg-zinc-100 overflow-hidden group border border-zinc-200">
+                                  <img
+                                    src={img}
+                                    alt={`Garasi Admin ${idx + 1}`}
+                                    className="w-full h-full object-cover"
+                                    referrerPolicy="no-referrer"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const updatedImages = editMemberForm.garageImages.filter((_: any, i: number) => i !== idx);
+                                      let updatedCensorIndices = editMemberForm.censorPlateIndices || [];
+                                      updatedCensorIndices = updatedCensorIndices
+                                        .filter((id: number) => id !== idx)
+                                        .map((id: number) => (id > idx ? id - 1 : id));
+                                      
+                                      setEditMemberForm({
+                                        ...editMemberForm,
+                                        garageImages: updatedImages,
+                                        censorPlateIndices: updatedCensorIndices
+                                      });
+                                    }}
+                                    className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity cursor-pointer text-white font-extrabold text-[10px] uppercase gap-1"
+                                    title="Hapus foto ini"
+                                  >
+                                    <span className="bg-rose-600 px-2 py-1 rounded shadow-sm hover:bg-rose-700 transition">Hapus</span>
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="text-[10px] text-zinc-400 italic">Member ini tidak memiliki foto di galeri / garasi digital.</p>
+                          )}
+                        </div>
+                      </div>
+
                       <div className="flex justify-end gap-2 pt-2 border-t border-teal-100">
                         <button
                           type="button"
@@ -7542,6 +8833,246 @@ export default function App() {
         </div>
       )}
 
+      {/* SHOWCASE GARAGE LIGHTBOX MODAL */}
+      {selectedGarageMember && (
+        <div className="fixed inset-0 z-[125] flex items-center justify-center p-4 bg-zinc-950/92 backdrop-blur-xs animate-fadeIn overflow-y-auto">
+          <div className="bg-white rounded-3xl border border-zinc-200 shadow-2xl max-w-4xl w-full overflow-hidden my-8 flex flex-col md:flex-row relative max-h-[90vh]">
+            
+            {/* Direct Close Button on Mobile/Tablet */}
+            <button
+              onClick={() => setSelectedGarageMember(null)}
+              className="absolute top-4 right-4 z-40 bg-white/90 hover:bg-white text-zinc-900 border border-zinc-200 rounded-full w-9 h-9 flex items-center justify-center cursor-pointer shadow-md transition active:scale-90"
+              title="Tutup Detail Garasi"
+            >
+              ✕
+            </button>
+
+            {/* Left side: Hero Image Carousel View */}
+            <div className="flex-1 bg-zinc-950 flex flex-col justify-between p-4 relative min-h-[300px] sm:min-h-[440px]">
+              {/* Main Active image container */}
+              <div className="flex-1 flex items-center justify-center overflow-hidden rounded-2xl relative">
+                {(() => {
+                  const arr = selectedGarageMember.garageImages && selectedGarageMember.garageImages.length > 0
+                    ? selectedGarageMember.garageImages
+                    : [selectedGarageMember.carPhoto];
+                  const activeImg = arr[activeGarageImageIdx] || selectedGarageMember.carPhoto;
+                  
+                  return (
+                    <div className="relative inline-block max-w-full max-h-[380px] md:max-h-[500px]">
+                      <img
+                        src={activeImg}
+                        alt={selectedGarageMember.garageCarName || "Jaecoo J5 EV"}
+                        className="max-h-[380px] md:max-h-[500px] w-auto max-w-full object-contain rounded-xl block"
+                        referrerPolicy="no-referrer"
+                      />
+                      
+                      {/* Cover plate sensor sticker in lightbox modal */}
+                      {selectedGarageMember.censorPlatePhoto && (!selectedGarageMember.censorPlateIndices || selectedGarageMember.censorPlateIndices.length === 0 || selectedGarageMember.censorPlateIndices.includes(activeGarageImageIdx)) && (
+                        <div 
+                          style={{ 
+                            top: `${selectedGarageMember.censorPlateY !== undefined ? selectedGarageMember.censorPlateY : 74}%`,
+                            left: `${selectedGarageMember.censorPlateX !== undefined ? selectedGarageMember.censorPlateX : 50}%`,
+                            transform: `translate(-50%, -50%) rotate(${selectedGarageMember.censorPlateRotate !== undefined ? selectedGarageMember.censorPlateRotate : 0}deg) scale(${(selectedGarageMember.censorPlateScale !== undefined ? selectedGarageMember.censorPlateScale : 100) / 100 * 0.9})`
+                          }} 
+                          className="absolute bg-white/95 text-zinc-900 border-2 border-[#005c56]/60 rounded-sm shadow-md py-0.5 px-3 flex items-center justify-center min-w-[95px] select-none pointer-events-none transition-all duration-300 z-25"
+                        >
+                          <span className="font-mono text-[7px] tracking-wider font-extrabold text-[#005c56]">J 5 EVO</span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+
+                {/* Left/Right controls inside carousel */}
+                {selectedGarageMember.garageImages && selectedGarageMember.garageImages.length > 1 && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const len = selectedGarageMember.garageImages!.length;
+                        setActiveGarageImageIdx((prev) => (prev - 1 + len) % len);
+                      }}
+                      className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/85 hover:bg-white text-zinc-900 flex items-center justify-center font-bold text-lg select-none shadow z-20 transition"
+                    >
+                      ‹
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const len = selectedGarageMember.garageImages!.length;
+                        setActiveGarageImageIdx((prev) => (prev + 1) % len);
+                      }}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/85 hover:bg-white text-zinc-900 flex items-center justify-center font-bold text-lg select-none shadow z-20 transition"
+                    >
+                      ›
+                    </button>
+                  </>
+                )}
+              </div>
+
+              {/* Photos Navigation Strips */}
+              {selectedGarageMember.garageImages && selectedGarageMember.garageImages.length > 1 && (
+                <div className="flex gap-2 justify-center mt-3 overflow-x-auto py-1.5 scrollbar-thin scrollbar-thumb-zinc-800">
+                  {selectedGarageMember.garageImages.map((img, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => setActiveGarageImageIdx(idx)}
+                      className={`relative aspect-video w-14 rounded-lg overflow-hidden border-2 transition shrink-0 cursor-pointer ${
+                        idx === activeGarageImageIdx ? "border-teal-400 scale-105 shadow-md" : "border-transparent opacity-60 hover:opacity-100"
+                      }`}
+                    >
+                      <img
+                        src={img}
+                        alt="Thumbnail"
+                        className="w-full h-full object-cover"
+                        referrerPolicy="no-referrer"
+                      />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Right side: Vehicle Info & Owner Profile Card */}
+            <div className="w-full md:w-[360px] p-6 border-t md:border-t-0 md:border-l border-zinc-150 overflow-y-auto flex flex-col justify-between space-y-6 text-left max-h-[480px] md:max-h-none font-sans">
+              <div className="space-y-4">
+                <div className="space-y-1 border-b border-zinc-150 pb-3">
+                  <span className="px-2.5 py-0.5 text-[9px] font-mono tracking-wider bg-teal-50 border border-teal-200 text-[#005c56] rounded font-bold uppercase inline-block">
+                    {selectedGarageMember.regional || "J5 EVO - INDONESIA"}
+                  </span>
+                  <h3 className="text-xl font-sans font-black tracking-tight text-zinc-900 pt-1 leading-tight uppercase">
+                    {selectedGarageMember.garageCarName || "Jaecoo J5 EV"}
+                  </h3>
+                  <div className="bg-zinc-100 border border-zinc-200 rounded px-2.5 py-0.5 mt-1 text-[11px] font-mono font-bold tracking-widest text-[#005c56] inline-block uppercase select-all">
+                    Plat: {selectedGarageMember.hideIdentityPublic ? maskPlate(selectedGarageMember.plateNumber) : selectedGarageMember.plateNumber}
+                  </div>
+                </div>
+
+                {/* Mod specs story section */}
+                <div className="space-y-1.5 text-left">
+                  <span className="text-[9px] font-bold text-zinc-400 block uppercase tracking-wider font-mono">Spesifikasi &amp; Modifikasi:</span>
+                  {selectedGarageMember.garageDescription ? (
+                    <div className="text-xs text-zinc-700 leading-relaxed max-h-[150px] overflow-y-auto whitespace-pre-line bg-teal-50/10 p-3.5 rounded-2xl border border-teal-100/40 font-medium">
+                      {selectedGarageMember.garageDescription}
+                    </div>
+                  ) : (
+                    <p className="text-zinc-400 text-xs italic">Deskripsi spesifikasi modifikasi belum disematkan pada garasi ini.</p>
+                  )}
+                </div>
+
+                {/* PUBLIC RATING STARS WIDGET */}
+                <div className="p-3.5 bg-yellow-50/45 border border-yellow-150 rounded-2xl space-y-2 text-left">
+                  <div className="flex justify-between items-center">
+                    <span className="text-[10px] font-bold text-yellow-800 uppercase tracking-wider font-mono">
+                      ⭐ Rating Publik
+                    </span>
+                    <span className="text-[10px] text-zinc-600 font-bold bg-white px-2 py-0.5 rounded border border-yellow-200">
+                      {selectedGarageMember.ratingAverage || 0} / 5 ({selectedGarageMember.ratingCount || 0} ulasan)
+                    </span>
+                  </div>
+                  
+                  {/* Clickable Star Rows */}
+                  <div className="flex items-center gap-1">
+                    {[1, 2, 3, 4, 5].map((star) => {
+                      const isGold = (userRatingHover !== null ? userRatingHover : (selectedGarageMember.ratingAverage || 0)) >= star;
+                      return (
+                        <button
+                          key={star}
+                          type="button"
+                          onClick={() => handleRateMember(selectedGarageMember.id, star)}
+                          onMouseEnter={() => setUserRatingHover(star)}
+                          onMouseLeave={() => setUserRatingHover(null)}
+                          className="text-xl transition duration-150 hover:scale-135 cursor-pointer text-yellow-400 select-none filter drop-shadow-xs active:scale-90"
+                          title={`Beri rating ${star} Bintang`}
+                        >
+                          {isGold ? "★" : "☆"}
+                        </button>
+                      );
+                    })}
+                    <span className="text-[9px] text-zinc-400 font-bold ml-2 uppercase font-mono tracking-tighter">
+                      Ketuk bintang untuk menilai
+                    </span>
+                  </div>
+                </div>
+
+                {/* Owner details widget */}
+                <div className="p-3.5 bg-zinc-50 border border-zinc-200 rounded-2xl flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full border-2 border-teal-600 bg-zinc-100 overflow-hidden shrink-0">
+                    <img
+                      src={selectedGarageMember.ownerPhoto || "/logo.png"}
+                      alt={selectedGarageMember.name}
+                      className="w-full h-full object-cover"
+                      referrerPolicy="no-referrer"
+                    />
+                  </div>
+                  <div className="leading-tight text-left">
+                    <span className="text-[11px] text-zinc-400 uppercase tracking-wider font-bold font-mono">DIPERSONALISASI OLEH</span>
+                    <h5 className="font-card-sans font-black text-xs text-zinc-900 uppercase mt-0.5 block truncate max-w-[180px]">
+                      {selectedGarageMember.hideIdentityPublic ? maskName(selectedGarageMember.name) : selectedGarageMember.name}
+                    </h5>
+                    {selectedGarageMember.membershipTier === "GOLD" ? (
+                      <span className="text-[9px] font-mono text-amber-700 font-extrabold tracking-wider bg-amber-50 border border-amber-100 px-1.5 py-0.2 rounded inline-block mt-0.5">
+                        GOLD MEMBER
+                      </span>
+                    ) : (
+                      <span className="text-[9px] font-mono text-teal-800 font-extrabold tracking-wider bg-teal-50 border border-teal-100 px-1.5 py-0.2 rounded inline-block mt-0.5">
+                        MEMBER
+                      </span>
+                    )}
+                  </div>
+                </div>
+                
+                {currentUser?.role === "admin" && (
+                  <div className="p-3.5 bg-rose-50/50 border border-rose-200 rounded-2xl space-y-2 text-left">
+                    <span className="text-[10px] font-bold text-rose-800 uppercase tracking-wider font-mono flex items-center gap-1">
+                      🛡️ Panel Moderasi Admin
+                    </span>
+                    <p className="text-[9.5px] text-rose-750 leading-tight">
+                      Sebagai Admin, Anda dapat menghapus foto aktif saat ini atau mengosongkan seluruh galeri.
+                    </p>
+                    
+                    <div className="flex flex-col gap-1.5 pt-1">
+                      {selectedGarageMember.garageImages && selectedGarageMember.garageImages.length > 0 ? (
+                        <>
+                          <button
+                            type="button"
+                            onClick={handleAdminDeleteActivePhoto}
+                            className="w-full py-2 bg-rose-600 hover:bg-rose-700 text-white text-[10px] font-bold rounded-lg transition text-center uppercase cursor-pointer"
+                          >
+                            Hapus Foto Aktif (#{activeGarageImageIdx + 1})
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleAdminDeleteAllPhotos}
+                            className="w-full py-2 bg-rose-50 hover:bg-rose-100 text-rose-705 border border-rose-200 text-[10px] font-bold rounded-lg transition text-center uppercase cursor-pointer"
+                          >
+                            Hapus Seluruh Galeri ({selectedGarageMember.garageImages.length} Foto)
+                          </button>
+                        </>
+                      ) : (
+                        <p className="text-[9px] text-zinc-400 italic">Member belum memiliki foto galeri.</p>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Action look up */}
+              <div className="space-y-2 pt-4 border-t border-zinc-150">
+                <button
+                  type="button"
+                  onClick={() => setSelectedGarageMember(null)}
+                  className="w-full py-3 bg-zinc-800 hover:bg-zinc-900 text-white text-xs font-black rounded-xl transition hover:scale-[1.01] cursor-pointer text-center uppercase tracking-wider"
+                >
+                  Tutup Tampilan Garasi
+                </button>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      )}
+
       {/* CUSTOM PREMIUM CONFIRMATION DIALOG MODAL */}
       {confirmDialog && confirmDialog.isOpen && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-zinc-950/80 backdrop-blur-xs animate-fadeIn">
@@ -7679,11 +9210,81 @@ export default function App() {
         </div>
       )}
 
+      {/* 🔮 ADVANCED FUTURISTIC PROMOTION POPUP MODAL */}
+      {isPromoOpen && homeContent?.promoActive && homeContent?.promoImage && (
+        <div 
+          id="promo-popup-modal" 
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setIsPromoOpen(false);
+            }
+          }}
+          className="fixed inset-0 z-[250] flex items-center justify-center p-4 bg-zinc-950/85 backdrop-blur-md animate-fadeIn cursor-pointer"
+        >
+          <div className="relative bg-zinc-900 rounded-2xl border border-teal-500/40 shadow-[0_0_25px_rgba(20,184,166,0.35)] max-w-2xl w-full text-left overflow-hidden animate-scaleIn transform duration-300 cursor-default">
+            {/* Glowing neon top accent bar */}
+            <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-teal-500 via-emerald-400 to-cyan-500 shadow-[0_1px_8px_#14b8a6] z-20"></div>
+            
+            {/* Close Button Inside */}
+            <button
+              onClick={() => setIsPromoOpen(false)}
+              className="absolute top-3.5 right-3.5 z-30 w-8 h-8 rounded-full bg-zinc-950/80 hover:bg-zinc-900 border border-teal-500/35 text-teal-400 hover:text-white flex items-center justify-center transition-all cursor-pointer shadow-lg hover:scale-105"
+              type="button"
+              title="Tutup Iklan"
+            >
+              <X className="w-4 h-4 stroke-[2.5]" />
+            </button>
+
+            {/* Promo Banner / Image Wrap */}
+            <div className="relative w-full overflow-hidden aspect-[16/9] sm:aspect-[1.77] rounded-2xl">
+              {homeContent.promoActionUrl ? (
+                <a
+                  href={homeContent.promoActionUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block w-full h-full cursor-pointer"
+                >
+                  <img
+                    src={homeContent.promoImage}
+                    alt="Campaign Promo"
+                    className="w-full h-full object-cover transition-transform duration-500 hover:scale-[1.02]"
+                    referrerPolicy="no-referrer"
+                  />
+                </a>
+              ) : (
+                <img
+                  src={homeContent.promoImage}
+                  alt="Campaign Promo"
+                  className="w-full h-full object-cover"
+                  referrerPolicy="no-referrer"
+                />
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 🛎️ FLOATING WHITE PROMO NOTIFICATION BUTTON */}
+      {!isPromoOpen && showPromoFloatingButton && homeContent?.promoActive && homeContent?.promoImage && (
+        <button
+          onClick={() => setIsPromoOpen(true)}
+          className="fixed bottom-[74px] right-6 md:right-8 z-40 w-11 h-11 md:w-12 md:h-12 bg-white hover:bg-zinc-50 text-[#005c56] rounded-full shadow-[0_8px_30px_rgba(0,92,86,0.18)] border border-[#005c56]/20 transition-all duration-300 hover:scale-110 active:scale-95 cursor-pointer flex items-center justify-center group"
+          title="Tampilkan Pengumuman Iklan"
+        >
+          {/* Pulsing indicator badge inside the button */}
+          <span className="absolute -top-[1px] -right-[1px] flex h-3.5 w-3.5">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-teal-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-teal-500 border-2 border-white"></span>
+          </span>
+          <Megaphone className="w-5 h-5 text-[#005c56] animate-pulse" />
+        </button>
+      )}
+
       {/* Floating Scroll-to-Top FAB Button */}
       {showScrollTop && (
         <button
           onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-          className="fixed bottom-6 right-6 md:right-8 z-40 p-3 bg-teal-600 hover:bg-teal-700 text-white rounded-full shadow-2xl transition-all duration-300 hover:scale-110 active:scale-95 cursor-pointer border border-emerald-400/25 flex items-center justify-center grayscale-0 hover:brightness-110"
+          className="fixed bottom-6 right-6 md:right-8 z-40 w-11 h-11 md:w-12 md:h-12 bg-[#005c56] hover:bg-[#004843] text-white rounded-full shadow-2xl transition-all duration-300 hover:scale-110 active:scale-95 cursor-pointer border border-emerald-400/25 flex items-center justify-center grayscale-0 hover:brightness-110"
           title="Kembali ke atas"
         >
           <ChevronUp className="w-5 h-5 md:w-6 md:h-6 stroke-[3]" />

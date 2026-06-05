@@ -822,7 +822,7 @@ export default function CustomFreeMapRoute({
     <div className="space-y-6">
       
       {/* ROW 1: Pencarian Alamat & Peta Perjalanan digabung dalam 1 Row lebar */}
-      <div className="bg-white rounded-2xl border border-zinc-200 p-5 shadow-xs space-y-4 text-left relative z-50">
+      <div className="bg-white rounded-2xl border border-zinc-200 p-5 shadow-xs space-y-4 text-left relative z-30">
         <div className="flex items-center gap-1.5 border-b border-zinc-150 pb-3">
           <Navigation className="w-5 h-5 text-emerald-600" />
           <div>

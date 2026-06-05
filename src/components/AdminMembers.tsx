@@ -723,6 +723,96 @@ Salam kepengurusan,
               ></textarea>
             </div>
 
+            {/* Kelola Galeri / Garasi Digital Member (Moderasi Admin) */}
+            <div className="bg-zinc-50 p-4 rounded-2xl border border-zinc-200 mt-3 space-y-3 text-left">
+              <span className="text-[10.5px] uppercase font-mono tracking-wider font-extrabold text-[#005c56] flex items-center gap-1">
+                🛡️ Moderasi Garasi &amp; Galeri Member
+              </span>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                <div className="space-y-1">
+                  <label className="text-zinc-[700] font-bold block">Nama Modifikasi EV</label>
+                  <input
+                    type="text"
+                    value={editMemberForm.garageCarName || ""}
+                    onChange={(e) => setEditMemberForm({ ...editMemberForm, garageCarName: e.target.value })}
+                    placeholder="Contoh: Jaecoo J5 Edition"
+                    className="w-full bg-white text-zinc-900 border border-[#005c56]/30 rounded-lg p-2.5 focus:outline-none focus:border-[#005c56] font-semibold"
+                  />
+                </div>
+                
+                <div className="space-y-1">
+                  <label className="text-zinc-[700] font-bold block">Status Publikasi</label>
+                  <div className="flex items-center gap-2 pt-2">
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={!!editMemberForm.showInGarage}
+                        onChange={(e) => setEditMemberForm({ ...editMemberForm, showInGarage: e.target.checked })}
+                        className="sr-only peer"
+                      />
+                      <div className="w-9 h-5 bg-zinc-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-teal-600"></div>
+                    </label>
+                    <span className="font-semibold text-zinc-700">Tampilkan di Galeri Beranda</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-1 text-xs font-sans">
+                <label className="text-zinc-[700] font-bold block">Deskripsi Modifikasi / Rincian Specs</label>
+                <textarea
+                  value={editMemberForm.garageDescription || ""}
+                  onChange={(e) => setEditMemberForm({ ...editMemberForm, garageDescription: e.target.value })}
+                  rows={2}
+                  placeholder="Detail modifikasi..."
+                  className="w-full bg-white text-zinc-900 border border-[#005c56]/30 rounded-lg p-2.5 focus:outline-none focus:border-[#005c56] font-mono text-[11px]"
+                />
+              </div>
+
+              <div className="space-y-1.5 text-xs font-sans">
+                <div className="flex justify-between items-center">
+                  <label className="text-zinc-[700] font-bold block-inline">Daftar Foto Galeri Member ({ (editMemberForm.garageImages || []).length } foto)</label>
+                </div>
+
+                {editMemberForm.garageImages && editMemberForm.garageImages.length > 0 ? (
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    {editMemberForm.garageImages.map((img: string, idx: number) => (
+                      <div key={idx} className="relative aspect-video rounded-xl bg-zinc-100 overflow-hidden group border border-zinc-200">
+                        <img
+                          src={img}
+                          alt={`Garasi Admin ${idx + 1}`}
+                          className="w-full h-full object-cover"
+                          referrerPolicy="no-referrer"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const updatedImages = editMemberForm.garageImages.filter((_: any, i: number) => i !== idx);
+                            let updatedCensorIndices = editMemberForm.censorPlateIndices || [];
+                            updatedCensorIndices = updatedCensorIndices
+                              .filter((id: number) => id !== idx)
+                              .map((id: number) => (id > idx ? id - 1 : id));
+                            
+                            setEditMemberForm({
+                              ...editMemberForm,
+                              garageImages: updatedImages,
+                              censorPlateIndices: updatedCensorIndices
+                            });
+                          }}
+                          className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity cursor-pointer text-white font-extrabold text-[10px] uppercase gap-1"
+                          title="Hapus foto ini"
+                        >
+                          <span className="bg-rose-600 px-2 py-1 rounded shadow-sm hover:bg-rose-700 transition">Hapus</span>
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-[10px] text-zinc-400 italic">Member ini tidak memiliki foto di galeri / garasi digital.</p>
+                )}
+              </div>
+            </div>
+
             <div className="flex justify-end gap-2 pt-2 border-t border-teal-100">
               <button
                 type="button"

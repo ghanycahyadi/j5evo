@@ -32,7 +32,14 @@ export const INITIAL_MEMBERS: Member[] = [
     ownerPhoto: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=500&q=80",
     registeredAt: "2026-04-10T08:00:00Z",
     email: "rian.hidayat@gmail.com",
-    pin: "111111"
+    pin: "111111",
+    garageCarName: "Jaecoo J5 All Black Cyberpunk",
+    garageDescription: "Modifikasi velg sport 19 inch matte black, body wrapping full satin black, ambient interior light dashboard yang sinkron dengan musik, serta upgrade audio 12-speaker Alpine.",
+    garageImages: [
+      "https://images.unsplash.com/photo-1617788138017-80ad40651399?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1542282088-72c9c27ed0cd?auto=format&fit=crop&w=800&q=80"
+    ],
+    showInGarage: true
   },
   {
     id: "J5EVO-202605-0002",
@@ -45,7 +52,14 @@ export const INITIAL_MEMBERS: Member[] = [
     ownerPhoto: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=500&q=80",
     registeredAt: "2026-05-01T14:30:22Z",
     email: "ghany.cahyadi@gmail.com",
-    pin: "222222"
+    pin: "222222",
+    garageCarName: "J5 EV Glacier White Explorer",
+    garageDescription: "Dilengkapi Thule Roof Box Motion XT XL untuk traveling keluarga, ban & velg alloy AT semi-offroad untuk petualangan rute lintas Jawa, serta coating graphene 3-layer anti gores.",
+    garageImages: [
+      "https://images.unsplash.com/photo-1563720223185-11003d516935?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1511919884226-fd3cad34687c?auto=format&fit=crop&w=800&q=80"
+    ],
+    showInGarage: true
   },
   {
     id: "J5EVO-202605-0003",
@@ -58,7 +72,244 @@ export const INITIAL_MEMBERS: Member[] = [
     ownerPhoto: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=500&q=80",
     registeredAt: "2026-05-15T11:15:00Z",
     email: "dewi.lestari@yahoo.com",
-    pin: "333333"
+    pin: "333333",
+    garageCarName: "J5 Luxe Midnight Grey",
+    garageDescription: "Upgrade kabin full Nappa Leather kelir saddle brown super premium, dipasangkan V2L outdoor kit adapter 3.6kW, serta instalasi kamera dasbord 4K terintegrasi apps.",
+    garageImages: [
+      "https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1502877338535-766e1452684a?auto=format&fit=crop&w=800&q=80"
+    ],
+    showInGarage: true
+  },
+  {
+    id: "J5EVO-202604-0004",
+    name: "Aditya Pratama",
+    phone: "081122334455",
+    address: "Kancil Mas, Bandung",
+    plateNumber: "D 2002 ADI",
+    chassisNumber: "JAE5EV0077889911A",
+    carPhoto: "https://images.unsplash.com/photo-1542282088-72c9c27ed0cd?auto=format&fit=crop&w=800&q=80",
+    ownerPhoto: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=500&q=80",
+    registeredAt: "2026-04-12T09:12:00Z",
+    email: "aditya.pratama@gmail.com",
+    pin: "444444",
+    garageCarName: "Jaecoo J5 Cyber Beast",
+    garageDescription: "Satin metallic green wrap, custom 20-inch forge monoblock wheels, brembo 6-pot big brake kit, premium sound insulation treatment, and enhanced neon underglow system.",
+    garageImages: [
+      "https://images.unsplash.com/photo-1542282088-72c9c27ed0cd?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=800&q=80"
+    ],
+    showInGarage: true,
+    ratings: [5, 5, 5, 4, 5],
+    ratingAverage: 4.8,
+    ratingCount: 5
+  },
+  {
+    id: "J5EVO-202604-0005",
+    name: "Clara Setyawati",
+    phone: "085299887766",
+    address: "Sentul City, Bogor",
+    plateNumber: "F 8000 CLA",
+    chassisNumber: "JAE5EV0011223344B",
+    carPhoto: "https://images.unsplash.com/photo-1617788138017-80ad40651399?auto=format&fit=crop&w=800&q=80",
+    ownerPhoto: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=500&q=80",
+    registeredAt: "2026-04-15T15:24:00Z",
+    email: "clara.setyawati@gmail.com",
+    pin: "555555",
+    garageCarName: "Jaecoo Pink Blossom",
+    garageDescription: "Satin metallic pearl pink wrapping, 19-inch white custom alloy wheels, tailored vegan leather custom pink interior trims with dynamic starlight headliner.",
+    garageImages: [
+      "https://images.unsplash.com/photo-1617788138017-80ad40651399?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1563720223185-11003d516935?auto=format&fit=crop&w=800&q=80"
+    ],
+    showInGarage: true,
+    ratings: [5, 4, 5, 5],
+    ratingAverage: 4.8,
+    ratingCount: 4
+  },
+  {
+    id: "J5EVO-202604-0006",
+    name: "Bambang Wijaya",
+    phone: "081399881122",
+    address: "Rungkut Megah, Surabaya",
+    plateNumber: "L 1551 BAM",
+    chassisNumber: "JAE5EV0033445566C",
+    carPhoto: "https://images.unsplash.com/photo-1502877338535-766e1452684a?auto=format&fit=crop&w=800&q=80",
+    ownerPhoto: "https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?auto=format&fit=crop&w=500&q=80",
+    registeredAt: "2026-04-18T10:05:00Z",
+    email: "bambang.wijaya@gmail.com",
+    pin: "666666",
+    garageCarName: "J5 Stealth Cruiser",
+    garageDescription: "Matte charcoal grey body wrap, carbon fiber front spoiler lip, lowered comfort sport springs, and premium titanium window privacy tints.",
+    garageImages: [
+      "https://images.unsplash.com/photo-1502877338535-766e1452684a?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?auto=format&fit=crop&w=800&q=80"
+    ],
+    showInGarage: true,
+    ratings: [4, 5, 4, 5, 4],
+    ratingAverage: 4.4,
+    ratingCount: 5
+  },
+  {
+    id: "J5EVO-202604-0007",
+    name: "Dani Iskandar",
+    phone: "082266778899",
+    address: "Sarijadi, Bandung",
+    plateNumber: "D 4410 DAN",
+    chassisNumber: "JAE5EV0055667788D",
+    carPhoto: "https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=800&q=80",
+    ownerPhoto: "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&w=500&q=80",
+    registeredAt: "2026-04-20T11:40:00Z",
+    email: "dani.iskandar@gmail.com",
+    pin: "777777",
+    garageCarName: "J5 Offroad Pioneer Edition",
+    garageDescription: "Equipped with aluminum rugged roof rack, high-output front LED dual-light bars, robust all-terrain adventure gripper tire sets, fully custom matte camouflaj green skin wrap.",
+    garageImages: [
+      "https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1511919884226-fd3cad34687c?auto=format&fit=crop&w=800&q=80"
+    ],
+    showInGarage: true,
+    ratings: [5, 5, 5, 5, 5],
+    ratingAverage: 5.0,
+    ratingCount: 5
+  },
+  {
+    id: "J5EVO-202604-0008",
+    name: "Eko Prasetyo",
+    phone: "085388772211",
+    address: "Condongcatur, Sleman",
+    plateNumber: "AB 9090 EKO",
+    chassisNumber: "JAE5EV0022334455E",
+    carPhoto: "https://images.unsplash.com/photo-1563720223185-11003d516935?auto=format&fit=crop&w=800&q=80",
+    ownerPhoto: "https://images.unsplash.com/photo-1489980508314-941910ded1f4?auto=format&fit=crop&w=500&q=80",
+    registeredAt: "2026-04-22T14:15:00Z",
+    email: "eko.prasetyo@gmail.com",
+    pin: "888888",
+    garageCarName: "J5 White Sonic Aero",
+    garageDescription: "High-gloss crystal white protective paint film wrap, custom aerodynamic carbon pattern bodykit, upgraded comfortable suspension dampers, custom sports exhaust-sound generator.",
+    garageImages: [
+      "https://images.unsplash.com/photo-1563720223185-11003d516935?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1502877338535-766e1452684a?auto=format&fit=crop&w=800&q=80"
+    ],
+    showInGarage: true,
+    ratings: [5, 4, 4, 5],
+    ratingAverage: 4.5,
+    ratingCount: 4
+  },
+  {
+    id: "J5EVO-202604-0009",
+    name: "Farah Nabila",
+    phone: "083811223344",
+    address: "Kuningan, Jakarta Selatan",
+    plateNumber: "B 3322 FAR",
+    chassisNumber: "JAE5EV0099001122F",
+    carPhoto: "https://images.unsplash.com/photo-1502877338535-766e1452684a?auto=format&fit=crop&w=800&q=80",
+    ownerPhoto: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=500&q=80",
+    registeredAt: "2026-04-26T16:30:00Z",
+    email: "farah.nabila@gmail.com",
+    pin: "999999",
+    garageCarName: "J5 Sapphire Dream",
+    garageDescription: "Deep ocean metallic blue wraps, bespoke custom wooden floor trunk organizer panels, premium plush Alcantara dark dash cover, and smart ozone-air purifier built-in module.",
+    garageImages: [
+      "https://images.unsplash.com/photo-1502877338535-766e1452684a?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1621007947382-bb3c3994d3fb?auto=format&fit=crop&w=800&q=80"
+    ],
+    showInGarage: true,
+    ratings: [5, 5, 4],
+    ratingAverage: 4.7,
+    ratingCount: 3
+  },
+  {
+    id: "J5EVO-202604-0010",
+    name: "Gilang Ramadhan",
+    phone: "081244556677",
+    address: "Kelapa Gading, Jakarta Utara",
+    plateNumber: "B 2478 GIL",
+    chassisNumber: "JAE5EV0055221144G",
+    carPhoto: "https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?auto=format&fit=crop&w=800&q=80",
+    ownerPhoto: "https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?auto=format&fit=crop&w=500&q=80",
+    registeredAt: "2026-04-29T10:50:00Z",
+    email: "gilang.ramadhan@gmail.com",
+    pin: "123123",
+    garageCarName: "J5 Carbon Forge Edition",
+    garageDescription: "Full carbon fiber look wrapping on front hood and side side-mirrors, original 19-inch blacked-out rims, calibrated dynamic sport steering dampers.",
+    garageImages: [
+      "https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1542282088-72c9c27ed0cd?auto=format&fit=crop&w=800&q=80"
+    ],
+    showInGarage: true,
+    ratings: [4, 4, 5, 5, 5],
+    ratingAverage: 4.6,
+    ratingCount: 5
+  },
+  {
+    id: "J5EVO-202604-0011",
+    name: "Hendra Kusuma",
+    phone: "0817345678",
+    address: "Seminyak, Badung, Bali",
+    plateNumber: "DK 777 HEN",
+    chassisNumber: "JAE5EV0088771122H",
+    carPhoto: "https://images.unsplash.com/photo-1511919884226-fd3cad34687c?auto=format&fit=crop&w=800&q=80",
+    ownerPhoto: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=500&q=80",
+    registeredAt: "2026-05-02T11:10:00Z",
+    email: "hendra.kusuma@gmail.com",
+    pin: "321321",
+    garageCarName: "J5 Bali Sunset Explorer",
+    garageDescription: "Satin metallic burnt orange wrap, aesthetic black-chrome delete trims, fully customized waterproof seat protectors perfect for surfers, and beach trunk organizer kit.",
+    garageImages: [
+      "https://images.unsplash.com/photo-1511919884226-fd3cad34687c?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1617788138017-80ad40651399?auto=format&fit=crop&w=800&q=80"
+    ],
+    showInGarage: true,
+    ratings: [5, 5, 5],
+    ratingAverage: 5.0,
+    ratingCount: 3
+  },
+  {
+    id: "J5EVO-202604-0012",
+    name: "Irene Wijaya",
+    phone: "081900112233",
+    address: "Kembangan, Jakarta Barat",
+    plateNumber: "B 101 IRE",
+    chassisNumber: "JAE5EV0033116677I",
+    carPhoto: "https://images.unsplash.com/photo-1563720223185-11003d516935?auto=format&fit=crop&w=800&q=80",
+    ownerPhoto: "https://images.unsplash.com/photo-1594744803329-e58b31de215f?auto=format&fit=crop&w=500&q=80",
+    registeredAt: "2026-05-04T13:42:00Z",
+    email: "irene.wijaya@gmail.com",
+    pin: "456456",
+    garageCarName: "J5 Minimalist Pearl",
+    garageDescription: "Protected by custom premium Satin Matte TPU Self-Healing Paint Protection Film (PPF), elegantly polished multi-spoke high-class silver wheels, and ultra plush wool floors.",
+    garageImages: [
+      "https://images.unsplash.com/photo-1563720223185-11003d516935?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1502877338535-766e1452684a?auto=format&fit=crop&w=800&q=80"
+    ],
+    showInGarage: true,
+    ratings: [4, 5, 5, 5],
+    ratingAverage: 4.8,
+    ratingCount: 4
+  },
+  {
+    id: "J5EVO-202604-0013",
+    name: "Joko Susilo",
+    phone: "087755443322",
+    address: "Ska, Surakarta",
+    plateNumber: "AD 5050 JOK",
+    chassisNumber: "JAE5EV0022446688J",
+    carPhoto: "https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=800&q=80",
+    ownerPhoto: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=500&q=80",
+    registeredAt: "2026-05-06T15:15:00Z",
+    email: "joko.susilo@gmail.com",
+    pin: "789789",
+    garageCarName: "J5 Javanese Batik Heritage",
+    garageDescription: "Fine custom batik printed decal highlights across side doors, orthopedically sculpted comfortable memory-foam custom headrests, and upgraded integrated food-warmer box.",
+    garageImages: [
+      "https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?auto=format&fit=crop&w=800&q=80"
+    ],
+    showInGarage: true,
+    ratings: [5, 4, 5, 5],
+    ratingAverage: 4.8,
+    ratingCount: 4
   }
 ];
 
