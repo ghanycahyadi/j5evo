@@ -232,6 +232,18 @@ function loadDatabase(): DatabaseSchema {
         };
       });
     }
+    
+    // Auto-migrate or sync registrations to ensure every event has 10 sample participants based on INITIAL_REGISTRATIONS
+    if (!parsed.registrations || parsed.registrations.length < INITIAL_REGISTRATIONS.length) {
+      parsed.registrations = INITIAL_REGISTRATIONS;
+      try {
+        fs.writeFileSync(DB_FILE, JSON.stringify(parsed, null, 2), "utf8");
+        console.log(`[Database Sync] Registrations successfully initialized/restored to INITIAL_REGISTRATIONS.`);
+      } catch (werr) {
+        console.error("Failed to sync registrations to db.json: ", werr);
+      }
+    }
+
     return parsed;
   } catch (error) {
     console.error(`[Database Rescue] Failed to parse active db.json. Checking backups... Error:`, error);
