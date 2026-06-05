@@ -32,6 +32,7 @@ export interface Member {
   censorPlateRotate?: number; // Rotation degrees (e.g. 0) for the overlay tag
   censorPlateScale?: number; // Custom scaling size percentage (e.g. 100)
   censorPlateIndices?: number[]; // List of specific image indices that should have the plate censored
+  censorPositions?: { x: number; y: number; rotate: number; scale: number }[]; // Per-image sensor coordinates for different angles
   ratings?: number[]; // Array of ratings given by visitors
   ratingAverage?: number; // Calculated average rating
   ratingCount?: number; // Total count of star ratings

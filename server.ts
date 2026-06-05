@@ -727,7 +727,7 @@ async function startServer() {
     const { 
       name, phone, address, regional, plateNumber, chassisNumber, membershipTier, email, birthDate, ownerPhoto, pin,
       garageCarName, garageDescription, garageImages, showInGarage, hideIdentityPublic,
-      censorPlatePhoto, censorPlateY, censorPlateX, censorPlateRotate, censorPlateScale, censorPlateIndices
+      censorPlatePhoto, censorPlateY, censorPlateX, censorPlateRotate, censorPlateScale, censorPlateIndices, censorPositions
     } = req.body;
     
     const data = loadDatabase();
@@ -823,6 +823,9 @@ async function startServer() {
       member.censorPlateIndices = Array.isArray(censorPlateIndices) 
         ? censorPlateIndices.map(Number) 
         : [];
+    }
+    if (censorPositions !== undefined) {
+      member.censorPositions = Array.isArray(censorPositions) ? censorPositions : [];
     }
 
     saveDatabase(data);

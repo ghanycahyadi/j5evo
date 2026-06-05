@@ -357,12 +357,74 @@ export default function App() {
     censorPlateX: 50,
     censorPlateRotate: 0,
     censorPlateScale: 100,
-    censorPlateIndices: [] as number[]
+    censorPlateIndices: [] as number[],
+    censorPositions: [] as { x: number; y: number; rotate: number; scale: number }[]
   });
 
   // Dragging states and handlers for the interactive plate censor preview
   const [isDraggingPlate, setIsDraggingPlate] = useState(false);
   const previewContainerRef = useRef<HTMLDivElement>(null);
+
+  const getCensorPos = (m: any, idx: number) => {
+    if (m && m.censorPositions && Array.isArray(m.censorPositions) && m.censorPositions[idx]) {
+      const pos = m.censorPositions[idx];
+      return {
+        x: pos.x !== undefined ? pos.x : (m.censorPlateX !== undefined ? m.censorPlateX : 50),
+        y: pos.y !== undefined ? pos.y : (m.censorPlateY !== undefined ? m.censorPlateY : 74),
+        rotate: pos.rotate !== undefined ? pos.rotate : (m.censorPlateRotate !== undefined ? m.censorPlateRotate : 0),
+        scale: pos.scale !== undefined ? pos.scale : (m.censorPlateScale !== undefined ? m.censorPlateScale : 100)
+      };
+    }
+    return {
+      x: m?.censorPlateX !== undefined ? m.censorPlateX : 50,
+      y: m?.censorPlateY !== undefined ? m.censorPlateY : 74,
+      rotate: m?.censorPlateRotate !== undefined ? m.censorPlateRotate : 0,
+      scale: m?.censorPlateScale !== undefined ? m.censorPlateScale : 100
+    };
+  };
+
+  const updateActiveSensorPosObj = (updates: { [key in 'x' | 'y' | 'rotate' | 'scale']?: number }) => {
+    setSelfEditForm(prev => {
+      const list = prev.garageImages && prev.garageImages.length > 0 
+        ? prev.garageImages 
+        : [prev.carPhoto || ""];
+      const len = list.length;
+      
+      const currentPositions = prev.censorPositions ? [...prev.censorPositions] : [];
+      
+      for (let i = 0; i < len; i++) {
+        if (!currentPositions[i]) {
+          currentPositions[i] = {
+            x: prev.censorPlateX !== undefined ? prev.censorPlateX : 50,
+            y: prev.censorPlateY !== undefined ? prev.censorPlateY : 74,
+            rotate: prev.censorPlateRotate !== undefined ? prev.censorPlateRotate : 0,
+            scale: prev.censorPlateScale !== undefined ? prev.censorPlateScale : 100
+          };
+        }
+      }
+      
+      const activeIdx = Math.min(Math.max(0, editFormPreviewIdx), len - 1);
+      currentPositions[activeIdx] = {
+        ...currentPositions[activeIdx],
+        ...updates
+      };
+      
+      const mainUpdates: any = {
+        censorPositions: currentPositions
+      };
+      if (activeIdx === 0) {
+        if (updates.x !== undefined) mainUpdates.censorPlateX = updates.x;
+        if (updates.y !== undefined) mainUpdates.censorPlateY = updates.y;
+        if (updates.rotate !== undefined) mainUpdates.censorPlateRotate = updates.rotate;
+        if (updates.scale !== undefined) mainUpdates.censorPlateScale = updates.scale;
+      }
+      
+      return {
+        ...prev,
+        ...mainUpdates
+      };
+    });
+  };
 
   const handlePlateDragUpdate = (clientX: number, clientY: number) => {
     if (!previewContainerRef.current) return;
@@ -373,11 +435,7 @@ export default function App() {
     const boundedX = Math.max(5, Math.min(95, xPercent));
     const boundedY = Math.max(5, Math.min(95, yPercent));
 
-    setSelfEditForm(prev => ({
-      ...prev,
-      censorPlateX: boundedX,
-      censorPlateY: boundedY
-    }));
+    updateActiveSensorPosObj({ x: boundedX, y: boundedY });
   };
 
   const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -1099,7 +1157,8 @@ export default function App() {
         censorPlateScale: lookupResult.member.censorPlateScale !== undefined ? lookupResult.member.censorPlateScale : 100,
         censorPlateIndices: lookupResult.member.censorPlateIndices !== undefined 
           ? lookupResult.member.censorPlateIndices 
-          : (lookupResult.member.censorPlatePhoto ? Array.from({ length: (lookupResult.member.garageImages?.length || 1) }, (_, i) => i) : [])
+          : (lookupResult.member.censorPlatePhoto ? Array.from({ length: (lookupResult.member.garageImages?.length || 1) }, (_, i) => i) : []),
+        censorPositions: lookupResult.member.censorPositions || []
       });
     } else {
       setVerificationError("PIN 6 Digit yang Anda masukkan salah.");
@@ -1219,7 +1278,8 @@ export default function App() {
       censorPlateX: selfEditForm.censorPlateX,
       censorPlateRotate: selfEditForm.censorPlateRotate,
       censorPlateScale: selfEditForm.censorPlateScale,
-      censorPlateIndices: selfEditForm.censorPlateIndices
+      censorPlateIndices: selfEditForm.censorPlateIndices,
+      censorPositions: selfEditForm.censorPositions
     };
 
     try {
@@ -2509,11 +2569,16 @@ export default function App() {
           setLoading(true);
           const updatedImages = currentImages.filter((_, idx) => idx !== activeGarageImageIdx);
           
-          // Shift plate censor indices
+          // Shift plate censor indices and positions
           let updatedCensorIndices = selectedGarageMember.censorPlateIndices || [];
           updatedCensorIndices = updatedCensorIndices
             .filter((idx) => idx !== activeGarageImageIdx)
             .map((idx) => (idx > activeGarageImageIdx ? idx - 1 : idx));
+
+          let updatedCensorPositions = selectedGarageMember.censorPositions || [];
+          if (Array.isArray(updatedCensorPositions)) {
+            updatedCensorPositions = updatedCensorPositions.filter((_, idx) => idx !== activeGarageImageIdx);
+          }
 
           const res = await fetch(`/api/members/${encodeURIComponent(selectedGarageMember.id)}`, {
             method: "PUT",
@@ -2521,7 +2586,8 @@ export default function App() {
             body: JSON.stringify({
               ...selectedGarageMember,
               garageImages: updatedImages,
-              censorPlateIndices: updatedCensorIndices
+              censorPlateIndices: updatedCensorIndices,
+              censorPositions: updatedCensorPositions
             })
           });
 
@@ -2577,6 +2643,7 @@ export default function App() {
               ...selectedGarageMember,
               garageImages: [],
               censorPlateIndices: [],
+              censorPositions: [],
               showInGarage: false
             })
           });
@@ -2909,18 +2976,21 @@ export default function App() {
                                 <div className="absolute inset-0 bg-gradient-to-t from-black/25 via-transparent to-transparent opacity-80 group-hover:opacity-90 transition-opacity pointer-events-none z-10"></div>
                                 
                                 {/* Censor plate cover stiker */}
-                                {m.censorPlatePhoto && (!m.censorPlateIndices || m.censorPlateIndices.length === 0 || m.censorPlateIndices.includes(0)) && (
-                                  <div 
-                                    style={{ 
-                                      top: `${m.censorPlateY !== undefined ? m.censorPlateY : 74}%`,
-                                      left: `${m.censorPlateX !== undefined ? m.censorPlateX : 50}%`,
-                                      transform: `translate(-50%, -50%) rotate(${m.censorPlateRotate !== undefined ? m.censorPlateRotate : 0}deg) scale(${(m.censorPlateScale !== undefined ? m.censorPlateScale : 100) / 100 * 0.9})`
-                                    }} 
-                                    className="absolute bg-white/95 text-zinc-900 border-2 border-[#005c56]/60 rounded-sm shadow-md py-0.5 px-2.5 flex items-center justify-center min-w-[90px] select-none pointer-events-none transition-all duration-300 z-25"
-                                  >
-                                    <span className="font-mono text-[7px] tracking-wider font-extrabold text-[#005c56]">J 5 EVO</span>
-                                  </div>
-                                )}
+                                {m.censorPlatePhoto && (!m.censorPlateIndices || m.censorPlateIndices.length === 0 || m.censorPlateIndices.includes(0)) && (() => {
+                                  const censor = getCensorPos(m, 0);
+                                  return (
+                                    <div 
+                                      style={{ 
+                                        top: `${censor.y}%`,
+                                        left: `${censor.x}%`,
+                                        transform: `translate(-50%, -50%) rotate(${censor.rotate}deg) scale(${(censor.scale) / 100 * 0.9})`
+                                      }} 
+                                      className="absolute bg-white/95 text-zinc-900 border-2 border-[#005c56]/60 rounded-sm shadow-md py-0.5 px-2.5 flex items-center justify-center min-w-[90px] select-none pointer-events-none transition-all duration-300 z-25"
+                                    >
+                                      <span className="font-mono text-[7px] tracking-wider font-extrabold text-[#005c56]">J 5 EVO</span>
+                                    </div>
+                                  );
+                                })()}
                               </div>
                               
                               {/* Left-top Plate-info Tag */}
@@ -4744,18 +4814,21 @@ export default function App() {
                                           referrerPolicy="no-referrer"
                                         />
                                         {/* Miniature censor plate overlay */}
-                                        {isCensored && (
-                                          <div 
-                                            style={{ 
-                                              top: `${m.censorPlateY !== undefined ? m.censorPlateY : 74}%`,
-                                              left: `${m.censorPlateX !== undefined ? m.censorPlateX : 50}%`,
-                                              transform: `translate(-50%, -50%) rotate(${m.censorPlateRotate !== undefined ? m.censorPlateRotate : 0}deg) scale(${((m.censorPlateScale !== undefined ? m.censorPlateScale : 100) / 100) * 0.45})`
-                                            }} 
-                                            className="absolute bg-white/95 text-zinc-900 border border-[#005c56]/60 rounded-sm shadow-sm py-0.2 px-1 flex items-center justify-center min-w-[50px] select-none pointer-events-none transition-all duration-300 z-10"
-                                          >
-                                            <span className="font-mono text-[4.5px] tracking-wider font-extrabold text-[#005c56]">J 5 EVO</span>
-                                          </div>
-                                        )}
+                                        {isCensored && (() => {
+                                          const censor = getCensorPos(m, idx);
+                                          return (
+                                            <div 
+                                              style={{ 
+                                                top: `${censor.y}%`,
+                                                left: `${censor.x}%`,
+                                                transform: `translate(-50%, -50%) rotate(${censor.rotate}deg) scale(${((censor.scale) / 100) * 0.45})`
+                                              }} 
+                                              className="absolute bg-white/95 text-zinc-900 border border-[#005c56]/60 rounded-sm shadow-sm py-0.2 px-1 flex items-center justify-center min-w-[50px] select-none pointer-events-none transition-all duration-300 z-10"
+                                            >
+                                              <span className="font-mono text-[4.5px] tracking-wider font-extrabold text-[#005c56]">J 5 EVO</span>
+                                            </div>
+                                          );
+                                        })()}
                                       </div>
                                     </button>
                                   );
@@ -5304,6 +5377,7 @@ export default function App() {
                                       : [selfEditForm.carPhoto || "https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=800&q=80"];
                                     const safePreviewIdx = Math.min(Math.max(0, editFormPreviewIdx), availableImages.length - 1);
                                     const activePreviewPhoto = availableImages[safePreviewIdx] || "";
+                                    const activeCensor = getCensorPos(selfEditForm, safePreviewIdx);
 
                                     return (
                                       <div className="space-y-4 pt-2.5 border-t border-zinc-200 text-left">
@@ -5311,14 +5385,14 @@ export default function App() {
                                         <div className="space-y-1">
                                           <div className="flex justify-between items-center text-[10px] font-bold text-zinc-700">
                                             <span>Atur Posisi Vertikal (Tinggi)</span>
-                                            <span className="font-mono text-xs text-[#005c56] font-extrabold">{selfEditForm.censorPlateY !== undefined ? selfEditForm.censorPlateY : 74}%</span>
+                                            <span className="font-mono text-xs text-[#005c56] font-extrabold">{activeCensor.y}%</span>
                                           </div>
                                           <input
                                             type="range"
                                             min={5}
                                             max={95}
-                                            value={selfEditForm.censorPlateY !== undefined ? selfEditForm.censorPlateY : 74}
-                                            onChange={(e) => setSelfEditForm({ ...selfEditForm, censorPlateY: parseInt(e.target.value) })}
+                                            value={activeCensor.y}
+                                            onChange={(e) => updateActiveSensorPosObj({ y: parseInt(e.target.value) })}
                                             className="w-full h-1.5 bg-zinc-200 rounded-lg appearance-none cursor-pointer accent-[#005c56]"
                                           />
                                         </div>
@@ -5327,14 +5401,14 @@ export default function App() {
                                         <div className="space-y-1">
                                           <div className="flex justify-between items-center text-[10px] font-bold text-zinc-700">
                                             <span>Atur Posisi Horizontal (Kiri/Kanan)</span>
-                                            <span className="font-mono text-xs text-[#005c56] font-extrabold">{selfEditForm.censorPlateX !== undefined ? selfEditForm.censorPlateX : 50}%</span>
+                                            <span className="font-mono text-xs text-[#005c56] font-extrabold">{activeCensor.x}%</span>
                                           </div>
                                           <input
                                             type="range"
                                             min={5}
                                             max={95}
-                                            value={selfEditForm.censorPlateX !== undefined ? selfEditForm.censorPlateX : 50}
-                                            onChange={(e) => setSelfEditForm({ ...selfEditForm, censorPlateX: parseInt(e.target.value) })}
+                                            value={activeCensor.x}
+                                            onChange={(e) => updateActiveSensorPosObj({ x: parseInt(e.target.value) })}
                                             className="w-full h-1.5 bg-zinc-200 rounded-lg appearance-none cursor-pointer accent-[#005c56]"
                                           />
                                         </div>
@@ -5343,14 +5417,14 @@ export default function App() {
                                         <div className="space-y-1">
                                           <div className="flex justify-between items-center text-[10px] font-bold text-zinc-700">
                                             <span>Miringkan Stiker (Rotasi Sudut)</span>
-                                            <span className="font-mono text-xs text-[#005c56] font-extrabold">{selfEditForm.censorPlateRotate !== undefined ? selfEditForm.censorPlateRotate : 0}°</span>
+                                            <span className="font-mono text-xs text-[#005c56] font-extrabold">{activeCensor.rotate}°</span>
                                           </div>
                                           <input
                                             type="range"
                                             min={-90}
                                             max={90}
-                                            value={selfEditForm.censorPlateRotate !== undefined ? selfEditForm.censorPlateRotate : 0}
-                                            onChange={(e) => setSelfEditForm({ ...selfEditForm, censorPlateRotate: parseInt(e.target.value) })}
+                                            value={activeCensor.rotate}
+                                            onChange={(e) => updateActiveSensorPosObj({ rotate: parseInt(e.target.value) })}
                                             className="w-full h-1.5 bg-zinc-200 rounded-lg appearance-none cursor-pointer accent-[#005c56]"
                                           />
                                         </div>
@@ -5359,14 +5433,14 @@ export default function App() {
                                         <div className="space-y-1">
                                           <div className="flex justify-between items-center text-[10px] font-bold text-zinc-700">
                                             <span>Ukuran Sensor (Besar/Kecil)</span>
-                                            <span className="font-mono text-xs text-[#005c56] font-extrabold">{selfEditForm.censorPlateScale !== undefined ? selfEditForm.censorPlateScale : 100}%</span>
+                                            <span className="font-mono text-xs text-[#005c56] font-extrabold">{activeCensor.scale}%</span>
                                           </div>
                                           <input
                                             type="range"
                                             min={40}
                                             max={220}
-                                            value={selfEditForm.censorPlateScale !== undefined ? selfEditForm.censorPlateScale : 100}
-                                            onChange={(e) => setSelfEditForm({ ...selfEditForm, censorPlateScale: parseInt(e.target.value) })}
+                                            value={activeCensor.scale}
+                                            onChange={(e) => updateActiveSensorPosObj({ scale: parseInt(e.target.value) })}
                                             className="w-full h-1.5 bg-zinc-200 rounded-lg appearance-none cursor-pointer accent-[#005c56]"
                                           />
                                         </div>
@@ -5452,7 +5526,7 @@ export default function App() {
                                         <div className="space-y-1">
                                           <div className="flex justify-between items-center">
                                             <span className="text-[9px] font-bold text-[#005c56] uppercase tracking-wider block">Gunakan Drag / Sentuh untuk Menempatkan Sensor</span>
-                                            <span className="text-[8px] text-[#005c56] font-extrabold bg-[#005c56]/5 px-1.5 py-0.5 rounded">X: {selfEditForm.censorPlateX !== undefined ? selfEditForm.censorPlateX : 50}%, Y: {selfEditForm.censorPlateY !== undefined ? selfEditForm.censorPlateY : 74}%</span>
+                                            <span className="text-[8px] text-[#005c56] font-extrabold bg-[#005c56]/5 px-1.5 py-0.5 rounded">X: {activeCensor.x}%, Y: {activeCensor.y}%</span>
                                           </div>
                                           <div className="flex justify-center bg-zinc-50 border border-zinc-200 rounded-xl p-2 relative max-w-sm mx-auto shadow-inner">
                                             <div 
@@ -5476,9 +5550,9 @@ export default function App() {
                                               {((selfEditForm.censorPlateIndices || []).includes(safePreviewIdx)) && (
                                                 <div
                                                   style={{ 
-                                                    top: `${selfEditForm.censorPlateY !== undefined ? selfEditForm.censorPlateY : 74}%`,
-                                                    left: `${selfEditForm.censorPlateX !== undefined ? selfEditForm.censorPlateX : 50}%`,
-                                                    transform: `translate(-50%, -50%) rotate(${selfEditForm.censorPlateRotate !== undefined ? selfEditForm.censorPlateRotate : 0}deg) scale(${(selfEditForm.censorPlateScale !== undefined ? selfEditForm.censorPlateScale : 100) / 100 * 0.9})`
+                                                    top: `${activeCensor.y}%`,
+                                                    left: `${activeCensor.x}%`,
+                                                    transform: `translate(-50%, -50%) rotate(${activeCensor.rotate}deg) scale(${(activeCensor.scale / 100) * 0.9})`
                                                   }}
                                                   className="absolute bg-white/95 text-zinc-900 border-2 border-[#005c56]/60 rounded-sm shadow-md py-0.5 px-2.5 flex items-center justify-center min-w-[90px] pointer-events-none transition-all duration-75 select-none z-25"
                                                 >
@@ -5492,10 +5566,9 @@ export default function App() {
                                                   type="button"
                                                   onClick={(e) => {
                                                     e.stopPropagation();
-                                                    setSelfEditForm(prev => ({
-                                                      ...prev,
-                                                      censorPlateScale: Math.max(40, Math.min(220, (prev.censorPlateScale !== undefined ? prev.censorPlateScale : 100) - 10))
-                                                    }));
+                                                    updateActiveSensorPosObj({
+                                                      scale: Math.max(40, Math.min(220, activeCensor.scale - 10))
+                                                    });
                                                   }}
                                                   className="w-7 h-7 rounded-lg bg-black/75 hover:bg-black text-white flex items-center justify-center text-xs font-black active:scale-95 transition backdrop-blur-sm cursor-pointer shadow border border-white/20 select-none pb-0.5"
                                                   title="Perkecil Sensor"
@@ -5506,10 +5579,9 @@ export default function App() {
                                                   type="button"
                                                   onClick={(e) => {
                                                     e.stopPropagation();
-                                                    setSelfEditForm(prev => ({
-                                                      ...prev,
-                                                      censorPlateScale: Math.max(40, Math.min(220, (prev.censorPlateScale !== undefined ? prev.censorPlateScale : 100) + 10))
-                                                    }));
+                                                    updateActiveSensorPosObj({
+                                                      scale: Math.max(40, Math.min(220, activeCensor.scale + 10))
+                                                    });
                                                   }}
                                                   className="w-7 h-7 rounded-lg bg-black/75 hover:bg-black text-white flex items-center justify-center text-xs font-black active:scale-95 transition backdrop-blur-sm cursor-pointer shadow border border-white/20 select-none pb-0.5"
                                                   title="Perbesar Sensor"
@@ -8159,10 +8231,16 @@ export default function App() {
                                         .filter((id: number) => id !== idx)
                                         .map((id: number) => (id > idx ? id - 1 : id));
                                       
+                                      let updatedCensorPositions = editMemberForm.censorPositions || [];
+                                      if (Array.isArray(updatedCensorPositions)) {
+                                        updatedCensorPositions = updatedCensorPositions.filter((_: any, i: number) => i !== idx);
+                                      }
+                                      
                                       setEditMemberForm({
                                         ...editMemberForm,
                                         garageImages: updatedImages,
-                                        censorPlateIndices: updatedCensorIndices
+                                        censorPlateIndices: updatedCensorIndices,
+                                        censorPositions: updatedCensorPositions
                                       });
                                     }}
                                     className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity cursor-pointer text-white font-extrabold text-[10px] uppercase gap-1"
@@ -8867,18 +8945,21 @@ export default function App() {
                       />
                       
                       {/* Cover plate sensor sticker in lightbox modal */}
-                      {selectedGarageMember.censorPlatePhoto && (!selectedGarageMember.censorPlateIndices || selectedGarageMember.censorPlateIndices.length === 0 || selectedGarageMember.censorPlateIndices.includes(activeGarageImageIdx)) && (
-                        <div 
-                          style={{ 
-                            top: `${selectedGarageMember.censorPlateY !== undefined ? selectedGarageMember.censorPlateY : 74}%`,
-                            left: `${selectedGarageMember.censorPlateX !== undefined ? selectedGarageMember.censorPlateX : 50}%`,
-                            transform: `translate(-50%, -50%) rotate(${selectedGarageMember.censorPlateRotate !== undefined ? selectedGarageMember.censorPlateRotate : 0}deg) scale(${(selectedGarageMember.censorPlateScale !== undefined ? selectedGarageMember.censorPlateScale : 100) / 100 * 0.9})`
-                          }} 
-                          className="absolute bg-white/95 text-zinc-900 border-2 border-[#005c56]/60 rounded-sm shadow-md py-0.5 px-3 flex items-center justify-center min-w-[95px] select-none pointer-events-none transition-all duration-300 z-25"
-                        >
-                          <span className="font-mono text-[7px] tracking-wider font-extrabold text-[#005c56]">J 5 EVO</span>
-                        </div>
-                      )}
+                      {selectedGarageMember.censorPlatePhoto && (!selectedGarageMember.censorPlateIndices || selectedGarageMember.censorPlateIndices.length === 0 || selectedGarageMember.censorPlateIndices.includes(activeGarageImageIdx)) && (() => {
+                        const censor = getCensorPos(selectedGarageMember, activeGarageImageIdx);
+                        return (
+                          <div 
+                            style={{ 
+                              top: `${censor.y}%`,
+                              left: `${censor.x}%`,
+                              transform: `translate(-50%, -50%) rotate(${censor.rotate}deg) scale(${(censor.scale) / 100 * 0.9})`
+                            }} 
+                            className="absolute bg-white/95 text-zinc-900 border-2 border-[#005c56]/60 rounded-sm shadow-md py-0.5 px-3 flex items-center justify-center min-w-[95px] select-none pointer-events-none transition-all duration-300 z-25"
+                          >
+                            <span className="font-mono text-[7px] tracking-wider font-extrabold text-[#005c56]">J 5 EVO</span>
+                          </div>
+                        );
+                      })()}
                     </div>
                   );
                 })()}
