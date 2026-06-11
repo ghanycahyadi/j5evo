@@ -901,6 +901,22 @@ async function startServer() {
     res.json(compactEvents);
   });
 
+  // GET stock screener SMC data (monitoring screen)
+  app.get("/api/screener", (req, res) => {
+    try {
+      const screenerPath = path.join(process.cwd(), "screen", "db_screener.json");
+      if (fs.existsSync(screenerPath)) {
+        const fileContent = fs.readFileSync(screenerPath, "utf-8");
+        const parsedContent = JSON.parse(fileContent);
+        return res.json(parsedContent);
+      }
+      return res.json([]);
+    } catch (err) {
+      console.error("Error reading db_screener.json:", err);
+      return res.status(500).json({ error: "Gagal membaca database screener." });
+    }
+  });
+
   // GET specific event's gallery images (Loads on-demand when opening album!)
   app.get("/api/events/:id/gallery", (req, res) => {
     const data = loadDatabase();

@@ -61,6 +61,7 @@ import SupportingDealers from "./components/SupportingDealers";
 import AdminManager from "./components/AdminManager";
 import EvCalculator from "./components/EvCalculator";
 import LuckyDrawWheel, { WinnerLog } from "./components/LuckyDrawWheel";
+import ScreenerDashboard from "./components/ScreenerDashboard";
 import { toPng } from "html-to-image";
 import { Member, CommunityEvent, EventRegistration, DashboardStats, FAQ } from "./types";
 import { formatDate, CAR_PHOTOS, getGoogleMapsUrl, compressImage } from "./utils";
@@ -115,6 +116,7 @@ export default function App() {
       if (path === "/kalkulator") return "trip-calculator";
       if (path === "/kegiatan" || path === "/events") return "events";
       if (path === "/admin-dashboard") return "admin-dashboard";
+      if (path === "/screen") return "screener";
       return sessionStorage.getItem("activeTab") || "home";
     } catch (e) {
       return "home";
@@ -137,6 +139,7 @@ export default function App() {
       else if (tab === "trip-calculator") targetPath = "/kalkulator";
       else if (tab === "events") targetPath = "/kegiatan";
       else if (tab === "admin-dashboard") targetPath = "/admin-dashboard";
+      else if (tab === "screener") targetPath = "/screen";
 
       if (window.location.pathname !== targetPath) {
         window.history.pushState({ tab }, "", targetPath);
@@ -8524,6 +8527,13 @@ export default function App() {
           )
         )}
 
+        {/* TAB 6: Automated SMC Stock Screener (Monitoring Screen) */}
+        {activeTab === "screener" && (
+          <div id="tab-screener" className="animate-fadeIn">
+            <ScreenerDashboard />
+          </div>
+        )}
+
       </main>
 
       {/* FOOTER */}
@@ -8960,7 +8970,7 @@ export default function App() {
         </div>
       )}
 
-      {/* ðŸ”® EVENT PARTICIPANTS LUCKY DRAW WHEEL OVERLAY MODAL */}
+      {/* í ½í´® EVENT PARTICIPANTS LUCKY DRAW WHEEL OVERLAY MODAL */}
       {isWheelOpen && selectedEvent && (
         <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-zinc-950/60 backdrop-blur-md animate-fadeIn overflow-y-auto">
           <div className="bg-white rounded-3xl border border-zinc-200 shadow-2xl max-w-5xl w-full p-4 md:p-6 my-8 relative animate-scaleUp overflow-hidden max-h-[95vh] flex flex-col">
