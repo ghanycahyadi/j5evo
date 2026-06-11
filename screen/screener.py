@@ -7,27 +7,27 @@ import json
 import logging
 import math
 import time 
-from datetime import datetime
+from datetime import datetime, timedelta
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from tabulate import tabulate
 
 # ==========================================
 # 1. KONFIGURASI BOT & SENSITIVITAS
 # ==========================================
-SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-FILE_EXCEL = os.path.join(SCRIPT_DIR, "Daftar Saham - 20260427.xlsx")
-# FILE_EXCEL = os.path.join(os.path.dirname(SCRIPT_DIR), "Daftar Saham - 20260427.xlsx")
-BLACKLIST_FILE = os.path.join(SCRIPT_DIR, "blacklist_saham.json")
-DB_SCREENER_FILE = os.path.join(SCRIPT_DIR, "db_screener.json")  # File database JSON utama
+FILE_EXCEL = "Daftar Saham - 20260427.xlsx"
+BLACKLIST_FILE = "blacklist_saham.json"
+DB_SCREENER_FILE = "db_screener.json"
 
-
+# --- FITUR LOOPING MESIN WAKTU (MULTI-DATE BACKTEST) ---
+MODE_BACKTEST_RANGE = False           # Set True untuk generate data dari tanggal awal sampai sekarang
+TANGGAL_AWAL_BACKTEST = "2026-06-01"  # Format wajib YYYY-MM-DD
 
 # --- SETTING ANTI-BLOCK (WAJIB KECIL) ---
 MAX_WORKERS = 8  
 DELAY_BETWEEN_TICKERS = 0.2 
 
 MOMENTUM_MULTIPLIER = 1.8
-MAX_PRIORITY_SCORE = 4  # Loloskan 'Tunggu Validasi' (Score 4) sebagai Watchlist
+MAX_PRIORITY_SCORE = 4  
 MAX_RISK_TOLERANCE = -10.0 
 
 logging.getLogger('yfinance').setLevel(logging.CRITICAL)
@@ -64,11 +64,21 @@ def safe_int(value):
     return int(float(value))
 
 # ==========================================
-# 3. MESIN ANALISIS SMC (STABLE & ANTI-BLOCK)
+# 3. MESIN ANALISIS SMC HISTORIS (WITH SMART CACHE)
 # ==========================================
-def get_smc_analysis(ticker, waktu_screen_seragam):
+def get_smc_analysis(ticker, target_date, waktu_screen_seragam, is_backtest_tgl, cache_dict):
     try:
-        time.sleep(np.random.uniform(0.5, DELAY_BETWEEN_TICKERS))
+        # --- FITUR SMART CACHE CHECK ---
+        # Jika data masa lalu (Backtest) sudah ada di JSON, jangan download lagi!
+        if is_backtest_tgl and ticker in cache_dict:
+            # Berikan penanda kecil kalau ini data dari Cache Lokal
+            cached_data = cache_dict[ticker].copy()
+            # Sinkronisasi Waktu Screen agar tetap rapi sesuai running saat ini
+            cached_data["Waktu Screen"] = waktu_screen_seragam
+            return ticker, cached_data, "CACHE_HIT"
+
+        # Jeda napas hanya diaktifkan jika benar-benar mendownload data dari yfinance
+        time.sleep(np.random.uniform(0.3, DELAY_BETWEEN_TICKERS))
         
         saham_obj = yf.Ticker(ticker)
         df = pd.DataFrame()
@@ -83,7 +93,7 @@ def get_smc_analysis(ticker, waktu_screen_seragam):
                 df = saham_obj.history(period="1y", interval="1d", auto_adjust=True)
                 if not df.empty: break
             except: pass
-            time.sleep(5)
+            time.sleep(3)
 
         if df.empty or len(df) < 30: 
             return ticker, None, "Data Kosong"
@@ -91,6 +101,15 @@ def get_smc_analysis(ticker, waktu_screen_seragam):
         df.dropna(subset=['Open', 'High', 'Low', 'Close'], inplace=True)
         if isinstance(df.columns, pd.MultiIndex): df.columns = df.columns.droplevel(1)
         
+        # --- POTONG DATA JIKA MENGGUNAKAN MODE BACKTEST ---
+        if is_backtest_tgl:
+            df['Tanggal_Str'] = df.index.strftime('%Y-%m-%d')
+            df = df[df['Tanggal_Str'] <= target_date]
+            df.drop(columns=['Tanggal_Str'], inplace=True)
+            
+            if df.empty or len(df) < 30:
+                return ticker, None, "Kosong Pasca Slice"
+
         last_price = float(df['Close'].iloc[-1])
         if last_price <= 50: return ticker, None, "Gocap"
 
@@ -135,7 +154,7 @@ def get_smc_analysis(ticker, waktu_screen_seragam):
         cuan1 = ((tp1 - last_price) / last_price) * 100
         risiko_persen = ((stop_loss - last_price) / last_price) * 100
 
-        # --- ANALISIS STATUS & VALIDASI OTOMATIS ---
+        # --- ANALISIS STATUS ---
         status_smc, rekomendasi, score = "HARGA > IDM", "Tunggu Validasi", 5
         last_low = float(df['Low'].iloc[-1])
         last_open = float(df['Open'].iloc[-1])
@@ -164,7 +183,7 @@ def get_smc_analysis(ticker, waktu_screen_seragam):
         waktu_data_terakhir = df.index[-1].strftime('%Y-%m-%d')
 
         return ticker, {
-            "Waktu Screen": waktu_screen_seragam,  # Menggunakan waktu seragam kunci awal
+            "Waktu Screen": waktu_screen_seragam,  
             "Waktu Candle": waktu_data_terakhir, 
             "Ticker": ticker.replace(".JK", ""), 
             "Sektor": sektor,    
@@ -176,125 +195,124 @@ def get_smc_analysis(ticker, waktu_screen_seragam):
             "SL": safe_int(stop_loss), "Risk(%)": f"{risiko_persen:.2f}%",
             "RR Ratio": f"1 : {round(cuan1/abs(risiko_persen),1)}" if risiko_persen < 0 else "-",
             "Momentum": "STRONG BULL" if bull_mom_active else "-", "Score": score,
-            "Status Akhir": "RUNNING" # Status bawaan untuk transaksi baru
-        }, None
+            "Status Akhir": "RUNNING"
+        }, "DOWNLOAD_SUCCESS"
 
     except Exception: return ticker, None, "Err"
 
 # ==========================================
-# 4. ENGINE TRACKER HISTORIS (TP / SL CHECKER)
+# 4. ENGINE TRACKER LIVE (EVALUASI AKHIR)
 # ==========================================
 def track_historical_signals(db_lama, current_results):
-    """Mengecek posisi aktif (RUNNING) dari hari sebelumnya apakah sudah hit TP/SL berdasarkan data hari ini."""
-    if not db_lama:
-        return db_lama
+    if not db_lama: return db_lama
 
-    # Buat mapping harga High & Low hari ini untuk mempermudah pengecekan cepat
     current_market = {}
     for res in current_results:
         ticker = res["Ticker"]
-        # Kalkulasi balik High & Low live dari data screening hari ini
-        current_market[ticker] = {
-            "Harga": res["Harga"],
-            "Chg": res["Chg(%)"]
-        }
+        current_market[ticker] = {"Harga": res["Harga"]}
 
     updated_db = []
     for item in db_lama:
-        # Kita hanya track item yg bertanda 'RUNNING' dan sinyalnya 'BUY (VALIDATED)'
         if item.get("Status Akhir") == "RUNNING" and item.get("Sinyal") == "BUY (VALIDATED)":
             ticker = item["Ticker"]
-            
-            # Ambil data pergerakan hari ini jika emiten terdeteksi
             if ticker in current_market:
                 harga_live = current_market[ticker]["Harga"]
-                sl_level = item["SL"]
-                tp1_level = item["TP 1"]
-                tp2_level = item["TP 2"]
-                
-                # Cek Kondisi Eksekusi
-                if harga_live <= sl_level:
+                if harga_live <= item["SL"]:
                     item["Status Akhir"] = "HIT SL (RUGI)"
-                elif harga_live >= tp2_level:
+                elif harga_live >= item["TP 2"]:
                     item["Status Akhir"] = "HIT TP 2 (MAX CUAN)"
-                elif harga_live >= tp1_level:
+                elif harga_live >= item["TP 1"]:
                     item["Status Akhir"] = "HIT TP 1 (CUAN)"
-        
         updated_db.append(item)
-    
     return updated_db
 
 # ==========================================
-# 5. EKSEKUTOR UTAMA
+# 5. EKSEKUTOR UTAMA WITH SMART CACHING
 # ==========================================
 if __name__ == "__main__":
     blacklist = load_blacklist()
     db_historis = load_db_screener()
     
-    # KUNCI WAKTU SCREEN DI AWAL AGAR SAMA RATU UNTUK SEMUA TICKER
-    waktu_run_sekarang = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    tanggal_hari_ini = datetime.now().strftime('%Y-%m-%d')
     
-    print(f"GHANY ALGO | SCREEN & TRACKER ACTIVE | {waktu_run_sekarang}")
-    
+    list_tanggal = []
+    if MODE_BACKTEST_RANGE:
+        start_date = datetime.strptime(TANGGAL_AWAL_BACKTEST, "%Y-%m-%d")
+        end_date = datetime.now()
+        delta = end_date - start_date
+        
+        for i in range(delta.days + 1):
+            day = start_date + timedelta(days=i)
+            if day.weekday() < 5:
+                list_tanggal.append(day.strftime('%Y-%m-%d'))
+        print(f"📅 Mode Multi-Date Backtest Aktif: {TANGGAL_AWAL_BACKTEST} s/d {tanggal_hari_ini} ({len(list_tanggal)} hari kerja)...")
+    else:
+        list_tanggal.append(tanggal_hari_ini)
+
     try:
         df_excel = pd.read_excel(FILE_EXCEL)
         col = next((c for c in df_excel.columns if 'kode' in str(c).lower() or 'ticker' in str(c).lower()), df_excel.columns[1])
         tickers_to_scan = [f"{str(k).strip().upper()}.JK" for k in df_excel[col].dropna() if f"{str(k).strip().upper()}.JK" not in blacklist]
-        print(f"🔍 Total scan: {len(tickers_to_scan)} saham...")
     except Exception as e:
         print(f"❌ Error Excel: {e}"); exit()
 
-    all_results, new_errors = [], set()
+    live_results_for_tracker = []
 
-    # Oper parameter waktu_run_sekarang ke dalam executor loop
-    with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
-        futures = {executor.submit(get_smc_analysis, t, waktu_run_sekarang): t for t in tickers_to_scan}
-        for f in tqdm(as_completed(futures), total=len(tickers_to_scan), desc="Scanning"):
-            ticker, result, err = f.result()
-            if result: all_results.append(result)
-            if err == "Data Kosong": new_errors.add(ticker)
-
-    if all_results:
-        df = pd.DataFrame(all_results)
+    # ==========================================
+    # LOOPING BERJALAN DARI TANGGAL KE TANGGAL
+    # ==========================================
+    for idx_tgl, tgl in enumerate(list_tanggal):
+        is_hari_terakhir = (tgl == tanggal_hari_ini)
+        is_backtest_tgl = not is_hari_terakhir
         
-        # --- INFO SEKTOR TERPANAS ---
-        df_sektor_valid = df[df['Sektor'] != "-"]
-        if not df_sektor_valid.empty:
-            rata_rata_sektor = df_sektor_valid.groupby('Sektor')['Chg(%)'].mean().reset_index()
-            sektor_terbaik = rata_rata_sektor.sort_values(by='Chg(%)', ascending=False).iloc[0]
-            print("\n" + "="*80)
-            print(f"🌟 SEKTOR TERPANAS HARI INI: {sektor_terbaik['Sektor'].upper()} (Rata-rata Kenaikan: {sektor_terbaik['Chg(%)']:.2f}%)")
-            print("="*80 + "\n")
-
-        # --- SELEKSI HASIL TERBAIK SESUAI PRIORITAS ---
-        df_best = df[df['Score'] <= MAX_PRIORITY_SCORE].sort_values(by=["Score", "Cuan_Raw"], ascending=[True, False])
+        waktu_screen_seragam = f"{tgl} 16:15:00" if is_backtest_tgl else datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         
-        if not df_best.empty:
-            cols_to_drop = ['Score', 'Cuan_Raw', 'Chg(%)'] 
-            df_display = df_best.drop(columns=cols_to_drop)
-            
-            # 1. Cetak Ringkasan Live di Terminal
-            print(tabulate(df_display, headers='keys', tablefmt='simple', showindex=False, stralign="center", numalign="center"))
-            
-            # 2. Ambil data baru dalam format List of Dict
-            new_records = df_display.to_dict(orient='records')
-            
-            # 3. Jalankan Engine Tracker: Update data-data hari lalu berdasarkan pergerakan harga hari ini
-            db_terupdate = track_historical_signals(db_historis, all_results)
-            
-            # 4. Append/Gabungkan data baru hari ini ke dalam database historis
-            # Agar data tidak duplikat jika di-run berkali-kali di hari yang sama, kita bisa filter data hari ini
-            tanggal_hari_ini = datetime.now().strftime('%Y-%m-%d')
-            db_bersih = [item for item in db_terupdate if item["Waktu Candle"] != tanggal_hari_ini]
-            
-            # Gabungkan log lama + data fresh hari ini
-            db_final_save = db_bersih + new_records
-            
-            # 5. Simpan permanen ke db_screener.json
-            save_db_screener(db_final_save)
-            print(f"\n💾 Database Terupdate! Total riwayat tersimpan: {len(db_final_save)} data di 'db_screener.json'")
-            
+        # --- MEMBUAT DICTIONARY CACHE LOKAL KHUSUS TANGGAL LOOPING SAAT INI ---
+        # Mengelompokkan data JSON lama berdasarkan tanggal agar bisa dicocokkan instan
+        cache_tanggal_ini = {item["Ticker"]: item for item in db_historis if item.get("Waktu Candle") == tgl}
+        
+        if is_backtest_tgl and cache_tanggal_ini:
+            print(f"⚡ [{idx_tgl+1}/{len(list_tanggal)}] Tanggal {tgl} -> MENGGUNAKAN DATA CACHE JSON (Instant!)")
         else:
-            print("\n☕ Market sedang tidak kondusif untuk pola SMC harian hari ini.")
-    else:
-        print("\n❌ Gagal menarik data. Pastikan koneksi internet aktif.")
+            print(f"🚀 [{idx_tgl+1}/{len(list_tanggal)}] Tanggal {tgl} -> Mendownload Data via Yahoo Finance...")
+
+        all_results = []
+        with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
+            futures = {executor.submit(get_smc_analysis, t, tgl, waktu_screen_seragam, is_backtest_tgl, cache_tanggal_ini): t for t in tickers_to_scan}
+            for f in tqdm(as_completed(futures), total=len(tickers_to_scan), desc=f"Scanning {tgl}", disable=bool(is_backtest_tgl and cache_tanggal_ini)):
+                ticker, result, err = f.result()
+                if result: all_results.append(result)
+
+        if is_hari_terakhir:
+            live_results_for_tracker = all_results
+
+        if all_results:
+            df_temp = pd.DataFrame(all_results)
+            df_best = df_temp[df_temp['Score'] <= MAX_PRIORITY_SCORE].sort_values(by=["Score", "Cuan_Raw"], ascending=[True, False])
+            
+            if not df_best.empty:
+                cols_to_drop = ['Score', 'Cuan_Raw', 'Chg(%)']
+                new_records = df_best.drop(columns=cols_to_drop).to_dict(orient='records')
+                
+                # Bersihkan data lama pada tanggal bursa ini agar tidak menumpuk ganda
+                db_historis = [item for item in db_historis if item["Waktu Candle"] != tgl]
+                db_historis = db_historis + new_records
+
+    # ==========================================
+    # FINALISASI: JALANKAN LIVE TRACKER UNTUK DATA LALU
+    # ==========================================
+    print("\n🔄 Menjalankan Engine Tracker menggunakan harga live hari ini...")
+    if not live_results_for_tracker:
+        print("⚡ Mengambil data harga penutupan hari ini untuk sinkronisasi tracker...")
+        with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
+            futures = {executor.submit(get_smc_analysis, t, tanggal_hari_ini, datetime.now().strftime('%Y-%m-%d %H:%M:%S'), False, {}): t for t in tickers_to_scan}
+            for f in as_completed(futures):
+                _, result, _ = f.result()
+                if result: live_results_for_tracker.append(result)
+
+    # Update massal status 'RUNNING' hari-hari lalu berdasarkan harga penutupan hari ini
+    db_final_save = track_historical_signals(db_historis, live_results_for_tracker)
+    
+    # Simpan hasil akhir akumulatif ke JSON
+    save_db_screener(db_final_save)
+    print(f"\n💾 DATABASE REKOR SELESAI! Total data historis tersimpan: {len(db_final_save)} data di 'db_screener.json'")
