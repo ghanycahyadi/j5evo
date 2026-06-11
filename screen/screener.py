@@ -15,9 +15,12 @@ from tabulate import tabulate
 # 1. KONFIGURASI BOT & SENSITIVITAS
 # ==========================================
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-FILE_EXCEL = os.path.join(os.path.dirname(SCRIPT_DIR), "Daftar Saham - 20260427.xlsx")
+FILE_EXCEL = os.path.join(SCRIPT_DIR, "Daftar Saham - 20260427.xlsx")
+# FILE_EXCEL = os.path.join(os.path.dirname(SCRIPT_DIR), "Daftar Saham - 20260427.xlsx")
 BLACKLIST_FILE = os.path.join(SCRIPT_DIR, "blacklist_saham.json")
 DB_SCREENER_FILE = os.path.join(SCRIPT_DIR, "db_screener.json")  # File database JSON utama
+
+
 
 # --- SETTING ANTI-BLOCK (WAJIB KECIL) ---
 MAX_WORKERS = 8  
