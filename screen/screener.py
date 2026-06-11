@@ -14,9 +14,17 @@ from tabulate import tabulate
 # ==========================================
 # 1. KONFIGURASI BOT & SENSITIVITAS
 # ==========================================
-FILE_EXCEL = "Daftar Saham - 20260427.xlsx"
-BLACKLIST_FILE = "blacklist_saham.json"
-DB_SCREENER_FILE = "db_screener.json"
+# FILE_EXCEL = "Daftar Saham - 20260427.xlsx"
+# BLACKLIST_FILE = "blacklist_saham.json"
+# DB_SCREENER_FILE = "db_screener.json"
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+# Gabungkan folder utama dengan nama file menggunakan os.path.join
+FILE_EXCEL = os.path.join(BASE_DIR, "Daftar Saham - 20260427.xlsx")
+BLACKLIST_FILE = os.path.join(BASE_DIR, "blacklist_saham.json")
+DB_SCREENER_FILE = os.path.join(BASE_DIR, "db_screener.json")
+
 
 # --- FITUR LOOPING MESIN WAKTU (MULTI-DATE BACKTEST) ---
 MODE_BACKTEST_RANGE = False           # Set True untuk generate data dari tanggal awal sampai sekarang
