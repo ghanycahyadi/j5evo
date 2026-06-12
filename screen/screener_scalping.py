@@ -124,28 +124,86 @@ def track_scalping_signals(db_lama, current_market_prices):
 
 def send_telegram_image(df, bot_token, chat_id):
     if df.empty: return
-    fig, ax = plt.subplots(figsize=(14, len(df) * 0.4 + 1.5))
-    ax.axis('tight'); ax.axis('off')
     
+    # --- 1. Persiapan Data Waktu & Tanggal (Format Indonesia) ---
+    wib_now = datetime.now()
+    jam_sekarang = wib_now.strftime('%H:%M:%S')
+    tgl_sekarang = wib_now.strftime('%Y-%m-%d')
+    
+    bulan_indo = {
+        "01": "Januari", "02": "Februari", "03": "Maret", "04": "April",
+        "05": "Mei", "06": "Juni", "07": "Juli", "08": "Agustus",
+        "09": "September", "10": "Oktober", "11": "November", "12": "Desember"
+    }
+    hari_indo = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu"]
+    hari_ini = hari_indo[wib_now.weekday()]
+    t_parts = tgl_sekarang.split('-')
+    tgl_indo = f"{t_parts[2]} {bulan_indo[t_parts[1]]} {t_parts[0]}"
+
+    # --- 2. Setup Canvas Futuristic Dark Mode ---
+    # Ukuran figur & padding disesuaikan persis dengan screener.py (+0.8)
+    fig, ax = plt.subplots(figsize=(12, len(df) * 0.4 + 0.8))
+    fig.patch.set_facecolor('#0b0f19') 
+    ax.set_facecolor('#0b0f19')
+    ax.axis('tight')
+    ax.axis('off')
+    
+    # --- 3. Render Tabel ---
     table = ax.table(cellText=df.values, colLabels=df.columns, loc='center', cellLoc='center')
-    table.auto_set_font_size(False); table.set_fontsize(10); table.scale(1.2, 1.5)
+    table.auto_set_font_size(False)
+    table.set_fontsize(10)
+    table.scale(1.2, 1.6)
     
-    for (row, col), cell in table._cells.items():
+    # --- 4. Styling Sel Tabel (Header & Body) ---
+    for (row, col), cell in table.get_celld().items():
+        cell.set_edgecolor('#1e293b') 
+        
         if row == 0:
-            cell.set_text_props(weight='bold', color='white')
-            cell.set_facecolor('#2E7D32') 
+            # Styling Header Cyan
+            cell.set_text_props(weight='bold', color='#00e5ff') 
+            cell.set_facecolor('#111827')
         else:
-            cell.set_facecolor('#F9F9F9' if row % 2 == 0 else 'white')
+            # Styling Baris Data Default (Zebra cross)
+            cell.set_text_props(color='#f3f4f6') 
+            if row % 2 == 0: 
+                cell.set_facecolor('#111827')
+            else:
+                cell.set_facecolor('#0b0f19')
             
+            # --- PERBAIKAN: Highlight HANYA pada sel di kolom "Sinyal" ---
+            col_name = df.columns[col]
+            if col_name == 'Sinyal' and "BUY" in str(df.iloc[row-1].get('Sinyal', '')):
+                cell.set_facecolor('#064e3b') 
+                cell.set_text_props(color='#34d399', weight='bold')
+                
+    # --- 5. Tambah Judul & Footer Widget ---
+    # Pad disamakan dengan screener.py (pad=5)
+    plt.title("GC Logic - No Liquidity = No Trade, No Confirmation = No Open Position", 
+              fontsize=13, weight='bold', color='#ffffff', pad=5)
+    
+    widget_text = f"Live Scalping Radar   |   {hari_ini}, {tgl_indo}   |   {jam_sekarang} WIB"
+    ax.text(
+        0.5, -0.01, widget_text, 
+        transform=ax.transAxes, 
+        color='#00e5ff', fontsize=9, weight='bold',
+        ha='center', va='top',
+        bbox=dict(facecolor='#111827', edgecolor='#1e293b', boxstyle='round,pad=0.5', alpha=0.9)
+    )
+            
+    # --- 6. Simpan & Kirim ke Telegram ---
     image_path = os.path.join(BASE_DIR, "telegram_table.png")
-    plt.savefig(image_path, bbox_inches="tight", dpi=300); plt.close()
+    # DPI diubah ke 200 agar resolusinya sama persis dengan screener.py
+    plt.savefig(image_path, bbox_inches="tight", dpi=200, facecolor=fig.get_facecolor()) 
+    plt.close()
 
     url = f"https://api.telegram.org/bot{bot_token}/sendPhoto"
-    caption_text = f"🔥 <b>RADAR SCALPING UPDATE</b>\n⏰ Waktu: {datetime.now().strftime('%H:%M WIB')}\n🎯 Total Sinyal: {len(df)} Saham"
+    caption_text = f"🔥 <b>GHANY ALGO SCALPING UPDATE</b>\n📅 <i>{hari_ini}, {tgl_indo} | {jam_sekarang} WIB</i>\n🎯 Total Sinyal: {len(df)} Saham"
+    
     try:
         with open(image_path, 'rb') as photo:
             requests.post(url, data={'chat_id': chat_id, 'caption': caption_text, 'parse_mode': 'HTML'}, files={'photo': photo})
-    except Exception as e: print(f"Gagal mengirim ke Telegram: {e}")
+    except Exception as e: 
+        print(f"Gagal mengirim ke Telegram: {e}")
 
 # ==========================================
 # 3. CORE ENGINE
@@ -304,28 +362,44 @@ if __name__ == "__main__":
         save_db(db_final_save)
 
         print("\n" + "="*160)
-        print(f"HASIL SAMPEL DATA INTRADAY ({len(results)} Sinyal Ditemukan)")
+        print(f"HASIL SAMPEL DATA SCALPING ({len(results)} Sinyal Ditemukan)")
         print("="*160)
         print(tabulate(df_final, headers='keys', tablefmt='simple', showindex=False, stralign="center", numalign="center"))
         
         # --- BLOK PENGIRIMAN TELEGRAM ---
+        # --- BLOK PENGIRIMAN TELEGRAM ---
         if SEND_TO_TELEGRAM and not MODE_SIMULASI:
             print("\nMempersiapkan tabel gambar untuk Telegram...")
-            # Sediakan kolom khusus Risk di akhir sesuai permintaan Om
+            
+            # 1. Ambil kolom utama
             df_telegram = df_final[['Waktu Scan', 'Ticker', 'Pola', 'Sinyal', 'Harga']].copy()
             
-            # Trik penggabungan kolom TP dengan persentase di dalamnya
-            df_telegram['TP 1'] = df_final['TP 1'].astype(str) + " (" + df_final['Cuan 1'] + ")"
-            df_telegram['TP 2'] = df_final['TP 2'].astype(str) + " (" + df_final['Cuan 2'] + ")"
+            # 2. Format ulang kolom TP dan SL agar ada (%) di headernya
+            df_telegram['TP 1 (%)'] = df_final['TP 1'].astype(str) + " (" + df_final['Cuan 1'] + ")"
+            df_telegram['TP 2 (%)'] = df_final['TP 2'].astype(str) + " (" + df_final['Cuan 2'] + ")"
+            df_telegram['SL (%)'] = df_final['SL'].astype(str) + " (" + df_final['Risk'] + ")"
             
-            # SL dan Risk dipisah agar mencolok saat Om me-review resikonya
-            df_telegram['SL'] = df_final['SL'].astype(str)
-            df_telegram['Risk'] = df_final['Risk']
+            # 3. Hitung otomatis RR Ratio
+            def hitung_rr(row):
+                try:
+                    harga = float(row['Harga'])
+                    tp1 = float(row['TP 1'])
+                    sl = float(row['SL'])
+                    
+                    risk = harga - sl
+                    reward = tp1 - harga
+                    
+                    if risk > 0:
+                        return f"1 : {round(reward / risk, 1)}"
+                    return "-"
+                except:
+                    return "-"
+                    
+            df_telegram['RR Ratio'] = df_final.apply(hitung_rr, axis=1)
             
             send_telegram_image(df_telegram, TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID)
             print("✅ Berhasil terkirim ke Telegram GC Saham Bot!")
-
-        print(f"\nScan dan Evaluasi SL/TP selesai.")
+            
         print(f"Database Web berhasil menabung {len(new_records)} baris data.")
     else:
         print("\nMarket sedang sepi atau saham tidak likuid. Tidak ada sweep atau momentum tervalidasi.")
