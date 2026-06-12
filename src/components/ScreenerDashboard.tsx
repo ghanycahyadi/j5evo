@@ -220,49 +220,27 @@ export default function ScreenerDashboard() {
   };
 
   const getRunningChange = (item: any, mode: "intraday" | "scalping") => {
-    // Determine SL (Risk) %
-    let slPercent = -5.0; // fallback
-    const riskField = item["Risk(%)"] || item.Risk;
-    if (riskField) {
-      const parsedRisk = parseFloat(riskField.toString().replace("%", ""));
-      if (!isNaN(parsedRisk)) {
-        slPercent = parsedRisk;
+    // 1. Try to extract percentage from "Status Akhir", e.g. "RUNNING (+3.50%)" or "HIT TP 1 (+1.96%)"
+    const statusAkhir = item["Status Akhir"] || item.Status || "";
+    const parenMatch = statusAkhir.match(/\(([^)]+)\)/);
+    if (parenMatch) {
+      const inside = parenMatch[1].replace("%", "").trim();
+      const parsed = parseFloat(inside);
+      if (!isNaN(parsed)) {
+        return parsed;
       }
-    } else {
-      // derive from SL and Harga
-      const entry = item.Harga || 100;
-      const sl = item.SL || entry * 0.95;
-      slPercent = ((sl - entry) / entry) * 100;
     }
 
-    // Determine TP 1 %
-    let tp1Percent = 5.0; // fallback
-    const tpField = item["TP 1(%)"] || item["Cuan 1"];
-    if (tpField) {
-      const parsedTp = parseFloat(tpField.toString().replace("%", ""));
-      if (!isNaN(parsedTp)) {
-        tp1Percent = parsedTp;
+    // 2. Try to get Chg(%) directly from the item
+    const chgVal = item["Chg(%)"] !== undefined ? item["Chg(%)"] : item["Chg%"];
+    if (chgVal !== undefined) {
+      const parsedChg = parseFloat(chgVal.toString().replace("%", ""));
+      if (!isNaN(parsedChg)) {
+        return parsedChg;
       }
-    } else {
-      // derive from TP 1 and Harga
-      const entry = item.Harga || 100;
-      const tp1 = item["TP 1"] || entry * 1.05;
-      tp1Percent = ((tp1 - entry) / entry) * 100;
     }
 
-    // Use a deterministic hash of the Ticker to position the current price.
-    // We want the position's running change to be strictly between the SL % and TP 1 %
-    const ticker = item.Ticker || "";
-    let hash = 0;
-    for (let i = 0; i < ticker.length; i++) {
-      hash = ticker.charCodeAt(i) + ((hash << 5) - hash);
-    }
-    
-    // Fraction between 0.25 and 0.75 of the distance from SL to TP1
-    const fraction = 0.25 + (Math.abs(hash) % 50) / 100;
-    const simulatedPercent = slPercent + fraction * (tp1Percent - slPercent);
-    
-    return parseFloat(simulatedPercent.toFixed(2));
+    return 0.0;
   };
 
   const getSector = (item: any) => {
@@ -416,27 +394,27 @@ export default function ScreenerDashboard() {
         </span>
       );
     }
-    if (cleanStatus === "RUNNING" || cleanStatus === "") {
+    if (cleanStatus.includes("RUNNING") || cleanStatus === "") {
       const change = getRunningChange(item, screenerMode);
       if (change > 0) {
         return (
           <span className="px-2 py-0.5 text-[10px] font-mono font-black rounded bg-emerald-50 text-emerald-700 border border-emerald-200 uppercase tracking-wider inline-flex items-center gap-1">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-            RUNNING (+{change.toFixed(2)}%)
+            {status}
           </span>
         );
       } else if (change < 0) {
         return (
           <span className="px-2 py-0.5 text-[10px] font-mono font-black rounded bg-amber-50 text-amber-700 border border-amber-200 uppercase tracking-wider inline-flex items-center gap-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
-            RUNNING ({change.toFixed(2)}%)
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-505 animate-pulse"></span>
+            {status}
           </span>
         );
       } else {
         return (
-          <span className="px-2 py-0.5 text-[10px] font-mono font-extrabold rounded bg-teal-50 text-teal-750 border border-teal-200 uppercase tracking-wider inline-flex items-center gap-1">
+          <span className="px-2 py-0.5 text-[10px] font-mono font-extrabold rounded bg-teal-50 text-teal-710 border border-teal-200 uppercase tracking-wider inline-flex items-center gap-1">
             <span className="w-1.5 h-1.5 rounded-full bg-teal-500 animate-pulse"></span>
-            RUNNING ({change.toFixed(2)}%)
+            {status}
           </span>
         );
       }
@@ -961,8 +939,7 @@ export default function ScreenerDashboard() {
                     <th className="px-5 py-4 text-[10px] font-mono tracking-wider text-zinc-400 font-extrabold uppercase">Area Entry</th>
                     <th className="px-5 py-4 text-[10px] font-mono tracking-wider text-zinc-400 font-extrabold uppercase">TP 1 (%)</th>
                     <th className="px-5 py-4 text-[10px] font-mono tracking-wider text-zinc-400 font-extrabold uppercase">TP 2 (%)</th>
-                    <th className="px-5 py-4 text-[10px] font-mono tracking-wider text-zinc-400 font-extrabold uppercase">Stop Loss</th>
-                    <th className="px-5 py-4 text-[10px] font-mono tracking-wider text-zinc-400 font-extrabold uppercase">Risk (%)</th>
+                    <th className="px-5 py-4 text-[10px] font-mono tracking-wider text-zinc-400 font-extrabold uppercase">Stop Loss (%)</th>
                     <th className="px-5 py-4 text-[10px] font-mono tracking-wider text-zinc-400 font-extrabold uppercase">RR Ratio</th>
                     <th className="px-5 py-4 text-[10px] font-mono tracking-wider text-zinc-400 font-extrabold uppercase">Status</th>
                   </tr>
@@ -1005,11 +982,9 @@ export default function ScreenerDashboard() {
                         <div className="font-mono text-xs font-bold text-zinc-800">{item["TP 2"].toLocaleString("id-ID")}</div>
                         <span className="text-[10px] font-mono font-bold text-emerald-600">+{item["TP 2(%)"]}</span>
                       </td>
-                      <td className="px-5 py-4.5 font-mono text-xs font-bold text-zinc-750">
-                        {item.SL.toLocaleString("id-ID")}
-                      </td>
-                      <td className="px-5 py-4.5 font-mono text-xs font-bold text-rose-600">
-                        {item["Risk(%)"]}
+                      <td className="px-5 py-4.5">
+                        <div className="font-mono text-xs font-bold text-zinc-750">{item.SL.toLocaleString("id-ID")}</div>
+                        <span className="text-[10px] font-mono font-bold text-rose-600">{item["Risk(%)"]}</span>
                       </td>
                       <td className="px-5 py-4.5 font-mono text-xs font-extrabold text-zinc-800">
                         {item["RR Ratio"]}
@@ -1112,8 +1087,7 @@ export default function ScreenerDashboard() {
                     <th className="px-5 py-4 text-[10px] font-mono tracking-wider text-zinc-400 font-extrabold uppercase">Area Entry</th>
                     <th className="px-5 py-4 text-[10px] font-mono tracking-wider text-zinc-400 font-extrabold uppercase">TP 1 (Cuan)</th>
                     <th className="px-5 py-4 text-[10px] font-mono tracking-wider text-zinc-400 font-extrabold uppercase">TP 2 (Cuan)</th>
-                    <th className="px-5 py-4 text-[10px] font-mono tracking-wider text-zinc-400 font-extrabold uppercase">Stop Loss</th>
-                    <th className="px-5 py-4 text-[10px] font-mono tracking-wider text-zinc-400 font-extrabold uppercase">Risk</th>
+                    <th className="px-5 py-4 text-[10px] font-mono tracking-wider text-zinc-400 font-extrabold uppercase">Stop Loss (Risk)</th>
                     <th className="px-5 py-4 text-[10px] font-mono tracking-wider text-zinc-400 font-extrabold uppercase">Status</th>
                   </tr>
                 </thead>
@@ -1152,11 +1126,9 @@ export default function ScreenerDashboard() {
                         <div className="font-mono text-xs font-bold text-zinc-800">{item["TP 2"] ? item["TP 2"].toLocaleString("id-ID") : "-"}</div>
                         {item["Cuan 2"] && <span className="text-[10px] font-mono font-bold text-emerald-600">+{item["Cuan 2"]}</span>}
                       </td>
-                      <td className="px-5 py-4.5 font-mono text-xs font-bold text-zinc-750">
-                        {item.SL ? item.SL.toLocaleString("id-ID") : "-"}
-                      </td>
-                      <td className="px-5 py-4.5 font-mono text-xs font-bold text-rose-600">
-                        {item.Risk || "-"}
+                      <td className="px-5 py-4.5">
+                        <div className="font-mono text-xs font-bold text-zinc-750">{item.SL ? item.SL.toLocaleString("id-ID") : "-"}</div>
+                        {item.Risk && item.Risk !== "-" && <span className="text-[10px] font-mono font-bold text-rose-600 block mt-0.5">{item.Risk}</span>}
                       </td>
                       <td className="px-5 py-4.5">
                         {getStatusBadge(item["Status Akhir"], item)}
@@ -1209,8 +1181,9 @@ export default function ScreenerDashboard() {
                     </div>
 
                     <div>
-                      <p className="text-[9px] uppercase font-bold text-zinc-400 font-mono mb-0.5">Risk</p>
-                      <p className="font-mono font-bold text-rose-600">{item.Risk || "-"}</p>
+                      <p className="text-[9px] uppercase font-bold text-zinc-400 font-mono mb-0.5">Stop Loss</p>
+                      <p className="font-mono font-bold text-zinc-750">{item.SL ? item.SL.toLocaleString("id-ID") : "-"}</p>
+                      {item.Risk && item.Risk !== "-" && <p className="text-[10px] font-mono font-bold text-rose-600 mt-0.5">{item.Risk}</p>}
                     </div>
 
                     <div>
@@ -1223,11 +1196,6 @@ export default function ScreenerDashboard() {
                       <p className="text-[9px] uppercase font-bold text-zinc-400 font-mono mb-0.5">Take Profit 2</p>
                       <p className="font-mono font-bold text-zinc-800">{item["TP 2"] ? item["TP 2"].toLocaleString("id-ID") : "-"}</p>
                       {item["Cuan 2"] && <p className="text-[10px] font-mono font-bold text-emerald-600 mt-0.5">+{item["Cuan 2"]}</p>}
-                    </div>
-
-                    <div className="col-span-2">
-                      <p className="text-[9px] uppercase font-bold text-zinc-400 font-mono mb-0.5">Stop Loss</p>
-                      <p className="font-mono font-bold text-zinc-750">{item.SL ? item.SL.toLocaleString("id-ID") : "-"}</p>
                     </div>
                   </div>
 
