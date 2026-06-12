@@ -2718,15 +2718,17 @@ export default function App() {
       )}
 
       {/* Header component */}
-      <Header
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
-        isAdmin={isAdmin}
-        setIsAdmin={setIsAdmin}
-      />
+      {activeTab !== "screener" && (
+        <Header
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+          isAdmin={isAdmin}
+          setIsAdmin={setIsAdmin}
+        />
+      )}
 
       {/* Main Container */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 md:pt-8 pb-8 space-y-12">
+      <main className={activeTab === "screener" ? "pb-8" : "max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 md:pt-8 pb-8 space-y-12"}>
         
         {/* TAB 1: INTERACTIVE HOMEPAGE */}
         {activeTab === "home" && (
@@ -8970,7 +8972,7 @@ export default function App() {
         </div>
       )}
 
-      {/* í ½í´® EVENT PARTICIPANTS LUCKY DRAW WHEEL OVERLAY MODAL */}
+      {/* ðŸ”® EVENT PARTICIPANTS LUCKY DRAW WHEEL OVERLAY MODAL */}
       {isWheelOpen && selectedEvent && (
         <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-zinc-950/60 backdrop-blur-md animate-fadeIn overflow-y-auto">
           <div className="bg-white rounded-3xl border border-zinc-200 shadow-2xl max-w-5xl w-full p-4 md:p-6 my-8 relative animate-scaleUp overflow-hidden max-h-[95vh] flex flex-col">

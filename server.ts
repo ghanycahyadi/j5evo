@@ -917,6 +917,22 @@ async function startServer() {
     }
   });
 
+  // GET stock screener SMC Scalping data
+  app.get("/api/scalping", (req, res) => {
+    try {
+      const scalpingPath = path.join(process.cwd(), "screen", "db_scalping.json");
+      if (fs.existsSync(scalpingPath)) {
+        const fileContent = fs.readFileSync(scalpingPath, "utf-8");
+        const parsedContent = JSON.parse(fileContent);
+        return res.json(parsedContent);
+      }
+      return res.json([]);
+    } catch (err) {
+      console.error("Error reading db_scalping.json:", err);
+      return res.status(500).json({ error: "Gagal membaca database scalping." });
+    }
+  });
+
   // GET specific event's gallery images (Loads on-demand when opening album!)
   app.get("/api/events/:id/gallery", (req, res) => {
     const data = loadDatabase();

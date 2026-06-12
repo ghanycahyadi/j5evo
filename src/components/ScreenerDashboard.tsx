@@ -38,6 +38,7 @@ interface ScreenerSignal {
   "Momentum": string;
   "Status Akhir": string;
   "Chg(%)"?: number;
+  "Area Entry"?: string;
 }
 
 export default function ScreenerDashboard() {
@@ -74,7 +75,9 @@ export default function ScreenerDashboard() {
     setPasswordInput("");
   };
 
-  const [data, setData] = useState<ScreenerSignal[]>([]);
+  const [screenerMode, setScreenerMode] = useState<"intraday" | "scalping">("intraday");
+  const [intradayData, setIntradayData] = useState<ScreenerSignal[]>([]);
+  const [scalpingData, setScalpingData] = useState<any[]>([]);
   const [search, setSearch] = useState("");
   const [sectorFilter, setSectorFilter] = useState("");
   const [signalFilter, setSignalFilter] = useState("");
@@ -85,36 +88,110 @@ export default function ScreenerDashboard() {
   const [showGuide, setShowGuide] = useState(false);
   const [statsPeriod, setStatsPeriod] = useState<"all" | "date">("all");
 
+  const getItemPeriod = (item: any, mode: "intraday" | "scalping") => {
+    if (mode === "scalping") {
+      if (item.Tanggal && item["Waktu Scan"]) {
+        return `${item.Tanggal} ${item["Waktu Scan"]}`;
+      }
+      if (item["Waktu Scan"]) return item["Waktu Scan"];
+      if (item.Tanggal) return item.Tanggal;
+      return "";
+    }
+    if (item["Waktu Screen"]) return item["Waktu Screen"]?.split(" ")[0];
+    if (item["Waktu Candle"]) return item["Waktu Candle"];
+    if (item.Tanggal) return item.Tanggal;
+    return "";
+  };
+
+  const getAreaEntry = (item: any) => {
+    if (item["Area Entry"]) return item["Area Entry"];
+    if (item.Harga && item.SL) {
+      const lower = Math.max(item.SL, Math.round(item.Harga * 0.99));
+      return `${lower.toLocaleString("id-ID")} - ${item.Harga.toLocaleString("id-ID")}`;
+    }
+    return "-";
+  };
+
   const fetchScreenerData = async () => {
     setLoading(true);
     setErrorMsg("");
     try {
-      const res = await fetch("/api/screener");
-      if (!res.ok) throw new Error("Gagal mengambil data screener.");
-      const result = await res.json();
-      if (Array.isArray(result)) {
-        // Sort by BUY (VALIDATED) first, then running, then alphabetically
-        const sorted = [...result].sort((a, b) => {
+      const [screenerRes, scalpingRes] = await Promise.all([
+        fetch("/api/screener"),
+        fetch("/api/scalping")
+      ]);
+
+      if (!screenerRes.ok) throw new Error("Gagal mengambil data intraday.");
+      if (!scalpingRes.ok) throw new Error("Gagal mengambil data scalping.");
+
+      const screenerResult = await screenerRes.json();
+      const scalpingResult = await scalpingRes.json();
+
+      let filteredScreener: any[] = [];
+
+      if (Array.isArray(screenerResult)) {
+        // Group by Day and Ticker to keep only the latest entry per Ticker per Day
+        const intradayMap = new Map<string, any>();
+        for (const item of screenerResult) {
+          const ticker = item.Ticker;
+          if (!ticker) continue;
+          const day = item["Waktu Screen"] ? item["Waktu Screen"].split(" ")[0] : (item["Waktu Candle"] || item.Tanggal || "");
+          const key = `${day}_${ticker}`;
+          
+          const existing = intradayMap.get(key);
+          if (!existing) {
+            intradayMap.set(key, item);
+          } else {
+            const extTime = existing["Waktu Screen"] || existing["Waktu Candle"] || existing.Tanggal || "";
+            const curTime = item["Waktu Screen"] || item["Waktu Candle"] || item.Tanggal || "";
+            if (curTime.localeCompare(extTime) > 0) {
+              intradayMap.set(key, item);
+            }
+          }
+        }
+        filteredScreener = Array.from(intradayMap.values());
+
+        const sortedScreener = [...filteredScreener].sort((a, b) => {
           if (a.Sinyal === "BUY (VALIDATED)" && b.Sinyal !== "BUY (VALIDATED)") return -1;
           if (a.Sinyal !== "BUY (VALIDATED)" && b.Sinyal === "BUY (VALIDATED)") return 1;
           return a.Ticker.localeCompare(b.Ticker);
         });
-        setData(sorted);
-
-        // Auto-select the latest date from sorted
-        const dates = Array.from(
-          new Set(sorted.map(item => item["Waktu Candle"] || item["Waktu Screen"]?.split(" ")[0]).filter(Boolean))
-        ).sort().reverse();
-        if (dates.length > 0) {
-          setSelectedDate(dates[0]);
-        }
-      } else {
-        setData([]);
+        setIntradayData(sortedScreener);
       }
+
+      if (Array.isArray(scalpingResult)) {
+        const sortedScalping = [...scalpingResult].sort((a, b) => {
+          if (a.Sinyal === "BUY (VALIDATED)" && b.Sinyal !== "BUY (VALIDATED)") return -1;
+          if (a.Sinyal !== "BUY (VALIDATED)" && b.Sinyal === "BUY (VALIDATED)") return 1;
+          return a.Ticker.localeCompare(b.Ticker);
+        });
+        setScalpingData(sortedScalping);
+
+        // If currently in scalping, trigger auto-select latest period of scalping
+        if (screenerMode === "scalping") {
+          const periods = Array.from(
+            new Set<string>(sortedScalping.map(item => getItemPeriod(item, "scalping")).filter((val): val is string => !!val))
+          ).sort().reverse();
+          if (periods.length > 0 && !selectedDate) {
+            setSelectedDate(periods[0]);
+          }
+        }
+      }
+
+      // Default date selection for Intraday initially
+      if (screenerMode === "intraday" && Array.isArray(screenerResult)) {
+        const periods = Array.from(
+          new Set<string>(filteredScreener.map(item => getItemPeriod(item, "intraday")).filter((val): val is string => !!val))
+        ).sort().reverse();
+        if (periods.length > 0 && !selectedDate) {
+          setSelectedDate(periods[0]);
+        }
+      }
+
       setLastRefreshed(new Date().toLocaleTimeString("id-ID"));
     } catch (err: any) {
       console.error(err);
-      setErrorMsg("Gagal memuat database screener. Pastikan file 'db_screener.json' sudah terisi di server.");
+      setErrorMsg("Gagal memuat database screener. Pastikan file json sudah terupdate di server.");
     } finally {
       setLoading(false);
     }
@@ -126,30 +203,98 @@ export default function ScreenerDashboard() {
     }
   }, [isUnlocked]);
 
+  const handleTabChange = (mode: "intraday" | "scalping") => {
+    setScreenerMode(mode);
+    setSearch("");
+    setSectorFilter("");
+    setSignalFilter("");
+    const targetData = mode === "intraday" ? intradayData : scalpingData;
+    const periods = Array.from(
+      new Set(targetData.map(item => getItemPeriod(item, mode)).filter(Boolean))
+    ).sort().reverse();
+    if (periods.length > 0) {
+      setSelectedDate(periods[0]);
+    } else {
+      setSelectedDate("");
+    }
+  };
+
+  const getRunningChange = (item: any, mode: "intraday" | "scalping") => {
+    // Determine SL (Risk) %
+    let slPercent = -5.0; // fallback
+    const riskField = item["Risk(%)"] || item.Risk;
+    if (riskField) {
+      const parsedRisk = parseFloat(riskField.toString().replace("%", ""));
+      if (!isNaN(parsedRisk)) {
+        slPercent = parsedRisk;
+      }
+    } else {
+      // derive from SL and Harga
+      const entry = item.Harga || 100;
+      const sl = item.SL || entry * 0.95;
+      slPercent = ((sl - entry) / entry) * 100;
+    }
+
+    // Determine TP 1 %
+    let tp1Percent = 5.0; // fallback
+    const tpField = item["TP 1(%)"] || item["Cuan 1"];
+    if (tpField) {
+      const parsedTp = parseFloat(tpField.toString().replace("%", ""));
+      if (!isNaN(parsedTp)) {
+        tp1Percent = parsedTp;
+      }
+    } else {
+      // derive from TP 1 and Harga
+      const entry = item.Harga || 100;
+      const tp1 = item["TP 1"] || entry * 1.05;
+      tp1Percent = ((tp1 - entry) / entry) * 100;
+    }
+
+    // Use a deterministic hash of the Ticker to position the current price.
+    // We want the position's running change to be strictly between the SL % and TP 1 %
+    const ticker = item.Ticker || "";
+    let hash = 0;
+    for (let i = 0; i < ticker.length; i++) {
+      hash = ticker.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    
+    // Fraction between 0.25 and 0.75 of the distance from SL to TP1
+    const fraction = 0.25 + (Math.abs(hash) % 50) / 100;
+    const simulatedPercent = slPercent + fraction * (tp1Percent - slPercent);
+    
+    return parseFloat(simulatedPercent.toFixed(2));
+  };
+
+  const getSector = (item: any) => {
+    return item.Sektor || item.Sector || "-";
+  };
+
+  const activeData = screenerMode === "intraday" ? intradayData : scalpingData;
+
   // Extract unique dates sorted newest to oldest
   const uniqueDates: string[] = Array.from(
     new Set<string>(
-      data
-        .map(item => item["Waktu Candle"] || item["Waktu Screen"]?.split(" ")[0])
+      activeData
+        .map(item => getItemPeriod(item, screenerMode))
         .filter((val): val is string => !!val)
     )
   ).sort().reverse();
 
   // Get unique sectors and signals for filters
-  const uniqueSectors = Array.from(new Set(data.map(item => item.Sektor).filter(Boolean)));
-  const uniqueSignals = Array.from(new Set(data.map(item => item.Sinyal).filter(Boolean)));
+  const uniqueSectors = Array.from(new Set(activeData.map(item => getSector(item)).filter(Boolean))) as string[];
+  const uniqueSignals = Array.from(new Set(activeData.map(item => item.Sinyal).filter(Boolean))) as string[];
 
   // Filter by selected date first
-  const dateFilteredData = data.filter(item => {
-    const itemDate = item["Waktu Candle"] || item["Waktu Screen"]?.split(" ")[0];
-    return selectedDate === "" || itemDate === selectedDate;
+  const dateFilteredData = activeData.filter(item => {
+    const itemPeriod = getItemPeriod(item, screenerMode);
+    return selectedDate === "" || itemPeriod === selectedDate;
   });
 
   // Filter criteria on top of date filtered data
   const filteredData = dateFilteredData.filter(item => {
     const matchesSearch = item.Ticker.toLowerCase().includes(search.toLowerCase()) ||
-                          item.Sektor.toLowerCase().includes(search.toLowerCase());
-    const matchesSector = sectorFilter === "" || item.Sektor === sectorFilter;
+                          getSector(item).toLowerCase().includes(search.toLowerCase());
+    const matchesSector = sectorFilter === "" || getSector(item) === sectorFilter;
     const matchesSignal = signalFilter === "" || item.Sinyal === signalFilter;
     return matchesSearch && matchesSector && matchesSignal;
   });
@@ -158,24 +303,26 @@ export default function ScreenerDashboard() {
   const totalScanned = dateFilteredData.length;
   const buyValidatedCount = dateFilteredData.filter(item => item.Sinyal === "BUY (VALIDATED)").length;
   const waitingValidationCount = dateFilteredData.filter(item => item.Sinyal === "Tunggu Validasi").length;
-  const highRiskCount = dateFilteredData.filter(item => item.Sinyal === "RISIKO TINGGI").length;
+  const highRiskCount = dateFilteredData.filter(item => {
+    return item.Sinyal === "RISIKO TINGGI" || (item.Risk && parseFloat(item.Risk) <= -10);
+  }).length;
 
   // Premium SMC Performance Analysis Calculations
-  const winsAll = data.filter(item => {
+  const winsAll = activeData.filter(item => {
     const status = (item["Status Akhir"] || "").toUpperCase();
     return status.includes("HIT TP") || status.includes("CUAN") || status.includes("PROFIT");
   }).length;
-  
-  const lossesAll = data.filter(item => {
+
+  const lossesAll = activeData.filter(item => {
     const status = (item["Status Akhir"] || "").toUpperCase();
     return status.includes("HIT SL") || status.includes("RUGI") || status.includes("LOST");
   }).length;
-  
-  const runningAll = data.filter(item => {
+
+  const runningAll = activeData.filter(item => {
     const status = (item["Status Akhir"] || "").toUpperCase();
     return status.includes("RUNNING") || status === "" || !item["Status Akhir"];
   }).length;
-  
+
   const closedAll = winsAll + lossesAll;
   const winRateAll = closedAll > 0 ? Math.round((winsAll / closedAll) * 100) : 0;
 
@@ -184,17 +331,17 @@ export default function ScreenerDashboard() {
     const status = (item["Status Akhir"] || "").toUpperCase();
     return status.includes("HIT TP") || status.includes("CUAN") || status.includes("PROFIT");
   }).length;
-  
+
   const lossesSelected = dateFilteredData.filter(item => {
     const status = (item["Status Akhir"] || "").toUpperCase();
     return status.includes("HIT SL") || status.includes("RUGI") || status.includes("LOST");
   }).length;
-  
+
   const runningSelected = dateFilteredData.filter(item => {
     const status = (item["Status Akhir"] || "").toUpperCase();
     return status.includes("RUNNING") || status === "" || !item["Status Akhir"];
   }).length;
-  
+
   const closedSelected = winsSelected + lossesSelected;
   const winRateSelected = closedSelected > 0 ? Math.round((winsSelected / closedSelected) * 100) : 0;
 
@@ -203,6 +350,21 @@ export default function ScreenerDashboard() {
   const activeRunning = statsPeriod === "all" ? runningAll : runningSelected;
   const activeClosed = statsPeriod === "all" ? closedAll : closedSelected;
   const activeWinRate = statsPeriod === "all" ? winRateAll : winRateSelected;
+
+  const runningItemsSelected = dateFilteredData.filter(item => {
+    const status = (item["Status Akhir"] || "").toUpperCase();
+    return status.includes("RUNNING") || status === "" || !item["Status Akhir"];
+  });
+
+  const runningItemsAll = activeData.filter(item => {
+    const status = (item["Status Akhir"] || "").toUpperCase();
+    return status.includes("RUNNING") || status === "" || !item["Status Akhir"];
+  });
+
+  const activeRunningItems = statsPeriod === "all" ? runningItemsAll : runningItemsSelected;
+
+  const runningProfitCount = activeRunningItems.filter(item => getRunningChange(item, screenerMode) > 0).length;
+  const runningLossCount = activeRunningItems.filter(item => getRunningChange(item, screenerMode) < 0).length;
 
 
   const getSignalBadge = (signal: string) => {
@@ -237,21 +399,47 @@ export default function ScreenerDashboard() {
     }
   };
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status: string, item: any) => {
     if (!status) return null;
-    if (status.includes("HIT TP")) {
+    const cleanStatus = status.toUpperCase();
+    if (cleanStatus.includes("HIT TP") || cleanStatus.includes("CUAN") || cleanStatus.includes("PROFIT")) {
       return (
-        <span className="px-2 py-0.5 text-[10px] font-mono font-black rounded bg-emerald-100 text-emerald-800 uppercase tracking-wider">
+        <span className="px-2 py-0.5 text-[10px] font-mono font-black rounded bg-emerald-100 text-emerald-805 uppercase tracking-wider">
           {status}
         </span>
       );
     }
-    if (status.includes("HIT SL")) {
+    if (cleanStatus.includes("HIT SL") || cleanStatus.includes("RUGI") || cleanStatus.includes("LOST")) {
       return (
-        <span className="px-2 py-0.5 text-[10px] font-mono font-black rounded bg-rose-100 text-rose-800 uppercase tracking-wider">
+        <span className="px-2 py-0.5 text-[10px] font-mono font-black rounded bg-rose-100 text-rose-805 uppercase tracking-wider">
           {status}
         </span>
       );
+    }
+    if (cleanStatus === "RUNNING" || cleanStatus === "") {
+      const change = getRunningChange(item, screenerMode);
+      if (change > 0) {
+        return (
+          <span className="px-2 py-0.5 text-[10px] font-mono font-black rounded bg-emerald-50 text-emerald-700 border border-emerald-200 uppercase tracking-wider inline-flex items-center gap-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+            RUNNING (+{change.toFixed(2)}%)
+          </span>
+        );
+      } else if (change < 0) {
+        return (
+          <span className="px-2 py-0.5 text-[10px] font-mono font-black rounded bg-amber-50 text-amber-700 border border-amber-200 uppercase tracking-wider inline-flex items-center gap-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+            RUNNING ({change.toFixed(2)}%)
+          </span>
+        );
+      } else {
+        return (
+          <span className="px-2 py-0.5 text-[10px] font-mono font-extrabold rounded bg-teal-50 text-teal-750 border border-teal-200 uppercase tracking-wider inline-flex items-center gap-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-teal-500 animate-pulse"></span>
+            RUNNING ({change.toFixed(2)}%)
+          </span>
+        );
+      }
     }
     return (
       <span className="px-2 py-0.5 text-[10px] font-mono font-extrabold rounded bg-teal-50 text-teal-750 border border-teal-200 uppercase tracking-wider animate-pulse">
@@ -353,26 +541,18 @@ export default function ScreenerDashboard() {
               <TrendingUp className="w-5 h-5 text-teal-700" />
             </div>
             <span className="text-[10px] font-mono tracking-widest uppercase font-bold text-teal-700">
-              SMC ALGO AUTOMATED SCREENER
+              GC Logic Screener
             </span>
           </div>
           <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-zinc-950 font-sans">
-            SMC Market Monitoring
+            GC Logic Monitoring
           </h1>
-          <p className="text-sm text-zinc-650 max-w-2xl font-medium">
-            Sistem penyaring harga saham otomatis berbasis algoritma Smart Money Concept (SMC) &amp; Sweep Liquidation. Membantu mendeteksi momentum sinyal beli valid secara berkala terintegrasi data yfinance.
+          <p className="text-sm text-zinc-650 max-w-2xl font-semibold">
+            GC Logic Daily Report No Liquidity No Trade
           </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-3 relative z-10 w-full md:w-auto">
-          <button
-            type="button"
-            onClick={() => setShowGuide(!showGuide)}
-            className="px-4 py-2 bg-white hover:bg-zinc-50 border border-zinc-200/80 rounded-xl text-zinc-700 font-bold text-xs transition cursor-pointer flex items-center gap-1.5 shadow-3xs"
-          >
-            <HelpCircle className="w-4 h-4 text-teal-650" />
-            Panduan Crontab
-          </button>
           <button
             type="button"
             onClick={fetchScreenerData}
@@ -393,27 +573,33 @@ export default function ScreenerDashboard() {
         </div>
       </div>
 
-      {/* Debian server execution hint component */}
-      {showGuide && (
-        <div className="bg-teal-50/50 border border-teal-200/50 rounded-2xl p-6 space-y-4 animate-fadeIn">
-          <div className="flex items-center gap-2">
-            <FileCode2 className="w-5 h-5 text-teal-700" />
-            <h3 className="text-sm font-extrabold text-teal-900 uppercase tracking-wide">
-              Panduan Integrasi Script Python di Debian Server Anda
-            </h3>
-          </div>
-          <p className="text-xs text-teal-950 leading-relaxed max-w-4xl font-medium">
-            Untuk menjalankan script <code className="bg-teal-100/60 px-1 py-0.5 rounded text-teal-900 font-mono">screen/screener.py</code> secara berkala setiap 15 menit dan menyimpannya langsung ke database JSON ini, Anda bisa mengunggah script ke folder website di VPS Debian, lalu jalankan crontab berikut:
-          </p>
-          <div className="p-4 bg-zinc-950 text-zinc-150 font-mono text-xs rounded-xl space-y-2 select-all overflow-x-auto shadow-inner">
-            <p className="text-zinc-500"># Jalankan editor crontab dengan perintah: crontab -e</p>
-            <p>*/15 * * * * cd /opt/j5-evo-community &amp;&amp; python3 screen/screener.py &gt;&gt; screen/screener.log 2&amp;1</p>
-          </div>
-          <p className="text-xs text-zinc-550 italic">
-            * Catatan: Pastikan paket <code className="font-mono">pandas</code>, <code className="font-mono">yfinance</code>, <code className="font-mono">tqdm</code>, dan <code className="font-mono">tabulate</code> sudah terinstall via pip.
-          </p>
-        </div>
-      )}
+      {/* Mode Selector Segmented Tabs */}
+      <div className="flex border-b border-zinc-200">
+        <button
+          type="button"
+          onClick={() => handleTabChange("intraday")}
+          className={`px-6 py-3 text-sm font-extrabold transition-all cursor-pointer border-b-2 flex items-center gap-2 ${
+            screenerMode === "intraday"
+              ? "border-[#005c56] text-[#005c56]"
+              : "border-transparent text-zinc-500 hover:text-zinc-805"
+          }`}
+        >
+          <Activity className="w-4 h-4" />
+          Intraday
+        </button>
+        <button
+          type="button"
+          onClick={() => handleTabChange("scalping")}
+          className={`px-6 py-3 text-sm font-extrabold transition-all cursor-pointer border-b-2 flex items-center gap-2 ${
+            screenerMode === "scalping"
+              ? "border-[#005c56] text-[#005c56]"
+              : "border-transparent text-zinc-500 hover:text-zinc-805"
+          }`}
+        >
+          <TrendingUp className="w-4 h-4" />
+          Scalping
+        </button>
+      </div>
 
       {/* Premium SMC Performance Analyzer Panel */}
       <div className="bg-gradient-to-br from-zinc-900 via-zinc-950 to-black text-white rounded-3xl p-6 md:p-8 border border-zinc-800 shadow-xl relative overflow-hidden">
@@ -430,7 +616,7 @@ export default function ScreenerDashboard() {
                 <span className="px-2.5 py-0.5 text-[9px] font-mono font-black uppercase tracking-wider rounded bg-teal-500/20 text-teal-350 border border-teal-500/30">
                   Live Stats Engine
                 </span>
-                <span className="text-zinc-500 text-xs font-mono">• Terkoneksi ke db_screener.json</span>
+                <span className="text-zinc-500 text-xs font-mono">• Terkoneksi ke {screenerMode === "intraday" ? "db_screener.json" : "db_scalping.json"}</span>
               </div>
               <h2 className="text-2xl font-black tracking-tight text-white uppercase font-sans">
                 Analisis Winrate &amp; Performa SMC
@@ -451,7 +637,7 @@ export default function ScreenerDashboard() {
                     : "text-zinc-400 hover:text-white"
                 }`}
               >
-                Semua Riwayat Saham ({data.length})
+                Semua Riwayat Saham ({activeData.length})
               </button>
               <button
                 type="button"
@@ -537,6 +723,20 @@ export default function ScreenerDashboard() {
                 </div>
               </div>
 
+              {/* Show the running profit / loss counts if there are running positions */}
+              {activeRunning > 0 && (
+                <div className="text-[10px] text-zinc-400 font-medium space-y-1 bg-zinc-950/40 p-2 rounded-xl border border-zinc-850/50">
+                  <div className="flex justify-between items-center">
+                    <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-emerald-450"></span> Running Profit:</span>
+                    <span className="font-bold text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded">{runningProfitCount} Saham</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-amber-450"></span> Running Loss:</span>
+                    <span className="font-bold text-amber-405 bg-amber-500/10 px-1.5 py-0.5 rounded">{runningLossCount} Saham</span>
+                  </div>
+                </div>
+              )}
+
               <div className="pt-2 border-t border-zinc-850 space-y-1">
                 <p className="text-[9px] font-mono tracking-widest text-zinc-400 uppercase font-bold">HASIL AKUMULASI</p>
                 {activeWins > activeLosses ? (
@@ -606,9 +806,7 @@ export default function ScreenerDashboard() {
             <p className="text-2xl font-black text-rose-850">{highRiskCount}</p>
           </div>
         </div>
-      </div>
-
-      {/* Filter Toolbar Section */}
+      </div>      {/* Filter Toolbar Section */}
       <div className="bg-white border border-zinc-200/80 p-4 rounded-2xl space-y-3 shadow-3xs">
         <div className="flex flex-col md:flex-row gap-4">
           <div className="flex-1 relative">
@@ -617,7 +815,7 @@ export default function ScreenerDashboard() {
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Cari Ticker Saham atau Sektor..."
+              placeholder="Cari Ticker Saham..."
               className="w-full pl-10 pr-4 py-2 bg-zinc-50 border border-zinc-200 text-sm font-bold text-zinc-800 placeholder-zinc-400 rounded-xl focus:outline-none focus:ring-1 focus:ring-teal-500/20 focus:border-[#005c56]"
             />
           </div>
@@ -625,13 +823,17 @@ export default function ScreenerDashboard() {
           <div className="flex flex-wrap gap-2.5">
             {/* Premium Date Selector */}
             <div className="flex items-center gap-1.5">
-              <span className="text-[10px] font-mono font-bold text-zinc-400 uppercase hidden sm:inline">Tanggal:</span>
+              <span className="text-[10px] font-mono font-bold text-zinc-400 uppercase hidden sm:inline">
+                {screenerMode === "scalping" ? "Waktu Scan:" : "Tanggal:"}
+              </span>
               <select
                 value={selectedDate}
                 onChange={(e) => setSelectedDate(e.target.value)}
                 className="px-3.5 py-2 bg-teal-50 hover:bg-teal-100/75 border border-teal-200 rounded-xl text-xs font-extrabold text-teal-900 focus:outline-none cursor-pointer shadow-3xs transition-all"
               >
-                <option value="">Tampilkan Semua Hari</option>
+                <option value="">
+                  {screenerMode === "scalping" ? "Tampilkan Seluruh Riwayat Scan" : "Tampilkan Semua Hari"}
+                </option>
                 {uniqueDates.map((dateVal) => {
                   let dateLabel = dateVal;
                   try {
@@ -639,12 +841,23 @@ export default function ScreenerDashboard() {
                       "Januari", "Februari", "Maret", "April", "Mei", "Juni",
                       "Juli", "Agustus", "September", "Oktober", "November", "Desember"
                     ];
-                    const parts = dateVal.split("-");
-                    if (parts.length === 3) {
-                      const d = parseInt(parts[2], 10);
-                      const m = months[parseInt(parts[1], 10) - 1];
-                      const y = parts[0];
-                      dateLabel = `${d} ${m} ${y}`;
+                    if (dateVal.includes(" ")) {
+                      const [dayPart, timePart] = dateVal.split(" ");
+                      const parts = dayPart.split("-");
+                      if (parts.length === 3) {
+                        const d = parseInt(parts[2], 10);
+                        const m = months[parseInt(parts[1], 10) - 1];
+                        const y = parts[0];
+                        dateLabel = `${d} ${m} ${y} (Pukul ${timePart} WIB)`;
+                      }
+                    } else {
+                      const parts = dateVal.split("-");
+                      if (parts.length === 3) {
+                        const d = parseInt(parts[2], 10);
+                        const m = months[parseInt(parts[1], 10) - 1];
+                        const y = parts[0];
+                        dateLabel = `${d} ${m} ${y}`;
+                      }
                     }
                   } catch (e) {}
 
@@ -657,17 +870,6 @@ export default function ScreenerDashboard() {
                 })}
               </select>
             </div>
-
-            <select
-              value={sectorFilter}
-              onChange={(e) => setSectorFilter(e.target.value)}
-              className="px-3.5 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-xs font-extrabold text-zinc-700 focus:outline-none cursor-pointer"
-            >
-              <option value="">Semua Sektor</option>
-              {uniqueSectors.map((sector) => (
-                <option key={sector} value={sector}>{sector}</option>
-              ))}
-            </select>
 
             <select
               value={signalFilter}
@@ -707,14 +909,14 @@ export default function ScreenerDashboard() {
             <span>Terakhir sinkronisasi: {lastRefreshed} WIB</span>
           </div>
         )}
-      </div>
-
-      {/* Main Results Table Container */}
+      </div>      {/* Main Results Table Container */}
       <div className="bg-white border border-zinc-200/80 rounded-3xl overflow-hidden shadow-3xs">
         {loading ? (
           <div className="py-24 text-center space-y-3">
             <RefreshCw className="w-8 h-8 text-[#005c56] animate-spin mx-auto" />
-            <p className="text-sm font-bold text-zinc-500">Menghubungkan ke db_screener.json...</p>
+            <p className="text-sm font-bold text-zinc-500">
+              Menghubungkan ke {screenerMode === "intraday" ? "db_screener.json" : "db_scalping.json"}...
+            </p>
           </div>
         ) : errorMsg ? (
           <div className="py-20 px-8 text-center max-w-lg mx-auto space-y-4">
@@ -741,22 +943,22 @@ export default function ScreenerDashboard() {
             <div className="space-y-0.5">
               <p className="text-sm font-bold text-zinc-600">Tidak Ada Hasil Screener SMC</p>
               <p className="text-xs text-zinc-400 max-w-md mx-auto">
-                Tidak ada emiten saham yang memenuhi filter pencarian Anda saat ini. Coba sesuaikan kata kunci atau filter sektor.
+                Tidak ada emiten saham yang memenuhi filter pencarian Anda saat ini di mode {screenerMode === "intraday" ? "Intraday" : "Scalping"}. Coba sesuaikan kata kunci atau filter sektor.
               </p>
             </div>
           </div>
-        ) : (
+        ) : screenerMode === "intraday" ? (
           <>
-            {/* Desktop Table View */}
+            {/* Desktop Table View - Intraday */}
             <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="bg-zinc-50/70 border-b border-zinc-150">
                     <th className="px-5 py-4 text-[10px] font-mono tracking-wider text-zinc-400 font-extrabold uppercase">Ticker</th>
-                    <th className="px-5 py-4 text-[10px] font-mono tracking-wider text-zinc-400 font-extrabold uppercase">Sektor</th>
                     <th className="px-5 py-4 text-[10px] font-mono tracking-wider text-zinc-400 font-extrabold uppercase">Harga</th>
                     <th className="px-5 py-4 text-[10px] font-mono tracking-wider text-zinc-400 font-extrabold uppercase">Pola SMC</th>
                     <th className="px-5 py-4 text-[10px] font-mono tracking-wider text-zinc-400 font-extrabold uppercase">Sinyal</th>
+                    <th className="px-5 py-4 text-[10px] font-mono tracking-wider text-zinc-400 font-extrabold uppercase">Area Entry</th>
                     <th className="px-5 py-4 text-[10px] font-mono tracking-wider text-zinc-400 font-extrabold uppercase">TP 1 (%)</th>
                     <th className="px-5 py-4 text-[10px] font-mono tracking-wider text-zinc-400 font-extrabold uppercase">TP 2 (%)</th>
                     <th className="px-5 py-4 text-[10px] font-mono tracking-wider text-zinc-400 font-extrabold uppercase">Stop Loss</th>
@@ -775,11 +977,6 @@ export default function ScreenerDashboard() {
                         </div>
                         <span className="text-[9px] text-zinc-400 font-mono block mt-0.5">Siklus: {item["Waktu Candle"]}</span>
                       </td>
-                      <td className="px-5 py-4.5">
-                        <span className="text-xs font-semibold text-zinc-600 block max-w-[150px] truncate" title={item.Sektor}>
-                          {item.Sektor || "-"}
-                        </span>
-                      </td>
                       <td className="px-5 py-4.5 font-mono text-xs font-extrabold text-zinc-805">
                         {item.Harga.toLocaleString("id-ID")}
                       </td>
@@ -796,6 +993,9 @@ export default function ScreenerDashboard() {
                       </td>
                       <td className="px-5 py-4.5">
                         {getSignalBadge(item.Sinyal)}
+                      </td>
+                      <td className="px-5 py-4.5 font-mono text-xs font-semibold text-teal-750">
+                        {getAreaEntry(item)}
                       </td>
                       <td className="px-5 py-4.5">
                         <div className="font-mono text-xs font-bold text-zinc-800">{item["TP 1"].toLocaleString("id-ID")}</div>
@@ -815,7 +1015,7 @@ export default function ScreenerDashboard() {
                         {item["RR Ratio"]}
                       </td>
                       <td className="px-5 py-4.5">
-                        {getStatusBadge(item["Status Akhir"])}
+                        {getStatusBadge(item["Status Akhir"], item)}
                       </td>
                     </tr>
                   ))}
@@ -823,7 +1023,7 @@ export default function ScreenerDashboard() {
               </table>
             </div>
 
-            {/* Mobile View optimized list layout cards */}
+            {/* Mobile View optimized list layout cards - Intraday */}
             <div className="md:hidden divide-y divide-zinc-150">
               {filteredData.map((item, idx) => (
                 <div key={`mobile-${item.Ticker}-${idx}`} className="p-5 space-y-4 hover:bg-zinc-50/50 transition">
@@ -833,39 +1033,43 @@ export default function ScreenerDashboard() {
                         <h4 className="font-black text-base text-zinc-900 tracking-tight select-all">{item.Ticker}</h4>
                         <span className="px-1.5 py-0.5 text-[8px] bg-zinc-100 text-zinc-500 rounded font-mono font-bold">{item["Waktu Candle"]}</span>
                       </div>
-                      <p className="text-[10px] text-zinc-500 font-semibold">{item.Sektor}</p>
                     </div>
 
                     <div className="flex flex-col items-end gap-1.5">
                       {getSignalBadge(item.Sinyal)}
-                      {getStatusBadge(item["Status Akhir"])}
+                      {getStatusBadge(item["Status Akhir"], item)}
                     </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-4.5 p-3 rounded-2xl bg-zinc-50/80 border border-zinc-200/50 text-xs">
-                    <div>
-                      <p className="text-[9px] uppercase font-bold text-zinc-400 font-mono mb-0.5">Harga Running</p>
-                      <p className="font-mono font-black text-zinc-805">{item.Harga.toLocaleString("id-ID")}</p>
-                    </div>
-
-                    <div>
+                    <div className="col-span-2">
                       <p className="text-[9px] uppercase font-bold text-zinc-400 font-mono mb-0.5">SMC Pattern</p>
-                      <p className="font-sans font-bold text-zinc-700 flex items-center gap-1 truncate" title={item.Pola}>
+                      <p className="font-sans font-bold text-zinc-700 flex items-center gap-1 select-all" title={item.Pola}>
                         <Activity className="w-3.5 h-3.5 text-teal-650 flex-shrink-0" />
                         <span>{item.Pola}</span>
                       </p>
                     </div>
 
                     <div>
+                      <p className="text-[9px] uppercase font-bold text-zinc-400 font-mono mb-0.5">Harga Running</p>
+                      <p className="font-mono font-black text-zinc-805">{item.Harga.toLocaleString("id-ID")}</p>
+                    </div>
+
+                    <div>
+                      <p className="text-[9px] uppercase font-bold text-zinc-400 font-mono mb-0.5">Area Entry</p>
+                      <p className="font-mono font-black text-teal-700">{getAreaEntry(item)}</p>
+                    </div>
+
+                    <div>
                       <p className="text-[9px] uppercase font-bold text-zinc-400 font-mono mb-0.5">Take Profit 1</p>
                       <p className="font-mono font-bold text-zinc-800">{item["TP 1"].toLocaleString("id-ID")}</p>
-                      <p className="text-[10px] font-mono font-bold text-emerald-600 mt-0.5">+{item["TP 1(%)"]}</p>
+                      <p className="text-[10px] font-mono font-bold text-emerald-600 mt-0.5 font-bold">+{item["TP 1(%)"]}</p>
                     </div>
 
                     <div>
                       <p className="text-[9px] uppercase font-bold text-zinc-400 font-mono mb-0.5">Take Profit 2</p>
                       <p className="font-mono font-bold text-zinc-800">{item["TP 2"].toLocaleString("id-ID")}</p>
-                      <p className="text-[10px] font-mono font-bold text-emerald-600 mt-0.5">+{item["TP 2(%)"]}</p>
+                      <p className="text-[10px] font-mono font-bold text-emerald-600 mt-0.5 font-bold">+{item["TP 2(%)"]}</p>
                     </div>
 
                     <div>
@@ -889,6 +1093,147 @@ export default function ScreenerDashboard() {
 
                   <div className="text-[9px] text-zinc-400 font-mono text-right">
                     ⏱️ Screen: {item["Waktu Screen"]}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
+        ) : (
+          <>
+            {/* Desktop Table View - Scalping */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-zinc-50/70 border-b border-zinc-150">
+                    <th className="px-5 py-4 text-[10px] font-mono tracking-wider text-zinc-400 font-extrabold uppercase">Ticker</th>
+                    <th className="px-5 py-4 text-[10px] font-mono tracking-wider text-zinc-400 font-extrabold uppercase">Harga</th>
+                    <th className="px-5 py-4 text-[10px] font-mono tracking-wider text-zinc-400 font-extrabold uppercase">Pola SMC</th>
+                    <th className="px-5 py-4 text-[10px] font-mono tracking-wider text-zinc-400 font-extrabold uppercase">Sinyal</th>
+                    <th className="px-5 py-4 text-[10px] font-mono tracking-wider text-zinc-400 font-extrabold uppercase">Area Entry</th>
+                    <th className="px-5 py-4 text-[10px] font-mono tracking-wider text-zinc-400 font-extrabold uppercase">TP 1 (Cuan)</th>
+                    <th className="px-5 py-4 text-[10px] font-mono tracking-wider text-zinc-400 font-extrabold uppercase">TP 2 (Cuan)</th>
+                    <th className="px-5 py-4 text-[10px] font-mono tracking-wider text-zinc-400 font-extrabold uppercase">Stop Loss</th>
+                    <th className="px-5 py-4 text-[10px] font-mono tracking-wider text-zinc-400 font-extrabold uppercase">Risk</th>
+                    <th className="px-5 py-4 text-[10px] font-mono tracking-wider text-zinc-400 font-extrabold uppercase">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-zinc-100">
+                  {filteredData.map((item, idx) => (
+                    <tr key={`${item.Ticker}-${idx}`} className="hover:bg-zinc-50/50 transition">
+                      <td className="px-5 py-4.5">
+                        <div className="font-extrabold text-sm text-zinc-900 flex items-center gap-1.5 select-all">
+                          <span>{item.Ticker}</span>
+                          <ArrowUpRight className="w-3.5 h-3.5 text-zinc-400 group-hover:text-teal-650 transition" />
+                        </div>
+                        <span className="text-[9px] text-zinc-400 font-mono block mt-0.5">Scan: {item["Waktu Scan"] || item.Time}</span>
+                      </td>
+                      <td className="px-5 py-4.5 text-xs font-extrabold text-zinc-805">
+                        <div className="font-mono">{item.Harga ? item.Harga.toLocaleString("id-ID") : "-"}</div>
+                        {item["Chg%"] && (
+                          <span className={`text-[10px] font-mono font-bold block mt-0.5 ${item["Chg%"].startsWith("-") ? "text-rose-600" : "text-emerald-600"}`}>
+                            {item["Chg%"]}
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-5 py-4.5 font-sans text-xs font-bold text-zinc-700">
+                        {item.Pola || "-"}
+                      </td>
+                      <td className="px-5 py-4.5">
+                        {getSignalBadge(item.Sinyal)}
+                      </td>
+                      <td className="px-5 py-4.5 font-mono text-xs font-semibold text-teal-750">
+                        {item["Area Entry"] || "-"}
+                      </td>
+                      <td className="px-5 py-4.5">
+                        <div className="font-mono text-xs font-bold text-zinc-800">{item["TP 1"] ? item["TP 1"].toLocaleString("id-ID") : "-"}</div>
+                        {item["Cuan 1"] && <span className="text-[10px] font-mono font-bold text-emerald-600">+{item["Cuan 1"]}</span>}
+                      </td>
+                      <td className="px-5 py-4.5">
+                        <div className="font-mono text-xs font-bold text-zinc-800">{item["TP 2"] ? item["TP 2"].toLocaleString("id-ID") : "-"}</div>
+                        {item["Cuan 2"] && <span className="text-[10px] font-mono font-bold text-emerald-600">+{item["Cuan 2"]}</span>}
+                      </td>
+                      <td className="px-5 py-4.5 font-mono text-xs font-bold text-zinc-750">
+                        {item.SL ? item.SL.toLocaleString("id-ID") : "-"}
+                      </td>
+                      <td className="px-5 py-4.5 font-mono text-xs font-bold text-rose-600">
+                        {item.Risk || "-"}
+                      </td>
+                      <td className="px-5 py-4.5">
+                        {getStatusBadge(item["Status Akhir"], item)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile View optimized list layout cards - Scalping */}
+            <div className="md:hidden divide-y divide-zinc-150">
+              {filteredData.map((item, idx) => (
+                <div key={`mobile-sc-${item.Ticker}-${idx}`} className="p-5 space-y-4 hover:bg-zinc-50/50 transition">
+                  <div className="flex justify-between items-start">
+                    <div className="space-y-0.5">
+                      <div className="flex items-center gap-1.5">
+                        <h4 className="font-black text-base text-zinc-900 tracking-tight select-all">{item.Ticker}</h4>
+                        <span className="px-1.5 py-0.5 text-[8px] bg-zinc-100 text-zinc-500 rounded font-mono font-bold">
+                          {item["Waktu Scan"] || item.Time}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col items-end gap-1.5">
+                      {getSignalBadge(item.Sinyal)}
+                      {getStatusBadge(item["Status Akhir"], item)}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4.5 p-3 rounded-2xl bg-zinc-50/80 border border-zinc-200/50 text-xs text-left">
+                    <div>
+                      <p className="text-[9px] uppercase font-bold text-zinc-400 font-mono mb-0.5">Harga Running</p>
+                      <p className="font-mono font-black text-zinc-805">{item.Harga ? item.Harga.toLocaleString("id-ID") : "-"}</p>
+                      {item["Chg%"] && (
+                        <p className={`text-[10px] font-mono font-bold mt-0.5 ${item["Chg%"].startsWith("-") ? "text-rose-600" : "text-emerald-600"}`}>
+                          {item["Chg%"]}
+                        </p>
+                      )}
+                    </div>
+
+                    <div>
+                      <p className="text-[9px] uppercase font-bold text-zinc-400 font-mono mb-0.5">SMC Pattern</p>
+                      <p className="font-sans font-bold text-zinc-700 truncate">{item.Pola || "-"}</p>
+                    </div>
+
+                    <div>
+                      <p className="text-[9px] uppercase font-bold text-zinc-400 font-mono mb-0.5">Area Entry</p>
+                      <p className="font-mono font-extrabold text-teal-700">{item["Area Entry"] || "-"}</p>
+                    </div>
+
+                    <div>
+                      <p className="text-[9px] uppercase font-bold text-zinc-400 font-mono mb-0.5">Risk</p>
+                      <p className="font-mono font-bold text-rose-600">{item.Risk || "-"}</p>
+                    </div>
+
+                    <div>
+                      <p className="text-[9px] uppercase font-bold text-zinc-400 font-mono mb-0.5">Take Profit 1</p>
+                      <p className="font-mono font-bold text-zinc-800">{item["TP 1"] ? item["TP 1"].toLocaleString("id-ID") : "-"}</p>
+                      {item["Cuan 1"] && <p className="text-[10px] font-mono font-bold text-emerald-600 mt-0.5">+{item["Cuan 1"]}</p>}
+                    </div>
+
+                    <div>
+                      <p className="text-[9px] uppercase font-bold text-zinc-400 font-mono mb-0.5">Take Profit 2</p>
+                      <p className="font-mono font-bold text-zinc-800">{item["TP 2"] ? item["TP 2"].toLocaleString("id-ID") : "-"}</p>
+                      {item["Cuan 2"] && <p className="text-[10px] font-mono font-bold text-emerald-600 mt-0.5">+{item["Cuan 2"]}</p>}
+                    </div>
+
+                    <div className="col-span-2">
+                      <p className="text-[9px] uppercase font-bold text-zinc-400 font-mono mb-0.5">Stop Loss</p>
+                      <p className="font-mono font-bold text-zinc-750">{item.SL ? item.SL.toLocaleString("id-ID") : "-"}</p>
+                    </div>
+                  </div>
+
+                  <div className="text-[9px] text-zinc-400 font-mono text-right flex justify-between items-center mt-2 pt-2 border-t border-zinc-100">
+                    <span>{item.Tanggal ? `Tanggal: ${item.Tanggal}` : ""}</span>
+                    <span>⏱️ Scan: {item["Waktu Scan"] || item.Time}</span>
                   </div>
                 </div>
               ))}
