@@ -3795,7 +3795,7 @@ export default function App() {
                     Sebagai member resmi J5 EVO - INDONESIA yang telah terdaftar di database, Anda dipersilakan bergabung langsung ke grup komunitas WhatsApp resmi kami untuk berdiskusi dengan sesama pemilik Jaecoo J5 di Indonesia.
                   </p>
                   <a
-                    href="https://chat.whatsapp.com/J7yHm2s3wTELy9blEd3jb1?mode=hqctcla"
+                    href="https://chat.whatsapp.com/GeHd9rdW3ciJZsm712NGfL"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex w-full items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs py-2.5 px-4 rounded-xl shadow-xs transition duration-200"
