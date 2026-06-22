@@ -97,7 +97,7 @@ export default function Hero({ onRegisterClick, onExploreEventsClick, socials, h
               </p>
             </div>
             <a
-              href="https://chat.whatsapp.com/J7yHm2s3wTELy9blEd3jb1?mode=hqctcla"
+              href="https://chat.whatsapp.com/GeHd9rdW3ciJZsm712NGfL"
               target="_blank"
               rel="noopener noreferrer"
               className="w-full sm:w-auto px-4.5 py-2 text-center bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-xl shadow-sm transition-all duration-300 shrink-0 hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
