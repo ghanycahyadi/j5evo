@@ -1,5 +1,5 @@
 import React from "react";
-import { CheckCircle2, UserCheck, Calendar } from "lucide-react";
+import { CheckCircle2, UserCheck, Calendar, Tv } from "lucide-react";
 import { CommunityEvent, EventRegistration } from "../types";
 
 interface AdminAttendanceProps {
@@ -32,7 +32,7 @@ export default function AdminAttendance({
           <h4 className="font-sans font-bold text-base text-zinc-900">Pencatatan Kehadiran Member (Scan Barcode / No Polisi)</h4>
         </div>
         <p className="text-zinc-650 text-xs leading-relaxed font-sans">
-          Pindai Barcode Member ID (format: J5EVO-...) atau input langsung Nomor Plat Kendaraan (contoh: B 1111 XXX) untuk mendaftarkan dan memverifikasi Kehadiran Member pada kegiatan tertentu.
+          Pindai Barcode Member ID (format: J5EVO-...) atau input langsung Nomor Plat Kendaraan (contoh: B 5555 EVO) untuk mendaftarkan dan memverifikasi Kehadiran Member pada kegiatan tertentu.
         </p>
         
         <form onSubmit={handleRecordAttendance} className="space-y-4 text-xs">
@@ -59,7 +59,7 @@ export default function AdminAttendance({
               <input
                 type="text"
                 required
-                placeholder="Contoh: B 1111 XXX atau J5EVO-202605-0002"
+                placeholder="Contoh: B 5555 EVO atau J5EVO-202605-0002"
                 value={adminAttendanceQuery}
                 onChange={(e) => setAdminAttendanceQuery(e.target.value)}
                 className="w-full bg-zinc-50 text-zinc-900 border border-zinc-250 rounded-lg p-2.5 focus:outline-none focus:border-[#005c56] text-xs font-mono font-bold uppercase placeholder:normal-case"
@@ -244,6 +244,16 @@ export default function AdminAttendance({
                     >
                       Unduh QR Code (Buka Gambar)
                     </a>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        window.open(`${window.location.origin}/beranda?layar_absen=${selectedEvent.id}`, "_blank");
+                      }}
+                      className="px-4 py-2 bg-teal-50 hover:bg-teal-100 text-[#005c56] border border-teal-200 font-bold text-xs rounded-lg transition cursor-pointer inline-flex items-center gap-1.5"
+                    >
+                      <Tv className="w-3.5 h-3.5" />
+                      Layar Sambutan / Projector (Realtime)
+                    </button>
                   </div>
                 </div>
               </div>

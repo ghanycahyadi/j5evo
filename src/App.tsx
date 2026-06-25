@@ -62,6 +62,7 @@ import AdminManager from "./components/AdminManager";
 import EvCalculator from "./components/EvCalculator";
 import LuckyDrawWheel, { WinnerLog } from "./components/LuckyDrawWheel";
 import ScreenerDashboard from "./components/ScreenerDashboard";
+import ProjectorBoard from "./components/ProjectorBoard";
 import { toPng } from "html-to-image";
 import { Member, CommunityEvent, EventRegistration, DashboardStats, FAQ } from "./types";
 import { formatDate, CAR_PHOTOS, getGoogleMapsUrl, compressImage } from "./utils";
@@ -318,6 +319,10 @@ export default function App() {
   });
   const [selfAttendanceSuccess, setSelfAttendanceSuccess] = useState<any | null>(null);
   const [selfAttendanceError, setSelfAttendanceError] = useState<string | null>(null);
+
+  // States - Welcome Screen / Projector Attendance Board
+  const [projectorEventId, setProjectorEventId] = useState<string | null>(null);
+  const [projectorEvent, setProjectorEvent] = useState<CommunityEvent | null>(null);
 
   // Lookup Membership State
   const [lookupQuery, setLookupQuery] = useState<string>("");
@@ -859,6 +864,11 @@ export default function App() {
       setSelfAttendanceEventId(eventIdParam);
     }
 
+    const projectorParam = params.get("layar_absen") || params.get("projector");
+    if (projectorParam) {
+      setProjectorEventId(projectorParam);
+    }
+
     if (searchParam) {
       setActiveTab("membership-lookup");
       setLookupQuery(searchParam.toUpperCase());
@@ -904,6 +914,16 @@ export default function App() {
       }
     }
   }, [selfAttendanceEventId, events]);
+
+  // Update projectorEvent when projectorEventId or events change
+  useEffect(() => {
+    if (projectorEventId && events.length > 0) {
+      const match = events.find(e => e.id === projectorEventId);
+      if (match) {
+        setProjectorEvent(match);
+      }
+    }
+  }, [projectorEventId, events]);
 
   // Lightbox keyboard navigation key listener
   useEffect(() => {
@@ -2724,6 +2744,24 @@ export default function App() {
   // Divide events for display
   const upcomingEvents = events.filter((e) => e.status === "upcoming");
   const pastEvents = events.filter((e) => e.status === "completed" || e.status === "ongoing");
+
+  if (projectorEvent) {
+    return (
+      <ProjectorBoard
+        event={projectorEvent}
+        onClose={() => {
+          setProjectorEvent(null);
+          setProjectorEventId(null);
+          try {
+            const url = new URL(window.location.href);
+            url.searchParams.delete("layar_absen");
+            url.searchParams.delete("projector");
+            window.history.replaceState(null, "", url.pathname + url.search);
+          } catch (e) {}
+        }}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 font-sans selection:bg-teal-100 selection:text-teal-900 pb-16">
@@ -7781,7 +7819,7 @@ export default function App() {
                     <h4 className="font-sans font-bold text-base text-zinc-900">Pencatatan Kehadiran Member (Scan Barcode / No Polisi)</h4>
                   </div>
                   <p className="text-zinc-650 text-xs leading-relaxed font-sans">
-                    Pindai Barcode Member ID (format: J5EVO-...) atau input langsung Nomor Plat Kendaraan (contoh: B 1111 XXX) untuk mendaftarkan dan memverifikasi Kehadiran Member pada kegiatan tertentu.
+                    Pindai Barcode Member ID (format: J5EVO-...) atau input langsung Nomor Plat Kendaraan (contoh: B 5555 EVO) untuk mendaftarkan dan memverifikasi Kehadiran Member pada kegiatan tertentu.
                   </p>
                   
                   <form onSubmit={handleRecordAttendance} className="space-y-4 text-xs">
@@ -7810,7 +7848,7 @@ export default function App() {
                           type="text"
                           required
                           id="input-kehadiran-query"
-                          placeholder="Contoh: B 1111 XXX atau J5EVO-202605-0002"
+                          placeholder="Contoh: B 5555 EVO atau J5EVO-202605-0002"
                           value={adminAttendanceQuery}
                           onChange={(e) => setAdminAttendanceQuery(e.target.value)}
                           className="w-full bg-zinc-50 text-zinc-900 border border-zinc-250 rounded-lg p-2.5 focus:outline-none focus:border-[#005c56] text-xs font-mono font-bold uppercase placeholder:normal-case"
@@ -8897,7 +8935,7 @@ export default function App() {
                         <input
                            type="text"
                            required
-                           placeholder="Contoh: B 1111 XXX"
+                           placeholder="Contoh: B 5555 EVO"
                            value={joinForm.plateNumber}
                            onChange={(e) => setJoinForm({ ...joinForm, plateNumber: e.target.value })}
                            className="w-full bg-white text-zinc-900 border border-zinc-250 rounded-xl py-2 px-3 focus:outline-none focus:border-teal-500 font-mono text-xs uppercase"
@@ -9667,7 +9705,7 @@ export default function App() {
                       <input
                         type="text"
                         required
-                        placeholder="Contoh: B 1111 XXX"
+                        placeholder="Contoh: B 5555 EVO"
                         value={selfAttendanceForm.plateNumber}
                         onChange={(e) => setSelfAttendanceForm({ ...selfAttendanceForm, plateNumber: e.target.value.toUpperCase() })}
                         className="w-full bg-zinc-50 text-zinc-900 border border-zinc-300 focus:border-teal-400 rounded-xl py-2 px-3 focus:outline-none text-xs font-bold font-mono uppercase text-center"
