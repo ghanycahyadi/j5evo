@@ -306,8 +306,18 @@ export default function App() {
   const [joinForm, setJoinForm] = useState({
     plateNumber: "",
     pin: "",
-    pax: 1
+    pax: 1 as any // Allows empty string for mobile clearing
   });
+
+  // States - Self-attendance scan QR code
+  const [selfAttendanceEventId, setSelfAttendanceEventId] = useState<string | null>(null);
+  const [selfAttendanceEvent, setSelfAttendanceEvent] = useState<CommunityEvent | null>(null);
+  const [selfAttendanceForm, setSelfAttendanceForm] = useState({
+    plateNumber: "",
+    pin: "",
+  });
+  const [selfAttendanceSuccess, setSelfAttendanceSuccess] = useState<any | null>(null);
+  const [selfAttendanceError, setSelfAttendanceError] = useState<string | null>(null);
 
   // Lookup Membership State
   const [lookupQuery, setLookupQuery] = useState<string>("");
@@ -843,6 +853,12 @@ export default function App() {
 
     const params = new URLSearchParams(window.location.search);
     const searchParam = params.get("lookup") || params.get("scan");
+    
+    const eventIdParam = params.get("absen_event") || params.get("event_id");
+    if (eventIdParam) {
+      setSelfAttendanceEventId(eventIdParam);
+    }
+
     if (searchParam) {
       setActiveTab("membership-lookup");
       setLookupQuery(searchParam.toUpperCase());
@@ -878,6 +894,16 @@ export default function App() {
       autoLookup();
     }
   }, []);
+
+  // Update selfAttendanceEvent when selfAttendanceEventId or events change
+  useEffect(() => {
+    if (selfAttendanceEventId && events.length > 0) {
+      const match = events.find(e => e.id === selfAttendanceEventId);
+      if (match) {
+        setSelfAttendanceEvent(match);
+      }
+    }
+  }, [selfAttendanceEventId, events]);
 
   // Lightbox keyboard navigation key listener
   useEffect(() => {
@@ -1936,10 +1962,14 @@ export default function App() {
 
     try {
       setLoading(true);
+      const payload = {
+        ...joinForm,
+        pax: joinForm.pax ? Number(joinForm.pax) : 1
+      };
       const res = await fetch(`/api/events/${eventId}/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(joinForm)
+        body: JSON.stringify(payload)
       });
       const data = await res.json();
 
@@ -3795,7 +3825,7 @@ export default function App() {
                     Sebagai member resmi J5 EVO - INDONESIA yang telah terdaftar di database, Anda dipersilakan bergabung langsung ke grup komunitas WhatsApp resmi kami untuk berdiskusi dengan sesama pemilik Jaecoo J5 di Indonesia.
                   </p>
                   <a
-                    href="https://chat.whatsapp.com/GeHd9rdW3ciJZsm712NGfL"
+                    href="https://chat.whatsapp.com/J7yHm2s3wTELy9blEd3jb1?mode=hqctcla"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex w-full items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs py-2.5 px-4 rounded-xl shadow-xs transition duration-200"
@@ -4416,8 +4446,16 @@ export default function App() {
                                 min={1}
                                 max={20}
                                 required
-                                value={joinForm.pax || 1}
-                                onChange={(e) => setJoinForm({ ...joinForm, pax: parseInt(e.target.value) || 1 })}
+                                value={joinForm.pax === "" ? "" : (joinForm.pax ?? "")}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  if (val === "") {
+                                    setJoinForm({ ...joinForm, pax: "" as any });
+                                  } else {
+                                    const parsed = parseInt(val, 10);
+                                    setJoinForm({ ...joinForm, pax: isNaN(parsed) ? "" as any : parsed });
+                                  }
+                                }}
                                 className="w-full bg-white text-zinc-900 border border-zinc-300 focus:border-teal-400 rounded-lg py-1.5 px-3 focus:outline-none text-xs font-bold font-mono"
                               />
                             </div>
@@ -8900,8 +8938,16 @@ export default function App() {
                           type="number"
                           min={1}
                           required
-                          value={joinForm.pax || 1}
-                          onChange={(e) => setJoinForm({ ...joinForm, pax: parseInt(e.target.value) || 1 })}
+                          value={joinForm.pax === "" ? "" : (joinForm.pax ?? "")}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            if (val === "") {
+                              setJoinForm({ ...joinForm, pax: "" as any });
+                            } else {
+                              const parsed = parseInt(val, 10);
+                              setJoinForm({ ...joinForm, pax: isNaN(parsed) ? "" as any : parsed });
+                            }
+                          }}
                           className="w-full bg-white text-zinc-900 border border-zinc-250 rounded-xl py-2 px-3 focus:outline-none focus:border-teal-500 font-bold font-mono text-xs"
                         />
                       </div>
@@ -9481,6 +9527,184 @@ export default function App() {
         >
           <ChevronUp className="w-5 h-5 md:w-6 md:h-6 stroke-[3]" />
         </button>
+      )}
+
+      {/* 📍 MANDATORY SELF-ATTENDANCE OVERLAY VIA QR */}
+      {selfAttendanceEvent && (
+        <div className="fixed inset-0 z-[260] flex items-center justify-center p-4 bg-zinc-950/75 backdrop-blur-md animate-fadeIn overflow-y-auto">
+          <div className="bg-white rounded-3xl border border-zinc-250 shadow-2xl max-w-md w-full text-left overflow-hidden animate-scaleIn transform duration-300">
+            {/* Elegant Top Branding Ribbon */}
+            <div className="bg-[#005c56] px-6 py-4.5 text-white relative">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="w-5 h-5 text-teal-300 animate-pulse" />
+                <span className="font-mono text-[10px] tracking-widest font-black uppercase text-teal-200">Presensi Mandiri J5 EVO</span>
+              </div>
+              <h3 className="font-sans font-black text-base mt-1 leading-tight">{selfAttendanceEvent.title}</h3>
+              <p className="text-[10px] font-mono text-teal-100 mt-1 flex items-center gap-1">
+                <Calendar className="w-3.5 h-3.5 text-teal-300" /> {selfAttendanceEvent.date} | {selfAttendanceEvent.time}
+              </p>
+              
+              <button
+                onClick={() => {
+                  setSelfAttendanceEvent(null);
+                  setSelfAttendanceEventId(null);
+                  // Clean up query param
+                  try {
+                    const url = new URL(window.location.href);
+                    url.searchParams.delete("absen_event");
+                    url.searchParams.delete("event_id");
+                    window.history.replaceState(null, "", url.pathname + url.search);
+                  } catch (e) {}
+                }}
+                className="absolute top-4 right-4 text-white/80 hover:text-white hover:scale-105 transition"
+                title="Tutup Presensi"
+              >
+                <X className="w-5 h-5 stroke-[2.5]" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              {selfAttendanceSuccess ? (
+                <div className="text-center py-6 space-y-4">
+                  <div className="w-16 h-16 bg-emerald-50 border border-emerald-200 text-emerald-600 rounded-full flex items-center justify-center mx-auto shadow-sm animate-bounce">
+                    <CheckCircle2 className="w-10 h-10 stroke-[2.5]" />
+                  </div>
+                  <div className="space-y-1">
+                    <h4 className="font-sans font-black text-lg text-zinc-900">PRESENSI BERHASIL!</h4>
+                    <p className="text-xs text-zinc-650 leading-relaxed">
+                      Halo Kak <strong className="text-zinc-900 uppercase font-bold">{selfAttendanceSuccess.member.name}</strong>, Anda tercatat resmi <span className="bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.5 rounded border border-emerald-200">HADIR</span> pada kegiatan ini.
+                    </p>
+                  </div>
+                  <div className="bg-zinc-50 border border-zinc-200 rounded-xl p-3 text-left font-mono text-[11px] text-zinc-650 space-y-1">
+                    <div>No Polisi: <strong className="text-zinc-800">{selfAttendanceSuccess.member.plateNumber}</strong></div>
+                    <div>Waktu Absen: <strong className="text-zinc-800">{new Date().toLocaleTimeString("id-ID")}</strong></div>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setSelfAttendanceSuccess(null);
+                      setSelfAttendanceEvent(null);
+                      setSelfAttendanceEventId(null);
+                      setSelfAttendanceForm({ plateNumber: "", pin: "" });
+                      // Clean up query param
+                      try {
+                        const url = new URL(window.location.href);
+                        url.searchParams.delete("absen_event");
+                        url.searchParams.delete("event_id");
+                        window.history.replaceState(null, "", url.pathname + url.search);
+                      } catch (e) {}
+                    }}
+                    className="w-full py-2.5 bg-[#005c56] hover:bg-[#004843] text-white font-bold text-xs rounded-xl shadow-md transition cursor-pointer"
+                  >
+                    Selesai & Tutup
+                  </button>
+                </div>
+              ) : (
+                <form
+                  onSubmit={async (e) => {
+                    e.preventDefault();
+                    setSelfAttendanceError(null);
+                    setLoading(true);
+
+                    try {
+                      // 1. Look up member
+                      const resLookup = await fetch(`/api/members/${encodeURIComponent(selfAttendanceForm.plateNumber.trim())}`);
+                      const lookupData = await resLookup.json();
+                      if (!resLookup.ok) {
+                        setSelfAttendanceError(lookupData.error || "Data anggota tidak ditemukan. Pastikan Plat Nomor benar.");
+                        setLoading(false);
+                        return;
+                      }
+
+                      // 2. Validate PIN
+                      if (lookupData.member.pin !== selfAttendanceForm.pin) {
+                        setSelfAttendanceError("PIN 6 Digit yang Anda masukkan salah.");
+                        setLoading(false);
+                        return;
+                      }
+
+                      // 3. Mark attendance
+                      const resAtt = await fetch(`/api/events/${selfAttendanceEvent.id}/attendance-record`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ query: selfAttendanceForm.plateNumber.trim() })
+                      });
+                      const attData = await resAtt.json();
+
+                      if (!resAtt.ok) {
+                        setSelfAttendanceError(attData.error || "Gagal merekam presensi.");
+                        setLoading(false);
+                        return;
+                      }
+
+                      // Success!
+                      setSelfAttendanceSuccess({
+                        member: lookupData.member,
+                        registration: attData.registration
+                      });
+                      fetchData(); // reload
+                    } catch (err) {
+                      setSelfAttendanceError("Koneksi gagal saat berkomunikasi dengan server.");
+                    } finally {
+                      setLoading(false);
+                    }
+                  }}
+                  className="space-y-4"
+                >
+                  <p className="text-zinc-600 text-xs leading-relaxed font-sans text-center">
+                    Gunakan formulir aman ini untuk mengonfirmasi kehadiran Anda di lokasi kegiatan. Harap isi data plat nomor Anda beserta PIN Keamanan 6 digit yang Anda daftarkan.
+                  </p>
+
+                  {selfAttendanceError && (
+                    <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-xs font-semibold flex items-start gap-2">
+                      <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                      <span>{selfAttendanceError}</span>
+                    </div>
+                  )}
+
+                  <div className="space-y-3">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-zinc-700 uppercase tracking-wider block">No. Plat Kendaraan (B 1234 CD) *</label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="Contoh: B 1111 XXX"
+                        value={selfAttendanceForm.plateNumber}
+                        onChange={(e) => setSelfAttendanceForm({ ...selfAttendanceForm, plateNumber: e.target.value.toUpperCase() })}
+                        className="w-full bg-zinc-50 text-zinc-900 border border-zinc-300 focus:border-teal-400 rounded-xl py-2 px-3 focus:outline-none text-xs font-bold font-mono uppercase text-center"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-zinc-700 uppercase tracking-wider block">PIN Keamanan 6 Digit *</label>
+                      <input
+                        type="password"
+                        pattern="[0-9]*"
+                        inputMode="numeric"
+                        maxLength={6}
+                        placeholder="******"
+                        required
+                        value={selfAttendanceForm.pin}
+                        onChange={(e) => {
+                          const val = e.target.value.replace(/[^0-9]/g, "").slice(0, 6);
+                          setSelfAttendanceForm({ ...selfAttendanceForm, pin: val });
+                        }}
+                        className="w-full bg-zinc-50 text-zinc-900 border border-zinc-300 focus:border-teal-400 rounded-xl py-2 px-3 focus:outline-none text-xs font-mono text-center tracking-widest font-black"
+                      />
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full py-2.5 bg-[#005c56] hover:bg-[#004843] text-white font-extrabold text-xs rounded-xl shadow-md transition uppercase tracking-wider cursor-pointer"
+                  >
+                    {loading ? "Memverifikasi..." : "Konfirmasi Hadir"}
+                  </button>
+                </form>
+              )}
+            </div>
+          </div>
+        </div>
       )}
 
     </div>
